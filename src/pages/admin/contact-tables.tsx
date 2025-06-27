@@ -331,7 +331,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   try {
     // Überprüfen, ob der Benutzer ein Admin ist
     // Supabase session.user.id ist die ID des authentifizierten Benutzers
-    const userProfile = await prisma.user.findUnique({
+    const userProfile = await prisma.profile.findUnique({
       where: { id: session.user.id } // Assuming your 'user' table's ID matches Supabase auth user ID
     });
 

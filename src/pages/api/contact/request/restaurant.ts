@@ -17,7 +17,7 @@ export default async function handler(
   const userId = session.user.id;
   
   // Überprüfen, ob der Benutzer ein Restaurant ist
-  const user = await prisma.user.findUnique({
+  const user = await prisma.profile.findUnique({
     where: { id: userId },
     include: {
       restaurant: true

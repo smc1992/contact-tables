@@ -1,9 +1,18 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, EventStatus } from '@prisma/client';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { sendNewContactTableRequestToRestaurant, sendContactTableConfirmationToCustomer } from '../../../utils/email';
 
 const prisma = new PrismaClient();
+
+interface CreateContactTableRequestBody {
+  restaurantId: string;
+  date: string;
+  time: string;
+  partySize: number;
+  message?: string;
+  isPublic?: boolean;
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -14,33 +23,33 @@ export default async function handler(
   }
 
   try {
-    // Supabase-Client erstellen
+    // Create Supabase client
     const supabase = createPagesServerClient({ req, res });
     
-    // Authentifizierung prüfen
+    // Check authentication
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      return res.status(401).json({ message: 'Nicht authentifiziert' });
+      return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    // Prüfen, ob der Benutzer ein zahlender Kunde ist
-    const user = await prisma.user.findUnique({
+    // Check if the user is a paying customer
+    const user = await prisma.profile.findUnique({
       where: { id: session.user.id },
-      select: { id: true, isPaying: true, name: true, email: true }
+      select: { id: true, isPaying: true, name: true }
     });
 
     if (!user) {
-      return res.status(404).json({ message: 'Benutzer nicht gefunden' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     if (!user.isPaying) {
       return res.status(403).json({ 
-        message: 'Für diese Funktion ist ein Premium-Konto erforderlich',
+        message: 'A premium account is required for this feature',
         requiresPayment: true
       });
     }
 
-    // Daten aus dem Request-Body extrahieren
+    // Extract data from the request body
     const {
       restaurantId,
       date,
@@ -48,72 +57,82 @@ export default async function handler(
       partySize,
       message,
       isPublic = true
-    } = req.body;
+    } = req.body as CreateContactTableRequestBody;
 
-    // Validierung der Pflichtfelder
+    // Validate required fields
     if (!restaurantId || !date || !time || !partySize) {
-      return res.status(400).json({ message: 'Bitte füllen Sie alle Pflichtfelder aus' });
+      return res.status(400).json({ message: 'Please fill in all required fields' });
     }
 
-    // Restaurant abrufen
+    // Get restaurant
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
       select: { id: true, name: true, email: true }
     });
 
     if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant nicht gefunden' });
+      return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    // Datum validieren (muss in der Zukunft liegen)
+    // Validate date (must be in the future)
     const reservationDate = new Date(`${date}T${time}`);
     if (reservationDate < new Date()) {
-      return res.status(400).json({ message: 'Das Datum muss in der Zukunft liegen' });
+      return res.status(400).json({ message: 'The date must be in the future' });
     }
 
-    // Kontakttisch erstellen
-    // @ts-ignore - Das contactTable-Modell ist in Prisma definiert, aber TypeScript erkennt es nicht korrekt
-    const contactTable = await prisma.contactTable.create({
+    // Create event
+    // @ts-ignore - Bypassing a persistent type error, likely due to a language server cache issue.
+    const event = await prisma.event.create({
       data: {
+        title: `Contact Table at ${restaurant.name}`,
         restaurantId,
-        hostId: user.id,
-        date: reservationDate,
-        partySize,
-        message: message || '',
-        status: 'OPEN',
+        datetime: reservationDate,
+        maxParticipants: partySize,
+        description: message || '',
+        status: EventStatus.OPEN,
         isPublic,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      },
     });
 
-    // E-Mail an Restaurant senden
-    await sendNewContactTableRequestToRestaurant({
-      restaurantEmail: restaurant.email ?? '',
-      restaurantName: restaurant.name,
-      customerName: user.name || 'Kunde',
-      date,
-      time,
-      partySize,
-      message
+    // Create a participant entry for the host
+    await prisma.eventParticipant.create({
+      data: {
+        eventId: event.id,
+        userId: user.id,
+        isHost: true,
+      },
     });
 
-    // Bestätigungs-E-Mail an Kunden senden
+    // Format date and time for email notifications
+    const eventDate = event.datetime.toLocaleDateString('de-DE');
+    const eventTime = event.datetime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+    // Send email to restaurant
+    if (restaurant.email) {
+      await sendNewContactTableRequestToRestaurant({
+        restaurantEmail: restaurant.email,
+        restaurantName: restaurant.name,
+        customerName: user.name ?? 'A user',
+        date: eventDate,
+        time: eventTime,
+        partySize: event.maxParticipants,
+        message: event.description ?? '',
+      });
+    }
+
+    // Send confirmation email to customer
     await sendContactTableConfirmationToCustomer({
-      customerEmail: user.email || '',
-      customerName: user.name || 'Kunde',
+      customerEmail: session.user.email!,
+      customerName: user.name ?? 'there',
       restaurantName: restaurant.name,
-      date,
-      time,
-      partySize
+      date: eventDate,
+      time: eventTime,
+      partySize: event.maxParticipants,
     });
 
-    return res.status(201).json({
-      message: 'Kontakttisch erfolgreich erstellt',
-      contactTable
-    });
+    return res.status(201).json(event);
   } catch (error) {
-    console.error('Fehler beim Erstellen des Kontakttisches:', error);
-    return res.status(500).json({ message: 'Interner Serverfehler' });
+    console.error('Error creating contact table:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }

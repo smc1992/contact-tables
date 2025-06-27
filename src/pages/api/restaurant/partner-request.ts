@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Benutzer in der Datenbank erstellen oder aktualisieren
-    await prisma.user.upsert({
+    await prisma.profile.upsert({
       where: { id: userId },
       update: {
         name: contactName,

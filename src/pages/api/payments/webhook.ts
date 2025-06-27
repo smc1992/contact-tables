@@ -58,7 +58,7 @@ export default async function handler(
 
         // Benutzer aktualisieren
         if (plan === 'user') {
-          await prisma.user.update({
+          await prisma.profile.update({
             where: { id: userId },
             data: {
               isPaying,
@@ -70,7 +70,7 @@ export default async function handler(
         } else if (plan === 'restaurant') {
           // Wenn der Benutzer ein Restaurant-Abonnement abschließt, 
           // müssen wir prüfen, ob bereits ein Restaurant existiert
-          const user = await prisma.user.findUnique({
+          const user = await prisma.profile.findUnique({
             where: { id: userId },
             include: { restaurant: true }
           });
@@ -81,7 +81,7 @@ export default async function handler(
           }
 
           // Benutzer aktualisieren
-          await prisma.user.update({
+          await prisma.profile.update({
             where: { id: userId },
             data: {
               isPaying,
@@ -125,7 +125,7 @@ export default async function handler(
         const customerId = subscription.customer as string;
 
         // Benutzer mit dieser Kunden-ID finden
-        const user = await prisma.user.findFirst({
+        const user = await prisma.profile.findFirst({
           where: { stripeCustomerId: customerId }
         });
 
@@ -135,7 +135,7 @@ export default async function handler(
         }
 
         // Abonnementstatus aktualisieren
-        await prisma.user.update({
+        await prisma.profile.update({
           where: { id: user.id },
           data: {
             isPaying: status === 'active',
@@ -151,7 +151,7 @@ export default async function handler(
         const customerId = subscription.customer as string;
 
         // Benutzer mit dieser Kunden-ID finden
-        const user = await prisma.user.findFirst({
+        const user = await prisma.profile.findFirst({
           where: { stripeCustomerId: customerId }
         });
 
@@ -161,7 +161,7 @@ export default async function handler(
         }
 
         // Abonnement als gekündigt markieren
-        await prisma.user.update({
+        await prisma.profile.update({
           where: { id: user.id },
           data: {
             isPaying: false,

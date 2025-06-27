@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Benutzer in der Datenbank finden
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: session.user.id },
       select: {
         id: true,
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Passwort in der Datenbank aktualisieren
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: user.id },
       data: { password: hashedPassword }
     });

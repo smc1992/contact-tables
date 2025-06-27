@@ -34,10 +34,21 @@ export function createClient(context: SupabaseServerContext) {
           // es am Ende zu setzen, oder context.res.appendHeader zu verwenden, falls verfügbar.
           // Für Pages Router ist setHeader meist ausreichend, wenn es korrekt verwendet wird.
           // Wichtig: Die Optionen müssen korrekt formatiert werden.
-          let cookieString = `${name}=${value}; Path=${options.path || '/'}; Max-Age=${options.maxAge}; SameSite=${options.sameSite || 'Lax'}; HttpOnly=${options.httpOnly !== false}`;
-          if (options.secure) {
-            cookieString += '; Secure';
+          const cookieParts = [
+            `${name}=${value}`,
+            `Path=${options.path || '/'}`,
+            `Max-Age=${options.maxAge}`,
+            `SameSite=${options.sameSite || 'Lax'}`,
+          ];
+
+          if (options.httpOnly !== false) {
+            cookieParts.push('HttpOnly');
           }
+          if (options.secure) {
+            cookieParts.push('Secure');
+          }
+
+          const cookieString = cookieParts.join('; ');
           // Um sicherzustellen, dass wir nicht versuchen, auf ein nicht existentes res-Objekt zuzugreifen
           if (context.res) {
             const existingCookies = context.res.getHeader('Set-Cookie');
@@ -52,10 +63,21 @@ export function createClient(context: SupabaseServerContext) {
           }
         },
         remove(name: string, options: CookieOptions) {
-          let cookieString = `${name}=; Path=${options.path || '/'}; Max-Age=0; SameSite=${options.sameSite || 'Lax'}; HttpOnly=${options.httpOnly !== false}`;
-          if (options.secure) {
-            cookieString += '; Secure';
+          const cookieParts = [
+            `${name}=`,
+            `Path=${options.path || '/'}`,
+            `Max-Age=0`,
+            `SameSite=${options.sameSite || 'Lax'}`,
+          ];
+
+          if (options.httpOnly !== false) {
+            cookieParts.push('HttpOnly');
           }
+          if (options.secure) {
+            cookieParts.push('Secure');
+          }
+          
+          const cookieString = cookieParts.join('; ');
           if (context.res) {
             const existingCookies = context.res.getHeader('Set-Cookie');
             let newCookies: string[] = [];

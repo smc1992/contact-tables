@@ -125,7 +125,6 @@ model Restaurant {
   images   RestaurantImage[]
   invoices Invoice[]
   contract Contract?
-
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -143,6 +142,7 @@ model Event {
   restaurantId    String     @db.Uuid @map("restaurant_id")
   restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   status          EventStatus @default(OPEN)
+  isPublic        Boolean    @default(true) @map("is_public")
 
   participants EventParticipant[]
   favorites    Favorite[] // Added relation
@@ -199,9 +199,7 @@ model RestaurantImage {
   url          String
   isPrimary    Boolean    @default(false) @map("is_primary")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
+  @@map("restaurant_images")
   @@schema("public")
 }
 

@@ -14,7 +14,7 @@ export default async function handler(
   }
 
   const token = authorization.split(' ')[1];
-  const user = await prisma.user.findUnique({
+  const user = await prisma.profile.findUnique({
     where: { id: token },
     select: { role: true, restaurantId: true },
   });

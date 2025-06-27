@@ -221,7 +221,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     // Überprüfen, ob der Benutzer ein Restaurant ist
-    const user = await prisma.user.findUnique({
+    const user = await prisma.profile.findUnique({
       where: { id: session.user.id },
       include: {
         restaurant: true

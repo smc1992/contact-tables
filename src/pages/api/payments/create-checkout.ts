@@ -27,7 +27,7 @@ export default async function handler(
     }
 
     // Benutzer abrufen
-    const user = await prisma.user.findUnique({
+    const user = await prisma.profile.findUnique({
       where: { id: session.user.id }
     });
 

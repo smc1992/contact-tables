@@ -401,7 +401,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     // Überprüfen, ob der Benutzer bezahlt hat
-    const dbUser = await prisma.user.findUnique({
+    const dbUser = await prisma.profile.findUnique({
       where: { id: user.id }
     });
 

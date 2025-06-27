@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
@@ -14,26 +14,26 @@ export default async function handler(
   }
 
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body as { email?: string, password?: string };
 
-    // Validierung der Eingaben
+    // Validate input
     if (!email || !password) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // Überprüfen, ob der Benutzer bereits existiert
+    // Check if user already exists
     const existingUser = await prisma.users.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      return res.status(409).json({ message: 'Ein Benutzer mit dieser E-Mail-Adresse existiert bereits.' });
+      return res.status(409).json({ message: 'User with this email already exists.' });
     }
 
-    // Passwort hashen
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Neuen Benutzer erstellen
+    // Create new user
     const newUser = await prisma.users.create({
       data: {
         id: randomUUID(),
@@ -42,7 +42,7 @@ export default async function handler(
       },
     });
 
-    // Erfolgsantwort ohne Passwort
+    // Success response without password
     return res.status(201).json({
       id: newUser.id,
       email: newUser.email,
