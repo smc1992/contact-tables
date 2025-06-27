@@ -14,10 +14,10 @@ export default async function handler(
   }
 
   try {
-    const { name, email, password } = req.body;
+    const { email, password } = req.body;
 
     // Validierung der Eingaben
-    if (!name || !email || !password) {
+    if (!email || !password) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
