@@ -1,0 +1,323 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiChevronDown, FiHelpCircle, FiUsers, FiMapPin, FiCalendar, FiClock, FiCreditCard, FiShield } from 'react-icons/fi';
+import PageLayout from '../../components/PageLayout';
+import Link from 'next/link';
+
+// FAQ-Kategorien mit verbesserten Beschreibungen
+const faqCategories = [
+  {
+    id: 'general',
+    name: 'Allgemein',
+    icon: <FiHelpCircle />,
+    description: 'Grundlegende Informationen über Contact Tables und unser Konzept'
+  },
+  {
+    id: 'users',
+    name: 'Für Gäste',
+    icon: <FiUsers />,
+    description: 'Alles, was du als Teilnehmer an Kontakttischen wissen musst'
+  },
+  {
+    id: 'restaurants',
+    name: 'Für Restaurants',
+    icon: <FiMapPin />,
+    description: 'Informationen für Gastronomiebetriebe, die teilnehmen möchten'
+  },
+  {
+    id: 'booking',
+    name: 'Reservierung',
+    icon: <FiCalendar />,
+    description: 'Fragen zur Buchung und Teilnahme an Kontakttischen'
+  },
+  {
+    id: 'privacy',
+    name: 'Datenschutz',
+    icon: <FiShield />,
+    description: 'Wie wir deine Daten schützen und verwenden'
+  },
+  {
+    id: 'community',
+    name: 'Community',
+    icon: <FiUsers />,
+    description: 'Unsere Gemeinschaft und wie du dich einbringen kannst'
+  },
+];
+
+// FAQ-Fragen und Antworten mit erweiterten Inhalten
+const faqItems = [
+  {
+    category: 'general',
+    question: 'Was ist Contact Tables?',
+    answer: 'Contact Tables ist eine Plattform, die Menschen an Restauranttischen zusammenbringt, um Einsamkeit zu bekämpfen und echte Gespräche zu fördern. Wir sind eine Vermittlungsplattform, bei der Nutzer nach Restaurants suchen können, die spezielle Kontakttische anbieten, an denen man sich mit anderen Menschen treffen und austauschen kann.'
+  },
+  {
+    category: 'general',
+    question: 'Was ist ein "Contact-Table"?',
+    answer: 'Ein Contact-Table ist ein spezieller Tisch in einem Restaurant – für Menschen, die allein essen gehen, aber offen für Gesellschaft und Gespräche sind. Hier darf man sich dazusetzen, austauschen, gemeinsam lachen oder einfach einen netten Abend in angenehmer Runde verbringen. Die Tische sind in den teilnehmenden Restaurants speziell gekennzeichnet.'
+  },
+  {
+    category: 'general',
+    question: 'Wie funktioniert Contact-Tables?',
+    answer: 'Ganz einfach: 1. Such Dir ein Restaurant aus, das bei Contact-Tables mitmacht – alle teilnehmenden Orte findest Du auf unserer Website. 2. Schau in den Kalender, ob schon jemand für Deine gewünschte Zeit eingetragen ist – oder trag Dich selbst ein, damit andere sehen, dass jemand da ist. 3. Ruf kurz im Restaurant an und reserviere den Contact-Table. 4. So kann der Tisch auch wirklich für Dich freigehalten werden – gerade am Anfang ist das für die Planung wichtig. 5. Geh zur vereinbarten Zeit ins Restaurant – dieser ist vor Ort gut gekennzeichnet. Setz Dich dazu und schau, was sich ergibt... Es darf geplaudert, ausgetauscht, gelacht oder einfach nur gemeinsam gegessen werden.'
+  },
+  {
+    category: 'users',
+    question: 'Für wen ist Contact Tables gedacht?',
+    answer: 'Für alle, die offen für neue Begegnungen sind – ob auf Reisen, neu in der Stadt oder beruflich – und Lust haben, beim Essen mit jemandem ins Gespräch zu kommen – ganz spontan und unkompliziert! Contact Tables ist für Menschen jeden Alters und jeder Herkunft geeignet, die Wert auf echte Gespräche und menschliche Verbindungen legen.'
+  },
+  {
+    category: 'general',
+    question: 'Wie finde ich Contact-Tables?',
+    answer: 'Damit die Chancen auf echte Begegnungen steigen, findest Du auf unserer Website zu jedem Restaurant einen Kalender. Dort kannst Du eintragen, wann Du planst, zum Contact-Table zu gehen – ganz anonym, ohne Angabe von Namen, Alter oder Geschlecht. So können andere sehen, dass jemand da sein wird, und sich dazusetzen oder sich ebenfalls eintragen. Du kannst auch unsere Suchfunktion nutzen, um Restaurants in deiner Nähe zu finden, die Kontakttische anbieten.'
+  },
+  {
+    category: 'general',
+    question: 'Kostet die Nutzung von Contact Tables etwas?',
+    answer: 'Die Nutzung der Contact Tables-Plattform ist für Gäste kostenlos. Du bezahlst lediglich dein Essen und Getränke direkt im Restaurant zu den üblichen Preisen. Für Restaurants bieten wir verschiedene Mitgliedschaftsmodelle an, damit sie Teil unseres Netzwerks werden können.'
+  },
+  {
+    category: 'users',
+    question: 'Wie melde ich mich für einen Kontakttisch an?',
+    answer: 'Du kannst auf unserer Website nach verfügbaren Kontakttischen suchen und dich mit deinem Konto für einen Platz anmelden. Nach der Anmeldung erhältst du eine Bestätigung per E-Mail mit allen Details zum Treffen. Du kannst auch spontan teilnehmen, wenn du ein Restaurant mit Kontakttisch besuchst und siehst, dass dort Platz ist.'
+  },
+  {
+    category: 'users',
+    question: 'Was passiert, wenn ich einen Kontakttisch nicht wahrnehmen kann?',
+    answer: 'Bitte sage deinen Platz so früh wie möglich ab, damit andere Interessenten nachrücken können. In deinem Profil findest du unter "Meine Buchungen" die Option zur Stornierung. Eine Absage sollte spätestens 24 Stunden vor dem Termin erfolgen. Das ist wichtig, damit andere Teilnehmer planen können und die Restaurants eine zuverlässige Belegung haben.'
+  },
+  {
+    category: 'users',
+    question: 'Kann ich einen eigenen Kontakttisch erstellen?',
+    answer: 'Ja, du kannst selbst einen Kontakttisch initiieren. Wähle dazu ein teilnehmendes Restaurant, einen Termin und die maximale Teilnehmerzahl. Du wirst dann zum Host dieses Tisches und kannst eine kurze Beschreibung hinzufügen, um was für Menschen du dich am Tisch freuen würdest. Als Host hast du keine besonderen Verpflichtungen, sondern bist einfach derjenige, der den Tisch ins Leben gerufen hat.'
+  },
+  {
+    category: 'users',
+    question: 'Gibt es Verhaltensregeln für Kontakttische?',
+    answer: 'Ja, wir haben einen Verhaltenskodex, der respektvolles und inklusives Verhalten fördert. Dazu gehört, pünktlich zu erscheinen, offen für Gespräche zu sein und andere Teilnehmer mit Respekt zu behandeln. Belästigendes oder diskriminierendes Verhalten wird nicht toleriert. Wir möchten, dass sich alle an unseren Tischen sicher und willkommen fühlen.'
+  },
+  {
+    category: 'restaurants',
+    question: 'Wie kann mein Restaurant teilnehmen?',
+    answer: 'Restaurants können sich über unser Partnerportal anmelden. Nach einer kurzen Prüfung kannst du festlegen, wann und wie viele Kontakttische du anbieten möchtest. Wir unterstützen dich bei der Integration in dein Reservierungssystem und stellen dir Materialien zur Verfügung, um die Kontakttische in deinem Restaurant zu kennzeichnen. Der Registrierungsprozess ist einfach und unkompliziert.'
+  },
+  {
+    category: 'restaurants',
+    question: 'Welche Vorteile hat mein Restaurant durch Contact Tables?',
+    answer: 'Als teilnehmendes Restaurant profitierst du von zusätzlichen Gästen, besonders zu weniger ausgelasteten Zeiten, erhöhter Sichtbarkeit durch unsere Plattform und einem positiven Image als sozial engagiertes Unternehmen, das gegen Einsamkeit aktiv wird. Viele unserer Partnerrestaurants berichten auch von einer besonderen Atmosphäre, die durch die Kontakttische entsteht, und von Stammgästen, die durch diese Initiative gewonnen wurden.'
+  },
+  {
+    category: 'restaurants',
+    question: 'Gibt es besondere Anforderungen an Kontakttische?',
+    answer: 'Kontakttische sollten idealerweise in einem ruhigeren Bereich des Restaurants platziert sein, um Gespräche zu erleichtern. Eine kleine Tischkarte oder ein anderes Erkennungszeichen hilft den Teilnehmern, den Kontakttisch zu finden. Wir stellen dir entsprechende Materialien zur Verfügung. Ansonsten gibt es keine besonderen Anforderungen an die Ausstattung oder Größe des Tisches.'
+  },
+  {
+    category: 'restaurants',
+    question: 'Wie werden die Kosten für Restaurants berechnet?',
+    answer: 'Wir bieten verschiedene Mitgliedschaftsmodelle an, die sich nach der Größe des Restaurants und der Anzahl der angebotenen Kontakttische richten. Es gibt ein Basispaket mit monatlicher Zahlung sowie Premium-Pakete mit zusätzlichen Marketingvorteilen. Detaillierte Informationen findest du in unserem Partnerbereich oder bei einem persönlichen Gespräch mit unserem Team.'
+  },
+  {
+    category: 'booking',
+    question: 'Wie funktioniert die Reservierung genau?',
+    answer: 'Wichtig: Bitte reserviere den Contact-Table zusätzlich telefonisch im Restaurant, damit der Tisch für Dich freigehalten wird – gerade am Anfang hilft das allen Beteiligten sehr. Du kannst natürlich auch einfach spontan vorbeischauen – beide Wege sind möglich. Mit Reservierung ist\'s aber sicherer. Nach der Online-Anmeldung erhältst du eine Bestätigungsmail mit allen Details.'
+  },
+  {
+    category: 'booking',
+    question: 'Kann ich mehrere Plätze für Freunde reservieren?',
+    answer: 'Contact Tables ist primär für Einzelpersonen gedacht, die neue Menschen kennenlernen möchten. Wenn du mit Freunden kommen möchtest, empfehlen wir, dass jeder einen eigenen Platz reserviert. So bleibt der Grundgedanke des Konzepts erhalten. In besonderen Fällen kannst du uns kontaktieren, wenn du eine größere Gruppe anmelden möchtest.'
+  },
+  {
+    category: 'booking',
+    question: 'Gibt es eine maximale Teilnehmerzahl pro Tisch?',
+    answer: 'Die maximale Teilnehmerzahl variiert je nach Restaurant und Tischgröße, liegt aber in der Regel zwischen 4 und 8 Personen. Diese Größe hat sich als ideal erwiesen, um gute Gespräche zu ermöglichen, bei denen sich alle einbringen können. Die genaue Teilnehmerzahl wird bei jedem Kontakttisch in der Beschreibung angegeben.'
+  },
+  {
+    category: 'privacy',
+    question: 'Welche Daten werden von mir gespeichert?',
+    answer: 'Wir speichern nur die Daten, die für die Nutzung der Plattform notwendig sind: deine Kontaktdaten (E-Mail, optional Telefonnummer), dein Profil (falls du eines anlegst) und deine Buchungshistorie. Deine Daten werden nicht an Dritte weitergegeben, außer an die Restaurants, bei denen du einen Platz reservierst. Weitere Informationen findest du in unserer Datenschutzerklärung.'
+  },
+  {
+    category: 'privacy',
+    question: 'Sind meine Daten sicher?',
+    answer: 'Ja, der Schutz deiner Daten hat für uns höchste Priorität. Wir verwenden moderne Verschlüsselungstechnologien und halten uns strikt an die DSGVO. Deine persönlichen Daten werden nur für den vorgesehenen Zweck verwendet und nicht an unbeteiligte Dritte weitergegeben. Unsere Server stehen in Deutschland und unterliegen den strengen europäischen Datenschutzbestimmungen.'
+  },
+  {
+    category: 'community',
+    question: 'Gibt es regelmäßige Community-Events?',
+    answer: 'Ja, wir organisieren regelmäßig spezielle Events in verschiedenen Städten, wie thematische Kontakttische, Kochabende oder kulturelle Veranstaltungen. Diese werden auf unserer Website und über unseren Newsletter angekündigt. Sie bieten eine gute Gelegenheit, die Contact Tables-Community kennenzulernen und sich mit Gleichgesinnten zu vernetzen.'
+  },
+  {
+    category: 'community',
+    question: 'Wie kann ich mich in die Community einbringen?',
+    answer: 'Es gibt verschiedene Möglichkeiten, sich zu engagieren: Du kannst regelmäßig Kontakttische hosten, an unseren Community-Events teilnehmen, in unserem Forum aktiv sein oder als Botschafter für Contact Tables in deiner Stadt fungieren. Wir freuen uns immer über engagierte Mitglieder, die unsere Vision teilen. Kontaktiere uns einfach, wenn du Ideen oder Vorschläge hast.'
+  },
+  {
+    category: 'community',
+    question: 'Gibt es Erfolgsgeschichten von Contact Tables?',
+    answer: 'Ja, wir haben viele schöne Geschichten von Menschen, die durch Contact Tables neue Freundschaften geschlossen, Gleichgesinnte gefunden oder sogar ihre Partner kennengelernt haben. Einige dieser Geschichten teilen wir mit Erlaubnis der Beteiligten auf unserer Website. Wenn du selbst eine positive Erfahrung gemacht hast, freuen wir uns, wenn du sie mit uns teilst.'
+  },
+  {
+    category: 'general',
+    question: 'In welchen Städten ist Contact Tables verfügbar?',
+    answer: 'Contact Tables ist derzeit in mehreren deutschen Großstädten aktiv, darunter Berlin, München, Hamburg, Köln und Frankfurt. Wir erweitern unser Netzwerk kontinuierlich und planen, bald auch in weiteren Städten präsent zu sein. Auf unserer Website findest du immer eine aktuelle Übersicht aller teilnehmenden Städte und Restaurants.'
+  },
+  {
+    category: 'general',
+    question: 'Wie kann ich Contact Tables unterstützen?',
+    answer: 'Die beste Unterstützung ist, aktiv an Kontakttischen teilzunehmen und anderen von der Idee zu erzählen. Du kannst uns auch auf sozialen Medien folgen und unsere Beiträge teilen. Wenn du ein Restaurant kennst, das gut zu unserem Konzept passen würde, kannst du es uns gerne empfehlen oder direkt mit den Verantwortlichen über Contact Tables sprechen.'
+  },
+  {
+    category: 'users',
+    question: 'Muss ich mich anmelden, um teilzunehmen?',
+    answer: 'Für eine optimale Nutzung der Plattform empfehlen wir die Erstellung eines Kontos, da du so Tische reservieren, deine Buchungen verwalten und Benachrichtigungen erhalten kannst. Es ist jedoch auch möglich, ohne Anmeldung nach Kontakttischen zu suchen und spontan teilzunehmen, wenn im Restaurant Platz ist.'
+  },
+  {
+    category: 'booking',
+    question: 'Kann ich spezielle Wünsche äußern (z.B. Allergien)?',
+    answer: 'Ja, bei der Anmeldung zu einem Kontakttisch kannst du Notizen hinterlassen, die an das Restaurant weitergeleitet werden. Für spezifische Anfragen empfehlen wir, das Restaurant direkt zu kontaktieren.'
+  },
+  {
+    category: 'booking',
+    question: 'Wie weit im Voraus kann ich einen Kontakttisch buchen?',
+    answer: 'Kontakttische können in der Regel bis zu 4 Wochen im Voraus gebucht werden. Einige Restaurants bieten auch kurzfristigere Optionen an, manchmal sogar für den gleichen Tag.'
+  },
+  {
+    category: 'privacy',
+    question: 'Welche Daten werden über mich gespeichert?',
+    answer: 'Wir speichern die für die Nutzung notwendigen Daten wie Name, E-Mail, Profilbild (optional) und deine Buchungshistorie. Detaillierte Informationen findest du in unserer Datenschutzerklärung.'
+  },
+  {
+    category: 'privacy',
+    question: 'Wer kann meine Kontaktdaten sehen?',
+    answer: 'Deine Kontaktdaten sind für andere Nutzer nicht sichtbar. Nur das Restaurant erhält die notwendigen Informationen für die Reservierung. Bei Kontakttischen ist lediglich dein Name und optional dein Profilbild für andere Teilnehmer sichtbar.'
+  },
+  {
+    category: 'privacy',
+    question: 'Wie kann ich mein Konto löschen?',
+    answer: 'Du kannst dein Konto jederzeit in deinen Profileinstellungen löschen. Beachte, dass dadurch alle deine Daten unwiderruflich gelöscht werden, mit Ausnahme der Informationen, die wir aus rechtlichen Gründen aufbewahren müssen.'
+  },
+];
+
+export default function FAQPage() {
+  const [activeCategory, setActiveCategory] = useState('general');
+  const [openItems, setOpenItems] = useState<string[]>([]);
+
+  const toggleItem = (question: string) => {
+    setOpenItems(prev => 
+      prev.includes(question) 
+        ? prev.filter(item => item !== question) 
+        : [...prev, question]
+    );
+  };
+
+  const filteredFAQs = faqItems.filter(item => item.category === activeCategory);
+
+  return (
+    <PageLayout>
+      {/* Hero Section */}
+      <div className="bg-primary-800 text-white py-24 -mt-8 rounded-b-3xl">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-3xl mx-auto text-center"
+          >
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              Häufig gestellte Fragen
+            </h1>
+            <p className="text-xl text-white/90 leading-relaxed">
+              Hier findest du Antworten auf die häufigsten Fragen rund um Contact Tables.
+              Falls deine Frage nicht beantwortet wird, kontaktiere uns gerne direkt.
+            </p>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-5xl mx-auto">
+            {/* Kategorien */}
+            <div className="flex flex-wrap justify-center gap-4 mb-12">
+              {faqCategories.map((category) => (
+                <motion.button
+                  key={category.id}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`flex items-center px-6 py-3 rounded-full font-medium transition-colors ${
+                    activeCategory === category.id
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-neutral-100 text-gray-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  <span className="mr-2">{category.icon}</span>
+                  {category.name}
+                </motion.button>
+              ))}
+            </div>
+
+            {/* FAQ Items */}
+            <div className="space-y-4">
+              {filteredFAQs.map((faq, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="border border-neutral-200 rounded-xl overflow-hidden"
+                >
+                  <button
+                    onClick={() => toggleItem(faq.question)}
+                    className="w-full flex items-center justify-between p-6 text-left bg-white hover:bg-neutral-50 transition-colors"
+                  >
+                    <span className="font-semibold text-lg">{faq.question}</span>
+                    <motion.div
+                      animate={{ rotate: openItems.includes(faq.question) ? 180 : 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <FiChevronDown className="text-primary-600" />
+                    </motion.div>
+                  </button>
+                  
+                  <AnimatePresence>
+                    {openItems.includes(faq.question) && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-6 pt-0 border-t border-neutral-100 bg-white">
+                          <p className="text-gray-700">{faq.answer}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+            
+            {/* Kontakt CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mt-16 bg-primary-50 rounded-xl p-8 text-center"
+            >
+              <h3 className="text-2xl font-bold mb-4">Noch Fragen?</h3>
+              <p className="text-gray-700 mb-6">
+                Wir sind für dich da! Wenn du weitere Fragen hast oder Unterstützung benötigst,
+                zögere nicht, uns zu kontaktieren.
+              </p>
+              <Link href="/contact" className="inline-block bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+                Kontakt aufnehmen
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </PageLayout>
+  );
+}

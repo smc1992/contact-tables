@@ -1,0 +1,70 @@
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const supabase = createClient(context);
+  
+  // Authentifizierungsstatus prüfen
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  
+  // Wenn kein Benutzer eingeloggt ist, zur Login-Seite umleiten
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/auth/login?redirect=' + encodeURIComponent(context.resolvedUrl),
+        permanent: false,
+      },
+    };
+  }
+  
+  const userId = session.user.id;
+  
+  // Benutzerrolle abrufen
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+  
+  const userRole = profileData?.role || 'USER';
+  
+  // Kontakttisch-ID aus der URL abrufen
+  const { id } = context.params as { id: string };
+  
+  if (!id) {
+    return {
+      notFound: true,
+    };
+  }
+  
+  try {
+    // Kontakttisch mit Restaurant und Teilnehmern abrufen
+    const { data: contactTable, error } = await supabase
+      .from('contact_tables')
+      .select(`
+        *,
+        restaurant:restaurant_id(*),
+        participants:participations(*, user:user_id(*))
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error || !contactTable) {
+      return {
+        notFound: true,
+      };
+    }
+    
+    return {
+      props: {
+        initialContactTable: contactTable,
+        userRole,
+        userId,
+      },
+    };
+  } catch (error) {
+    console.error('Fehler beim Abrufen des Kontakttisches:', error);
+    return {
+      notFound: true,
+    };
+  }
+};
