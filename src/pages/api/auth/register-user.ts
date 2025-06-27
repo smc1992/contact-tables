@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -24,27 +25,26 @@ export default async function handler(
   }
 
   try {
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.users.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      return res.status(409).json({ message: 'User with this email already exists.' });
+      return res.status(409).json({ message: 'Ein Benutzer mit dieser E-Mail-Adresse existiert bereits.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.user.create({
+    const newUser = await prisma.users.create({
       data: {
-        name,
+        id: randomUUID(),
         email,
-        password: hashedPassword,
-        role: 'USER', // Default role, adjust if necessary
+        encrypted_password: hashedPassword,
       },
     });
 
     // Exclude password from the returned user object
-    const { password: _, ...userWithoutPassword } = newUser;
+    const { encrypted_password: _, ...userWithoutPassword } = newUser;
 
     return res.status(201).json({ message: 'User created successfully', user: userWithoutPassword });
 
