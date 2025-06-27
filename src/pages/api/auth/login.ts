@@ -22,7 +22,7 @@ export default async function handler(
     }
 
     // Benutzer suchen
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email },
     });
 
@@ -31,26 +31,24 @@ export default async function handler(
     }
 
     // Passwort überprüfen
-    if (!user.password) {
-      return res.status(401).json({ message: 'Für diesen Account ist kein Passwort gesetzt' });
+    if (!user || !user.encrypted_password) {
+      return res.status(401).json({ message: 'Ungültige Anmeldeinformationen' });
     }
-    
-    const isPasswordValid = await bcrypt.compare(password, user.password);
 
+    // Passwort vergleichen
+    const isPasswordValid = await bcrypt.compare(password, user.encrypted_password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+      return res.status(401).json({ message: 'Ungültige Anmeldeinformationen' });
     }
 
-    // Erfolgsantwort ohne Passwort, aber mit Rolle
-    const { password: _, ...userWithoutPassword } = user;
+    // Erfolgsantwort ohne Passwort
+    const { encrypted_password: _, ...userWithoutPassword } = user;
     
     // Erstelle ein JWT-Token, das mit NextAuth kompatibel ist
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
-        name: user.name,
-        role: user.role,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 Tage
       },
