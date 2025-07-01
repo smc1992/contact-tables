@@ -41,7 +41,7 @@ interface DashboardProps {
   restaurant: RestaurantData;
 }
 
-export default function RestaurantDashboard({ restaurant }: DashboardProps) {
+function RestaurantDashboard({ restaurant }: DashboardProps) {
   const [profileCompleteness, setProfileCompleteness] = useState(0);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   
@@ -475,7 +475,10 @@ export default function RestaurantDashboard({ restaurant }: DashboardProps) {
       
       <Footer />
     </div>
+  );
 }
+
+export default RestaurantDashboard;
 
 export const getServerSideProps: GetServerSideProps = async (context: GetServerSidePropsContext) => {
   console.log("getServerSideProps für /restaurant/dashboard AUFGERUFEN");
@@ -484,7 +487,7 @@ export const getServerSideProps: GetServerSideProps = async (context: GetServerS
 
   if (!user) {
     console.log("getServerSideProps: Kein Benutzer gefunden, Umleitung zum Login.");
-    return { redirect: { destination: '/login', permanent: false } };
+    return { redirect: { destination: '/auth/login', permanent: false } };
   }
 
   const userRole = user.user_metadata?.role || user.app_metadata?.role;
@@ -496,50 +499,56 @@ export const getServerSideProps: GetServerSideProps = async (context: GetServerS
   try {
     console.log(`getServerSideProps: Versuche Restaurantdaten zu laden für user.id: ${user.id}`);
     
+    // .single() entfernt, um Fehler bei mehreren/keinen Ergebnissen abzufangen
     const { data: dbData, error } = await supabase
       .from('restaurants')
       .select(`
         id, name, description, address, city, cuisine, phone, email, website, capacity, opening_hours, is_active, created_at, updated_at, userId, contract_status,
-        events:contact_tables(count)
+        contact_tables(count)
       `)
-      .eq('userId', user.id)
-      .single();
+      .eq('userId', user.id);
 
     if (error) {
       console.error('Supabase-Fehler beim Laden der Restaurantdaten:', error);
-      if (error.code === 'PGRST116') { 
-        console.log(`getServerSideProps: Kein Restaurant für Benutzer ${user.id} gefunden. Umleitung zur Registrierung.`);
-        return { redirect: { destination: '/restaurant/register', permanent: false } };
+      // Wir werfen den Fehler hier nicht sofort, da wir den Fall "keine Zeile" manuell behandeln
+      if (error.code !== 'PGRST116') { // PGRST116 (keine Zeile) ist kein echter Fehler in unserem Fall
+        throw error;
       }
-      throw error;
     }
 
-    if (!dbData) {
-      console.log(`getServerSideProps: Kein Restaurant für Benutzer ${user.id} gefunden (Daten waren null). Umleitung zur Registrierung.`);
+    // Prüfen, ob Daten vorhanden sind und ob es genau ein Restaurant gibt
+    if (!dbData || dbData.length === 0) {
+      console.log(`getServerSideProps: Kein Restaurant für Benutzer ${user.id} gefunden. Umleitung zur Registrierung.`);
       return { redirect: { destination: '/restaurant/register', permanent: false } };
     }
 
+    if (dbData.length > 1) {
+      console.warn(`WARNUNG: Mehrere Restaurant-Profile für Benutzer ${user.id} gefunden. Verwende das erste Ergebnis.`);
+    }
+
+    const firstRestaurant = dbData[0];
+
     const restaurant: RestaurantData = {
-      id: dbData.id,
-      name: dbData.name,
-      description: dbData.description,
-      address: dbData.address,
-      city: dbData.city,
-      cuisine: dbData.cuisine,
-      phone: dbData.phone,
-      email: dbData.email,
-      website: dbData.website,
-      capacity: dbData.capacity,
-      openingHours: dbData.opening_hours,
+      id: firstRestaurant.id,
+      name: firstRestaurant.name,
+      description: firstRestaurant.description,
+      address: firstRestaurant.address,
+      city: firstRestaurant.city,
+      cuisine: firstRestaurant.cuisine,
+      phone: firstRestaurant.phone,
+      email: firstRestaurant.email,
+      website: firstRestaurant.website,
+      capacity: firstRestaurant.capacity,
+      openingHours: firstRestaurant.opening_hours,
       imageUrl: null, // Explizit auf null setzen, da die Spalte in der DB fehlt
-      isActive: dbData.is_active ?? false,
-      contractStatus: dbData.contract_status,
-      createdAt: dbData.created_at,
-      updatedAt: dbData.updated_at,
-      userId: dbData.userId,
+      isActive: firstRestaurant.is_active ?? false,
+      contractStatus: firstRestaurant.contract_status,
+      createdAt: firstRestaurant.created_at,
+      updatedAt: firstRestaurant.updated_at,
+      userId: firstRestaurant.userId,
       contract: null, // Vertrag wird hier nicht mehr geladen
       _count: {
-        events: dbData.events && dbData.events.length > 0 ? dbData.events[0].count : 0,
+        events: firstRestaurant.contact_tables && firstRestaurant.contact_tables.length > 0 ? firstRestaurant.contact_tables[0].count : 0,
       },
     };
 

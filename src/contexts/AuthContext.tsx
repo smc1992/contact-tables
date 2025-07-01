@@ -31,66 +31,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialisierung und Sitzungsüberwachung mit Optimierungen zur Vermeidung von zu vielen history.replaceState()-Aufrufen
   useEffect(() => {
     setLoading(true);
-    supabase.auth.getSession().then(({ data: initialAuthData }) => {
-      setSession(initialAuthData.session);
-      setUser(initialAuthData.session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setUserRole(currentUser?.user_metadata?.role || null);
       setLoading(false);
     }).catch(error => {
-      console.error('Fehler beim initialen Abrufen der Sitzung:', error);
-      setLoading(false);
+        console.error("Error getting initial session:", error);
+        setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        console.log('Auth state changed:', event, newSession);
-        setLoading(true); // Beginne Ladevorgang für Auth-Änderung
-
-        if (newSession && newSession.user) {
-          console.log('User authenticated:', newSession.user.email);
-          console.log('User metadata:', newSession.user.user_metadata);
-          console.log('Full user object:', newSession.user); // Logge das gesamte User-Objekt
-
-          let currentUser = newSession.user;
-          // Lese die Rolle aus user_metadata.data.role
-          const roleFromMetaData = currentUser.user_metadata?.data?.role as string || null;
-          console.log('Rolle aus Metadaten gelesen:', roleFromMetaData);
-          setUserRole(roleFromMetaData); // Setze die userRole
-
-          /*
-          if (!roleFromMetaData) { // Oder eine spezifischere Bedingung
-            console.log('Keine Benutzerrolle in Metadaten gefunden, versuche Standardrolle CUSTOMER zu setzen');
-            try {
-              const { data: updatedUserData, error: updateUserError } = await supabase.auth.updateUser({
-                data: { data: { role: 'CUSTOMER' } } // Stelle sicher, dass es in user_metadata.data geschrieben wird
-              });
-              if (updateUserError) {
-                console.error('Fehler beim Aktualisieren der Benutzerrolle:', updateUserError);
-              } else if (updatedUserData && updatedUserData.user) {
-                console.log('Benutzerrolle erfolgreich auf CUSTOMER gesetzt in Metadaten.');
-                currentUser = updatedUserData.user;
-                setUserRole('CUSTOMER');
-              }
-            } catch (error) {
-              console.error('Unerwarteter Fehler beim Aktualisieren der Benutzerrolle:', error);
-            }
-          }
-          */
-          setSession(newSession);
-          setUser(currentUser);
-        } else {
-          console.log('User is not authenticated or session is null');
-          setSession(null);
-          setUser(null);
-          setUserRole(null); // Rolle zurücksetzen beim Abmelden
-        }
-        setLoading(false); // Beende Ladevorgang
-      }
-    );
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`[AuthContext] Auth state changed. Event: ${event}`, { hasSession: !!session });
+      setSession(session);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setUserRole(currentUser?.user_metadata?.role || null);
+      setLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []); // Leeres Dependency Array, um sicherzustellen, dass dies nur einmal beim Mounten ausgeführt wird
+  }, []);
 
   // Authentifizierungsfunktionen
   const value = {
