@@ -432,17 +432,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     };
   }
   
-  // Prisma-Client erstellen
-  const prisma = new PrismaClient();
-  
-  // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const user = await prisma.users.findUnique({
-    where: { id: session.user.id },
-    select: { role: true }
-  });
-  
-  // Prüfen, ob der Benutzer ein Admin ist
-  if (!user || user.role !== 'ADMIN') {
+  // Get role from Supabase session
+  const userRole = session.user.user_metadata?.role;
+
+  // Check if the user is an Admin
+  if (userRole !== 'ADMIN') {
     return {
       redirect: {
         destination: '/',
