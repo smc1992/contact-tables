@@ -91,7 +91,7 @@ export default async function handler(
               email: user.email,
               phone: phone,
               address: address,
-              postalCode: postalCode,
+              postal_code: postalCode,
               city: city,
               description: description,
               cuisine: cuisine,
