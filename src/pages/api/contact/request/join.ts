@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
@@ -8,24 +8,32 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getSession({ req });
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session || !session.user) {
+  if (!session) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
   const userId = session.user.id;
   
-  // Überprüfen, ob der Benutzer bezahlt hat
-  const user = await prisma.profile.findUnique({
-    where: { id: userId }
+  // Fetch user profile to check for payment status and get user name
+  const profile = await prisma.profile.findUnique({
+    where: { id: userId },
+    select: { isPaying: true, name: true },
   });
-  
-  if (!user || (!user.isPaying && user.role !== 'ADMIN')) {
-    return res.status(403).json({ message: 'Nur bezahlte Benutzer können Kontakttische nutzen' });
+
+  if (!profile) {
+    return res.status(404).json({ message: 'Benutzerprofil nicht gefunden.' });
   }
 
-  // POST: Einer Kontaktanfrage beitreten
+  // Admins have full access, others need to be paying users
+  const userRole = session.user.user_metadata?.role || 'CUSTOMER';
+  if (userRole !== 'ADMIN' && !profile.isPaying) {
+    return res.status(403).json({ message: 'Diese Aktion ist nur für bezahlte Benutzer oder Admins verfügbar.' });
+  }
+
+  // POST: Join a contact request
   if (req.method === 'POST') {
     try {
       const { eventId, message } = req.body;
@@ -34,7 +42,7 @@ export default async function handler(
         return res.status(400).json({ message: 'Event-ID ist erforderlich' });
       }
 
-      // Überprüfen, ob die Kontaktanfrage existiert
+      // Check if the event exists
       const event = await prisma.event.findUnique({
         where: { id: eventId },
         include: {
@@ -51,31 +59,31 @@ export default async function handler(
         return res.status(404).json({ message: 'Kontaktanfrage nicht gefunden' });
       }
 
-      // Überprüfen, ob der Benutzer bereits teilnimmt
+      // Check if user is already a participant
       const isAlreadyParticipant = event.participants.some(p => p.userId === userId);
       if (isAlreadyParticipant) {
         return res.status(400).json({ message: 'Du nimmst bereits an diesem Kontakttisch teil' });
       }
 
-      // Überprüfen, ob noch Plätze verfügbar sind
+      // Check for available seats
       const availableSeats = event.maxParticipants - event._count.participants;
       if (availableSeats <= 0) {
         return res.status(400).json({ message: 'Dieser Kontakttisch ist bereits voll' });
       }
 
-      // Überprüfen, ob das Event in der Vergangenheit liegt
+      // Check if the event is in the past
       if (new Date(event.datetime) < new Date()) {
         return res.status(400).json({ message: 'Dieser Kontakttisch liegt in der Vergangenheit' });
       }
 
-      // Teilnahme erstellen
+      // Create participation
       const participation = await prisma.eventParticipant.create({
         data: {
           event: {
             connect: { id: eventId }
           },
-          user: {
-            connect: { id: userId }
+          profile: {
+            connect: { id: userId },
           },
           isHost: false,
           message: message || null
@@ -90,13 +98,12 @@ export default async function handler(
               },
               participants: {
                 include: {
-                  user: {
+                  profile: {
                     select: {
                       id: true,
                       name: true,
-                      email: true
-                    }
-                  }
+                    },
+                  },
                 },
                 where: {
                   isHost: true
@@ -104,16 +111,16 @@ export default async function handler(
               }
             }
           },
-          user: {
+          profile: {
             select: {
+              id: true,
               name: true,
-              email: true
             }
           }
         }
       });
 
-      // Benachrichtigung für den Host erstellen
+      // Create notification for the host
       const host = event.participants.find((p: any) => p.isHost);
       if (host) {
         await prisma.notification.create({
@@ -121,16 +128,14 @@ export default async function handler(
             userId: host.userId,
             type: 'EVENT_JOIN',
             title: 'Neuer Teilnehmer',
-            content: `${session.user.name} nimmt jetzt an deinem Kontakttisch "${event.title}" teil.`,
+            content: `${profile.name} nimmt jetzt an deinem Kontakttisch "${event.title}" teil.`,
             metadata: {
               eventId,
               participantId: userId,
-              participantName: session.user.name
+              participantName: profile.name
             }
           }
         });
-
-        // Hier könnte man auch eine E-Mail an den Host senden
       }
 
       return res.status(200).json({

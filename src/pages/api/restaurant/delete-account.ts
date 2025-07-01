@@ -1,9 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { PrismaClient } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
+import { createClient } from '@supabase/supabase-js';
 
-// Konfiguration von Cloudinary
+// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -13,27 +14,32 @@ cloudinary.config({
 
 const prisma = new PrismaClient();
 
+// Initialize Supabase Admin client for admin actions
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Nur DELETE-Anfragen erlauben
   if (req.method !== 'DELETE') {
-    return res.status(405).json({ message: 'Methode nicht erlaubt' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Authentifizierung überprüfen
-  const session = await getSession({ req });
-  
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
   if (!session) {
-    return res.status(401).json({ message: 'Nicht authentifiziert' });
+    return res.status(401).json({ message: 'Not authenticated' });
   }
 
   const { restaurantId } = req.body;
+  const userIdToDelete = session.user.id; // The user requesting deletion
 
   if (!restaurantId) {
-    return res.status(400).json({ message: 'Restaurant-ID ist erforderlich' });
+    return res.status(400).json({ message: 'Restaurant ID is required' });
   }
 
   try {
-    // Restaurant in der Datenbank finden
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
       select: {
@@ -41,64 +47,57 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         images: {
           select: {
             id: true,
-            publicId: true
+            url: true // Corrected from publicId to url
           }
         }
       }
     });
 
     if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant nicht gefunden' });
+      return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    // Überprüfen, ob der Benutzer berechtigt ist
-    if (restaurant.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
+    const userRole = session.user.user_metadata?.role;
+    // Authorization: only the restaurant owner or an admin can delete
+    if (restaurant.userId !== userIdToDelete && userRole !== 'ADMIN') {
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Transaktion starten, um alle Änderungen atomar durchzuführen
+    const authUserIdToDelete = restaurant.userId;
+
     await prisma.$transaction(async (tx) => {
-      // 1. Alle Contact Tables löschen (in einer echten Implementierung)
-      // await tx.contactTable.deleteMany({
-      //   where: { restaurantId }
-      // });
-      
-      // 2. Alle Bilder aus Cloudinary löschen
       for (const image of restaurant.images) {
-        if (image.publicId) {
+        if (image.url) {
           try {
-            await cloudinary.uploader.destroy(image.publicId);
+            const publicIdMatch = image.url.match(/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+            const publicId = publicIdMatch ? publicIdMatch[1] : null;
+            
+            if (publicId) {
+              await cloudinary.uploader.destroy(publicId);
+            }
           } catch (cloudinaryError) {
-            console.error('Fehler beim Löschen des Bildes aus Cloudinary:', cloudinaryError);
-            // Wir setzen den Prozess fort, auch wenn das Löschen aus Cloudinary fehlschlägt
+            console.error('Error deleting image from Cloudinary:', cloudinaryError);
           }
         }
       }
       
-      // 3. Alle Bilder aus der Datenbank löschen
-      await tx.restaurantImage.deleteMany({
-        where: { restaurantId }
-      });
-      
-      // 4. Vertrag löschen
-      await tx.contract.deleteMany({
-        where: { restaurantId }
-      });
-      
-      // 5. Rechnungen löschen
-      await tx.invoice.deleteMany({
-        where: { restaurantId }
-      });
-      
-      // 6. Restaurant löschen
-      await tx.restaurant.delete({
-        where: { id: restaurantId }
-      });
+      await tx.restaurantImage.deleteMany({ where: { restaurantId } });
+      await tx.contract.deleteMany({ where: { restaurantId } });
+      await tx.invoice.deleteMany({ where: { restaurantId } });
+      await tx.restaurant.delete({ where: { id: restaurantId } });
     });
 
-    return res.status(200).json({ message: 'Restaurant-Konto erfolgreich gelöscht' });
-  } catch (error) {
-    console.error('Fehler beim Löschen des Restaurant-Kontos:', error);
-    return res.status(500).json({ message: 'Interner Serverfehler' });
+    const { error: supabaseUserDeleteError } = await supabaseAdmin.auth.admin.deleteUser(authUserIdToDelete);
+    if (supabaseUserDeleteError) {
+        console.error(`Failed to delete Supabase user ${authUserIdToDelete}:`, supabaseUserDeleteError.message);
+        return res.status(500).json({ message: 'Restaurant data deleted, but failed to delete the user account. Please contact support.' });
+    }
+
+    return res.status(200).json({ message: 'Restaurant account and all associated data successfully deleted' });
+  } catch (error: any) {
+    console.error('Error deleting restaurant account:', error);
+    return res.status(500).json({ message: error.message || 'Internal server error' });
+  } finally {
+      await prisma.$disconnect();
   }
 }

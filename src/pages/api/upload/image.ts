@@ -58,7 +58,7 @@ export default async function handler(
     }
 
     // Prüfen, ob der Benutzer ein Restaurant oder Admin ist
-    if (session.user.role !== 'RESTAURANT' && session.user.role !== 'ADMIN') {
+    if (session.user.user_metadata?.role !== 'RESTAURANT' && session.user.user_metadata?.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Keine Berechtigung' });
     }
 

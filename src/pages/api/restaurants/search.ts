@@ -27,19 +27,22 @@ export default async function handler(
 
   console.log('[API /api/restaurants/search] Received query params:', JSON.stringify(req.query, null, 2));
   try {
-    console.log(
-      '[API /api/restaurants/search] Checking for SERVICE_ROLE_KEY. Exists:',
-      !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      'Starts with:',
-      process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 5)
-    );
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    console.log('[DIAGNOSTIC LOG] SUPABASE_SERVICE_ROLE_KEY Check:');
+    console.log(`  - Exists: ${!!serviceKey}`)
+    console.log(`  - Type: ${typeof serviceKey}`)
+    console.log(`  - Length: ${serviceKey?.length || 0}`)
+    console.log(`  - Starts with: ${serviceKey?.substring(0, 5) || 'N/A'}`)
+    console.log(`  - Ends with: ${serviceKey?.slice(-5) || 'N/A'}`);
     const supabase = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
         auth: {
           persistSession: false,
-        },
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
       }
     );
 
@@ -75,7 +78,7 @@ export default async function handler(
       .select(`
         id, name, description, address, city, postal_code, latitude, longitude, cuisine, price_range, website, opening_hours, offer_table_today, phone, email
       `)
-      .eq('is_visible', true)
+      .eq('is_active', true)
       .eq('contract_status', 'ACTIVE');
 
     if (searchTerm) {
@@ -213,6 +216,14 @@ export default async function handler(
 
   } catch (e: any) {
     console.error('Unerwarteter Fehler in /api/restaurants/search:', e);
-    res.status(500).json({ message: 'Interner Serverfehler', error: e.message });
+    res.status(500).json({
+      message: 'Interner Serverfehler',
+      error: {
+        message: e.message,
+        stack: e.stack,
+        details: e.details,
+        code: e.code
+      }
+    });
   }
 }

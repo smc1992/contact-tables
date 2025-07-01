@@ -1,11 +1,11 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { motion } from 'framer-motion';
-import { FiUserPlus, FiMail, FiLock, FiUser, FiBriefcase } from 'react-icons/fi'; // FiBriefcase für Restaurant-spezifische Felder
-import { useAuth } from '../../contexts/AuthContext';
+import { FiUserPlus, FiMail, FiLock, FiUser } from 'react-icons/fi';
+import { createBrowserClient } from '@supabase/ssr';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -14,101 +14,77 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // Benutzertyp-State hinzufügen (CUSTOMER oder RESTAURANT)
-  const [userType, setUserType] = useState<'CUSTOMER' | 'RESTAURANT'>('CUSTOMER');
-  const [restaurantName, setRestaurantName] = useState('');
-  const [restaurantDescription, setRestaurantDescription] = useState('');
   const router = useRouter();
 
-  const { signUp } = useAuth();
-  
+  // Konsistente Supabase-Client-Initialisierung
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     setSuccess(null);
     setLoading(true);
 
-    if (!name || !email || !password || (userType === 'RESTAURANT' && !restaurantName)) {
+    if (!name || !email || !password) {
       setError('Bitte füllen Sie alle Felder aus.');
       setLoading(false);
       return;
     }
 
     try {
-      console.log(`Starte Supabase-Registrierung als ${userType}...`);
-      console.log('E-Mail:', email);
-      console.log('Name:', name);
-      
-      // Direkte Verwendung von supabase anstatt AuthContext
-      const { supabase } = await import('../../utils/supabase');
-      
-      // Registrierung mit Benutzermetadaten für die Rolle
-      const result = await supabase.auth.signUp({
+      // Schritt 1: Einheitliche API für die Benutzer-Registrierung aufrufen
+      const response = await fetch('/api/auth/register-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          role: 'CUSTOMER', // Immer als Gast registrieren
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Fehler bei der Registrierung.');
+      }
+
+      // Schritt 2: Nach erfolgreicher Registrierung den Benutzer anmelden
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          data: {
-            name,
-            role: userType,
-            ...(userType === 'RESTAURANT' && {
-              restaurant_name: restaurantName,
-              restaurant_description: restaurantDescription,
-            }),
-          }
-        }
       });
-      
-      console.log('Supabase-Antwort:', result);
-      
-      if (result.error) {
-        console.error('Direkter Registrierungsfehler:', result.error);
-        setError(`Fehler: ${result.error.message || 'Unbekannter Fehler'}`);
-      } else if (result.data?.user) {
-        console.log('Registrierung erfolgreich:', result.data.user);
-        
-        // Nach erfolgreicher Registrierung Benutzerdaten aktualisieren
-        try {
-          const { data: updateData, error: updateError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: result.data.user.id,
-              name,
-              role: userType
-            });
-            
-          if (updateError) {
-            console.warn('Fehler beim Aktualisieren des Profils:', updateError);
-          }
-        } catch (profileError) {
-          console.warn('Fehler beim Erstellen des Profils:', profileError);
-        }
-        
-        setSuccess('Registrierung erfolgreich!');
-        
-        // Je nach Benutzertyp unterschiedliche Weiterleitung
-        setTimeout(() => {
-          if (userType === 'RESTAURANT') {
-            console.log('Restaurant-Registrierung erfolgreich, Weiterleitung zur Erfolgsseite...');
-            // Restaurant-Benutzer werden zur Registrierungserfolgsseite weitergeleitet
-            router.push('/restaurant/registration-success');
-          } else {
-            console.log('Kunden-Registrierung erfolgreich, Weiterleitung zum Dashboard...');
-            // Kunden werden zum Dashboard weitergeleitet
-            router.push('/customer/dashboard');
-          }
-        }, 2000);
-      } else {
-        setSuccess('Registrierung erfolgreich! Bitte überprüfen Sie Ihre E-Mail, um Ihr Konto zu bestätigen.');
-        setTimeout(() => {
-          router.push('/auth/login');
-        }, 3000);
+
+      if (signInError) {
+        throw new Error(`Anmeldung nach Registrierung fehlgeschlagen: ${signInError.message}`);
       }
+      
+      setSuccess('Registrierung erfolgreich! Sie werden angemeldet...');
+      // Weiterleitung wird durch den onAuthStateChange-Listener ausgelöst
+
     } catch (err: any) {
-      console.error('Unerwarteter Fehler bei der direkten Supabase-Registrierung:', err);
-      setError(`Kritischer Fehler: ${err.message || 'Unbekannter Fehler'}`);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+  
+  // Sicherer Redirect nach erfolgreichem Login
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user.user_metadata.role === 'CUSTOMER') {
+        // Leitet zur Startseite weiter, die Middleware kümmert sich um den Rest
+        router.push('/'); 
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -122,26 +98,8 @@ export default function RegisterPage() {
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Konto erstellen</h2>
             <p className="mt-2 text-sm text-gray-600">
-              Erstellen Sie ein Konto, um alle Funktionen zu nutzen
+              Registrieren Sie sich als Gast, um Tische zu reservieren.
             </p>
-            
-            {/* Benutzertyp-Auswahl */}
-            <div className="mt-6 flex rounded-md shadow-sm">
-              <button
-                type="button"
-                className={`relative inline-flex items-center w-1/2 px-4 py-2 rounded-l-md border ${userType === 'CUSTOMER' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'} text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500`}
-                onClick={() => setUserType('CUSTOMER')}
-              >
-                Als Gast registrieren
-              </button>
-              <button
-                type="button"
-                className={`relative inline-flex items-center w-1/2 px-4 py-2 rounded-r-md border ${userType === 'RESTAURANT' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'} text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500`}
-                onClick={() => setUserType('RESTAURANT')}
-              >
-                Als Restaurant registrieren
-              </button>
-            </div>
           </div>
           
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -184,45 +142,6 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
-
-              {userType === 'RESTAURANT' && (
-                <>
-                  <div className="mb-4">
-                    <label htmlFor="restaurantName" className="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FiBriefcase className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="restaurantName"
-                        name="restaurantName"
-                        type="text"
-                        required={userType === 'RESTAURANT'}
-                        value={restaurantName}
-                        onChange={(e) => setRestaurantName(e.target.value)}
-                        className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                        placeholder="Name Ihres Restaurants"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <label htmlFor="restaurantDescription" className="block text-sm font-medium text-gray-700 mb-1">Restaurant Beschreibung (optional)</label>
-                    <div className="relative">
-                      <textarea
-                        id="restaurantDescription"
-                        name="restaurantDescription"
-                        rows={3}
-                        // nicht required, da optional
-                        value={restaurantDescription}
-                        onChange={(e) => setRestaurantDescription(e.target.value)}
-                        className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                        placeholder="Kurze Beschreibung Ihres Restaurants"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
               
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
@@ -272,7 +191,13 @@ export default function RegisterPage() {
             </div>
           </form>
           
-          <div className="text-center mt-4">
+          <div className="text-center mt-4 space-y-4">
+            <p className="text-sm text-gray-600">
+              Sind Sie ein Restaurant?{' '}
+              <Link href="/restaurant/register" className="font-medium text-primary-600 hover:text-primary-500">
+                Hier als Restaurant registrieren
+              </Link>
+            </p>
             <p className="text-sm text-gray-600">
               Bereits registriert?{' '}
               <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">

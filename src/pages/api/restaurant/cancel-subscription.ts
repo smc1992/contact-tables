@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -11,8 +11,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Authentifizierung überprüfen
-  const session = await getSession({ req });
-  
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
   if (!session) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
@@ -45,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Überprüfen, ob der Benutzer berechtigt ist
-    if (restaurant.userId !== session.user.id && session.user.role !== 'ADMIN') {
+    if (restaurant.userId !== session.user.id && session.user.user_metadata?.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Keine Berechtigung' });
     }
 

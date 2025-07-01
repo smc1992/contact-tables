@@ -1,131 +1,112 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
 
+// Supabase Admin client for elevated privileges
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Nur POST-Anfragen erlauben
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Methode nicht erlaubt' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  try {
-    // Daten aus dem Request-Body extrahieren
-    const {
-      restaurantName,
-      address,
-      city,
-      postalCode,
-      country,
-      phone,
-      email,
-      website,
-      description,
-      cuisine,
-      capacity,
-      openingHours,
-      contactName,
-      contactEmail,
-      contactPhone,
-      termsAccepted,
-      dataPrivacyAccepted
-    } = req.body;
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
 
-    // Validierung der Pflichtfelder
-    if (!restaurantName || !address || !city || !postalCode || !phone || !email || !contactName || !contactEmail) {
-      return res.status(400).json({ message: 'Bitte füllen Sie alle Pflichtfelder aus' });
+  if (!session) {
+    return res.status(401).json({ message: 'Not authenticated. Please log in to become a partner.' });
+  }
+
+  const {
+    restaurantName,
+    address,
+    city,
+    postalCode,
+    country,
+    phone,
+    email, // This is the restaurant's public email, not the user's auth email
+    website,
+    description,
+    cuisine,
+    capacity,
+    openingHours
+  } = req.body;
+
+  if (!restaurantName || !address || !city || !postalCode || !phone || !email) {
+    return res.status(400).json({ message: 'Please fill out all required fields.' });
+  }
+
+  const userId = session.user.id;
+
+  try {
+    // Check if the user already has a restaurant
+    const userHasRestaurant = await prisma.restaurant.findUnique({
+      where: { userId: userId },
+    });
+
+    if (userHasRestaurant) {
+      return res.status(409).json({ message: 'You already have a registered restaurant.' });
     }
 
-    // Supabase-Client erstellen, um zu prüfen, ob der Benutzer eingeloggt ist
-    const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
+    // Check if a restaurant with this public email already exists
+    const emailInUse = await prisma.restaurant.findFirst({
+        where: { email: email },
+    });
 
-    let userId = null;
+    if(emailInUse) {
+        return res.status(409).json({ message: 'A restaurant with this email address already exists.' });
+    }
 
-    // Wenn ein Benutzer eingeloggt ist, verwenden wir seine ID
-    if (session) {
-      userId = session.user.id;
-    } else {
-      // Wenn kein Benutzer eingeloggt ist, erstellen wir einen neuen Benutzer
-      // In einer echten Anwendung würde hier eine E-Mail-Bestätigung erfolgen
-      const { data: newUser, error } = await supabase.auth.signUp({
-        email: contactEmail,
-        password: Math.random().toString(36).slice(-8), // Zufälliges Passwort generieren
-        options: {
-          data: {
-            name: contactName,
-            role: 'RESTAURANT'
-          }
-        }
+    // Use a transaction to create the restaurant
+    const restaurant = await prisma.$transaction(async (tx) => {
+      const newRestaurant = await tx.restaurant.create({
+        data: {
+          name: restaurantName,
+          address,
+          city,
+          postalCode,
+          country,
+          phone,
+          email,
+          website: website || null,
+          description: description || null,
+          cuisine: cuisine || null,
+          capacity: capacity ? parseInt(capacity) : null,
+          openingHours: openingHours || null,
+          contractStatus: 'PENDING',
+          userId: userId,
+        },
       });
 
-      if (error) {
-        console.error('Fehler bei der Benutzerregistrierung:', error);
-        return res.status(500).json({ message: 'Fehler bei der Benutzerregistrierung' });
-      }
+      // The user's role will be updated in Supabase Auth, which is the source of truth.
+      // A database trigger is expected to sync this change to the public.profiles table.
 
-      userId = newUser.user?.id;
+      return newRestaurant;
+    });
+
+    // Update the user's role in Supabase Auth (source of truth)
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { user_metadata: { ...session.user.user_metadata, role: 'RESTAURANT' } }
+    );
+
+    if (updateError) {
+      console.error('CRITICAL: Failed to update user role in Supabase Auth after creating restaurant:', updateError);
     }
 
-    // Prüfen, ob bereits ein Restaurant mit dieser E-Mail existiert
-    const existingRestaurant = await prisma.restaurant.findFirst({
-      where: {
-        email: email
-      }
-    });
-
-    if (existingRestaurant) {
-      return res.status(400).json({ message: 'Ein Restaurant mit dieser E-Mail-Adresse existiert bereits' });
-    }
-
-    // Benutzer in der Datenbank erstellen oder aktualisieren
-    await prisma.profile.upsert({
-      where: { id: userId },
-      update: {
-        name: contactName,
-        email: contactEmail,
-        role: 'RESTAURANT'
-      },
-      create: {
-        id: userId,
-        name: contactName,
-        email: contactEmail,
-        role: 'RESTAURANT'
-      }
-    });
-
-    // Restaurant in der Datenbank erstellen
-    const restaurant = await prisma.restaurant.create({
-      data: {
-        name: restaurantName,
-        address,
-        city,
-        postalCode,
-        country,
-        phone,
-        email,
-        website: website || null,
-        description: description || null,
-        cuisine: cuisine || null,
-        capacity: capacity ? parseInt(capacity) : null,
-        openingHours: openingHours || null,
-        contractStatus: 'PENDING',
-        userId: userId,
-        contactName,
-        contactEmail,
-        contactPhone: contactPhone || null
-      }
-    });
-
-    // Erfolgreiche Antwort senden
     return res.status(201).json({
-      message: 'Partneranfrage erfolgreich gesendet',
-      restaurantId: restaurant.id
+      message: 'Partner request successful! Your restaurant has been created.',
+      restaurantId: restaurant.id,
     });
-  } catch (error) {
-    console.error('Fehler bei der Verarbeitung der Partneranfrage:', error);
-    return res.status(500).json({ message: 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.' });
+  } catch (error: any) {
+    console.error('Error processing partner request:', error);
+    return res.status(500).json({ message: 'An error occurred. Please try again later.' });
   } finally {
     await prisma.$disconnect();
   }

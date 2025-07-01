@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { motion } from 'framer-motion';
 import { FiCheckCircle, FiAlertCircle, FiCreditCard, FiFileText, FiArrowRight, FiCheck } from 'react-icons/fi';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Abonnement-Optionen
 const subscriptionPlans = [
@@ -57,14 +59,10 @@ const subscriptionPlans = [
 interface Restaurant {
   id: string;
   name: string;
-  address: string;
-  city: string;
+  address: string | null;
+  city: string | null;
   contractStatus: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-  };
+  userId: string;
 }
 
 interface PaymentPageProps {
@@ -543,42 +541,28 @@ export default function RestaurantPayment({ restaurant }: PaymentPageProps) {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { id } = context.params as { id: string };
-  const session = await getSession(context);
-  
+  const supabase = createPagesServerClient(context);
+  const { data: { session } } = await supabase.auth.getSession();
+
   if (!session) {
     return {
       redirect: {
-        destination: '/auth/login',
+        destination: '/login',
         permanent: false,
       },
     };
   }
-  
-  const prisma = new PrismaClient();
-  
+
   try {
-    // Restaurant finden
     const restaurant = await prisma.restaurant.findUnique({
       where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
     });
-    
+
     if (!restaurant) {
-      return {
-        notFound: true,
-      };
+      return { notFound: true };
     }
-    
-    // Überprüfen, ob der Benutzer berechtigt ist, auf diese Seite zuzugreifen
-    if (restaurant.user.id !== session.user.id && session.user.role !== 'ADMIN') {
+
+    if (restaurant.userId !== session.user.id && session.user.user_metadata?.role !== 'ADMIN') {
       return {
         redirect: {
           destination: '/',
@@ -586,31 +570,17 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         },
       };
     }
-    
-    // Überprüfen, ob das Restaurant den richtigen Status hat
-    // Hier sollte PENDING oder ACTIVE verwendet werden, je nach Workflow
-    if (restaurant.contractStatus !== 'PENDING') {
-      return {
-        redirect: {
-          destination: '/restaurant/dashboard',
-          permanent: false,
-        },
-      };
-    }
-    
+
     return {
       props: {
-        restaurant: JSON.parse(JSON.stringify(restaurant)), // Serialisieren für SSR
+        restaurant: JSON.parse(JSON.stringify(restaurant)),
+        user: session.user,
       },
     };
   } catch (error) {
-    console.error('Fehler beim Abrufen des Restaurants:', error);
-    
+    console.error('Fehler in getServerSideProps:', error);
     return {
-      redirect: {
-        destination: '/error',
-        permanent: false,
-      },
+      notFound: true,
     };
   } finally {
     await prisma.$disconnect();

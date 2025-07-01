@@ -1,107 +1,94 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
 import { PrismaClient } from '@prisma/client';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-05-28.basil' });
+
+const getPriceIdForPlan = (planId: string): string | null => {
+  switch (planId) {
+    case 'basic':
+      return process.env.STRIPE_BASIC_PLAN_PRICE_ID!;
+    case 'standard':
+      return process.env.STRIPE_STANDARD_PLAN_PRICE_ID!;
+    case 'premium':
+      return process.env.STRIPE_PREMIUM_PLAN_PRICE_ID!;
+    default:
+      return null;
+  }
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Nur POST-Anfragen erlauben
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Methode nicht erlaubt' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Authentifizierung überprüfen
-  const session = await getSession({ req });
-  
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
   if (!session) {
-    return res.status(401).json({ message: 'Nicht authentifiziert' });
+    return res.status(401).json({ message: 'Not authenticated' });
   }
 
-  const { restaurantId, planId } = req.body;
+  const { restaurantId, newPlanId } = req.body;
+  const newPriceId = getPriceIdForPlan(newPlanId);
 
-  if (!restaurantId || !planId) {
-    return res.status(400).json({ message: 'Restaurant-ID und Tarif-ID sind erforderlich' });
-  }
-
-  // Überprüfen, ob der Tarif gültig ist
-  const validPlans = ['basic', 'standard', 'premium'];
-  if (!validPlans.includes(planId)) {
-    return res.status(400).json({ message: 'Ungültiger Tarif' });
+  if (!restaurantId || !newPriceId) {
+    return res.status(400).json({ message: 'Restaurant ID and a valid new Plan ID are required' });
   }
 
   try {
-    // Restaurant in der Datenbank finden
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
-      select: {
-        userId: true,
-        isActive: true,
-        contract: {
-          select: {
-            id: true,
-            planId: true
-          }
-        }
-      }
+      include: {
+        profile: true,
+        contract: true, // Correct: 1-to-1 relation
+      },
     });
 
-    if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant nicht gefunden' });
+    if (!restaurant || restaurant.userId !== session.user.id) {
+      return res.status(404).json({ message: 'Active restaurant not found for this user.' });
     }
 
-    // Überprüfen, ob der Benutzer berechtigt ist
-    if (restaurant.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
+    if (!restaurant.contract || restaurant.contract.status !== 'ACTIVE' || !restaurant.stripeSubscriptionId) {
+      return res.status(400).json({ message: 'No active subscription found to upgrade.' });
     }
 
-    // Überprüfen, ob das Restaurant aktiv ist
-    if (!restaurant.isActive) {
-      return res.status(403).json({ message: 'Restaurant ist nicht aktiv. Bitte aktivieren Sie Ihr Restaurant zuerst.' });
+    if (restaurant.plan === newPlanId) {
+        return res.status(400).json({ message: 'This is already your current plan.' });
     }
 
-    // Überprüfen, ob der Vertrag existiert
-    if (!restaurant.contract) {
-      return res.status(404).json({ message: 'Kein aktiver Vertrag gefunden' });
-    }
+    // Retrieve the subscription from Stripe
+    const subscription = await stripe.subscriptions.retrieve(restaurant.stripeSubscriptionId);
 
-    // Überprüfen, ob der neue Tarif anders ist als der aktuelle
-    if (restaurant.contract.planId === planId) {
-      return res.status(200).json({ message: 'Sie nutzen diesen Tarif bereits' });
-    }
+    // Update the subscription in Stripe
+    await stripe.subscriptions.update(subscription.id, {
+      cancel_at_period_end: false,
+      items: [{
+        id: subscription.items.data[0].id,
+        price: newPriceId,
+      }],
+      proration_behavior: 'create_prorations',
+    });
 
-    // In einer echten Implementierung würden wir hier:
-    // 1. Eine Zahlungsabwicklung durchführen
-    // 2. Den Vertrag in der Datenbank aktualisieren
-    // 3. Eine Bestätigungs-E-Mail senden
-    // Für dieses Beispiel simulieren wir die Aktualisierung
-
-    // Aktuelles Datum und Enddatum (1 Jahr später) berechnen
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1);
-
-    // Preise der verschiedenen Tarife
-    const prices = {
-      basic: 29.99,
-      standard: 49.99,
-      premium: 99.99
-    };
-
-    // Simulierte Vertragsänderung
-    const updatedContract = {
-      id: restaurant.contract.id,
-      planId,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      amount: prices[planId as keyof typeof prices]
-    };
+    // Update the restaurant plan in the local database
+    const updatedRestaurant = await prisma.restaurant.update({
+      where: { id: restaurantId },
+      data: {
+        plan: newPlanId,
+      },
+    });
 
     return res.status(200).json({ 
-      message: 'Abonnement erfolgreich aktualisiert',
-      contract: updatedContract
+      message: 'Subscription upgraded successfully.',
+      restaurant: updatedRestaurant 
     });
-  } catch (error) {
-    console.error('Fehler beim Aktualisieren des Abonnements:', error);
-    return res.status(500).json({ message: 'Interner Serverfehler' });
+
+  } catch (error: any) {
+    console.error('Error upgrading subscription:', error);
+    return res.status(500).json({ message: error.message || 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 }

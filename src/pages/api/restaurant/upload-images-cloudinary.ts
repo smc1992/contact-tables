@@ -1,11 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type RestaurantImage } from '@prisma/client';
 import formidable from 'formidable';
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
 import { createReadStream } from 'fs';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
-// Konfiguration von Cloudinary
+// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -13,8 +13,7 @@ cloudinary.config({
   secure: true
 });
 
-// Deaktivieren der standardmäßigen Body-Parser für diese Route,
-// da wir Formidable für multipart/form-data verwenden
+// Disable the default body parser for this route
 export const config = {
   api: {
     bodyParser: false,
@@ -24,20 +23,18 @@ export const config = {
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Nur POST-Anfragen erlauben
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Methode nicht erlaubt' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Authentifizierung überprüfen
-  const session = await getSession({ req });
-  
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
   if (!session) {
-    return res.status(401).json({ message: 'Nicht authentifiziert' });
+    return res.status(401).json({ message: 'Not authenticated' });
   }
 
   try {
-    // Formular mit Formidable parsen
     const form = formidable({
       keepExtensions: true,
       maxFileSize: 10 * 1024 * 1024, // 10MB Limit
@@ -50,49 +47,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     });
 
-    const restaurantId = fields.restaurantId as string;
+    const restaurantIdField = fields.restaurantId;
+    const restaurantId = Array.isArray(restaurantIdField) ? restaurantIdField[0] : restaurantIdField;
 
     if (!restaurantId) {
-      return res.status(400).json({ message: 'Restaurant-ID ist erforderlich' });
+      return res.status(400).json({ message: 'Restaurant ID is required' });
     }
 
-    // Restaurant in der Datenbank finden
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
-      select: {
-        userId: true,
-        images: {
-          select: {
-            id: true,
-            isPrimary: true
-          }
-        }
-      }
+      include: {
+        images: { select: { id: true } },
+      },
     });
 
     if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant nicht gefunden' });
+      return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    // Überprüfen, ob der Benutzer berechtigt ist
-    if (restaurant.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
+    if (restaurant.userId !== session.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Überprüfen, ob Dateien vorhanden sind
-    const fileArray = files.images as formidable.File[];
-    if (!fileArray || fileArray.length === 0) {
-      return res.status(400).json({ message: 'Keine Bilder hochgeladen' });
+    const fileArray = files.images;
+    if (!fileArray) {
+      return res.status(400).json({ message: 'No images uploaded' });
     }
 
-    // Bilder nach Cloudinary hochladen und in der Datenbank speichern
-    const uploadedImages = [];
+    const uploadedImages: RestaurantImage[] = [];
     const errors = [];
 
     for (const file of Array.isArray(fileArray) ? fileArray : [fileArray]) {
       try {
-        // Bild zu Cloudinary hochladen
-        const uploadResult = await new Promise((resolve, reject) => {
+        const uploadResult = await new Promise<UploadApiResponse | undefined>((resolve, reject) => {
           const uploadStream = cloudinary.uploader.upload_stream(
             {
               folder: `contact-tables/restaurants/${restaurantId}`,
@@ -107,59 +94,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               else resolve(result);
             }
           );
-
           createReadStream(file.filepath).pipe(uploadStream);
         });
 
-        // Prüfen, ob der Upload erfolgreich war
         if (!uploadResult) {
-          errors.push(`Fehler beim Hochladen von ${file.originalFilename}`);
+          errors.push(`Failed to upload ${file.originalFilename}`);
           continue;
         }
 
-        // Bestimmen, ob dies das erste Bild und damit das Hauptbild ist
-        const isPrimary = restaurant.images.length === 0;
+        const isFirstImage: boolean = restaurant.images.length === 0 && uploadedImages.length === 0;
 
-        // Bild in der Datenbank speichern
         const image = await prisma.restaurantImage.create({
           data: {
-            url: (uploadResult as any).secure_url,
-            publicId: (uploadResult as any).public_id,
+            url: uploadResult.secure_url,
+            publicId: uploadResult.public_id,
             restaurantId,
-            isPrimary
-          }
+            isPrimary: isFirstImage,
+          },
         });
 
-        // Wenn es das Hauptbild ist, auch im Restaurant-Eintrag aktualisieren
-        if (isPrimary) {
+        if (isFirstImage) {
           await prisma.restaurant.update({
             where: { id: restaurantId },
-            data: { imageUrl: (uploadResult as any).secure_url }
+            data: { imageUrl: uploadResult.secure_url },
           });
         }
 
         uploadedImages.push(image);
       } catch (error) {
-        console.error('Fehler beim Hochladen des Bildes:', error);
-        errors.push(`Fehler beim Hochladen von ${file.originalFilename}`);
+        console.error('Image upload error:', error);
+        errors.push(`Error uploading ${file.originalFilename}`);
       }
     }
 
-    // Antwort senden
     if (uploadedImages.length === 0) {
       return res.status(500).json({ 
-        message: 'Alle Uploads fehlgeschlagen', 
-        errors 
+        message: 'Could not upload any images.',
+        errors,
       });
     }
 
-    return res.status(201).json({ 
-      message: `${uploadedImages.length} Bild(er) erfolgreich hochgeladen`,
+    return res.status(200).json({ 
+      message: `${uploadedImages.length} images uploaded successfully.`,
       images: uploadedImages,
-      errors: errors.length > 0 ? errors : undefined
+      errors,
     });
+
   } catch (error) {
-    console.error('Fehler beim Hochladen der Bilder:', error);
-    return res.status(500).json({ message: 'Interner Serverfehler' });
+    console.error('Form parsing error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }

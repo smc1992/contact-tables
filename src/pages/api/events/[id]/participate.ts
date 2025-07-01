@@ -1,36 +1,38 @@
-import { NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken, AuthenticatedRequest } from '../../../../middleware/auth';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
-async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
-  if (!req.user?.id) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const { id } = req.query;
+  const userId = session.user.id;
+  const { id: eventId } = req.query;
 
-  if (!id) {
+  if (!eventId || typeof eventId !== 'string') {
     return res.status(400).json({ message: 'Event-ID ist erforderlich' });
   }
 
   switch (req.method) {
     case 'POST':
       try {
-        // Prüfe, ob der Benutzer ein zahlender Kunde ist
         const profile = await prisma.profile.findUnique({
-          where: { id: req.user.id },
+          where: { id: userId },
           select: { isPaying: true },
         });
 
-        if (!profile?.isPaying) {
-          return res.status(403).json({ message: 'Nur für zahlende Mitglieder verfügbar' });
+        if (!profile?.isPaying && session.user.user_metadata?.role !== 'ADMIN') {
+          return res.status(403).json({ message: 'Nur für zahlende Mitglieder oder Admins verfügbar' });
         }
 
-        // Prüfe, ob das Event existiert und noch Plätze frei sind
         const event = await prisma.event.findUnique({
-          where: { id: id as string },
+          where: { id: eventId },
           include: {
             _count: {
               select: { participants: true },
@@ -47,20 +49,18 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
         }
 
         if (event._count.participants >= event.maxParticipants) {
-          // Aktualisiere den Event-Status auf FULL
           await prisma.event.update({
-            where: { id: id as string },
+            where: { id: eventId },
             data: { status: 'FULL' },
           });
           return res.status(400).json({ message: 'Event ist bereits ausgebucht' });
         }
 
-        // Prüfe, ob der Benutzer bereits teilnimmt
         const existingParticipation = await prisma.eventParticipant.findUnique({
           where: {
             eventId_userId: {
-              eventId: id as string,
-              userId: req.user.id,
+              eventId: eventId,
+              userId: userId,
             },
           },
         });
@@ -69,11 +69,10 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           return res.status(400).json({ message: 'Sie nehmen bereits an diesem Event teil' });
         }
 
-        // Füge den Benutzer als Teilnehmer hinzu
         const participation = await prisma.eventParticipant.create({
           data: {
-            eventId: id as string,
-            userId: req.user.id,
+            eventId: eventId,
+            userId: userId,
           },
           include: {
             event: {
@@ -90,14 +89,13 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         });
 
-        // Prüfe, ob das Event jetzt voll ist
         const updatedCount = await prisma.eventParticipant.count({
-          where: { eventId: id as string },
+          where: { eventId: eventId },
         });
 
         if (updatedCount >= event.maxParticipants) {
           await prisma.event.update({
-            where: { id: id as string },
+            where: { id: eventId },
             data: { status: 'FULL' },
           });
         }
@@ -111,12 +109,11 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
 
     case 'DELETE':
       try {
-        // Prüfe, ob die Teilnahme existiert
         const participation = await prisma.eventParticipant.findUnique({
           where: {
             eventId_userId: {
-              eventId: id as string,
-              userId: req.user.id,
+              eventId: eventId,
+              userId: userId,
             },
           },
         });
@@ -125,20 +122,18 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           return res.status(404).json({ message: 'Teilnahme nicht gefunden' });
         }
 
-        // Entferne die Teilnahme
         await prisma.eventParticipant.delete({
           where: {
             eventId_userId: {
-              eventId: id as string,
-              userId: req.user.id,
+              eventId: eventId,
+              userId: userId,
             },
           },
         });
 
-        // Aktualisiere den Event-Status auf OPEN, falls er FULL war
         await prisma.event.updateMany({
           where: {
-            id: id as string,
+            id: eventId,
             status: 'FULL',
           },
           data: { status: 'OPEN' },
@@ -155,11 +150,4 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       res.setHeader('Allow', ['POST', 'DELETE']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-}
-
-// Middleware-Kette für Authentifizierung
-export default async function (req: AuthenticatedRequest, res: NextApiResponse) {
-  await authenticateToken(req, res, () => {
-    handler(req, res);
-  });
 } 

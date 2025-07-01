@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
@@ -7,29 +8,32 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { authorization } = req.headers;
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (!authorization) {
-    return res.status(401).json({ message: 'Nicht autorisiert' });
+  if (!session) {
+    return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const token = authorization.split(' ')[1];
-  const user = await prisma.profile.findUnique({
-    where: { id: token },
-    select: { role: true, id: true },
-  });
-
-  if (!user || user.role !== 'CUSTOMER') {
-    return res.status(403).json({ message: 'Zugriff verweigert' });
+  if (session.user.user_metadata?.role !== 'CUSTOMER') {
+    return res.status(403).json({ message: 'Zugriff verweigert. Nur für Kunden.' });
   }
+
+  const userId = session.user.id;
 
   switch (req.method) {
     case 'GET':
       try {
+        // Fetch all future events the user is participating in
         const events = await prisma.event.findMany({
           where: {
-            date: {
+            datetime: {
               gte: new Date(),
+            },
+            participants: {
+              some: { 
+                userId: userId 
+              },
             },
           },
           include: {
@@ -41,12 +45,17 @@ export default async function handler(
               },
             },
             participants: {
-              where: {
-                userId: user.id,
-              },
+              include: {
+                profile: {
+                  select: {
+                    id: true,
+                    name: true,
+                  }
+                }
+              }
             },
           },
-          orderBy: { date: 'asc' },
+          orderBy: { datetime: 'asc' },
         });
 
         return res.status(200).json(events);
@@ -59,11 +68,12 @@ export default async function handler(
       try {
         const { eventId } = req.body;
 
-        // Überprüfen, ob das Event existiert und noch Plätze frei sind
         const event = await prisma.event.findUnique({
           where: { id: eventId },
           include: {
-            participants: true,
+            _count: {
+              select: { participants: true }
+            }
           },
         });
 
@@ -71,15 +81,19 @@ export default async function handler(
           return res.status(404).json({ message: 'Event nicht gefunden' });
         }
 
-        if (event.participants.length >= event.maxParticipants) {
+        if (event._count.participants >= event.maxParticipants) {
           return res.status(400).json({ message: 'Event ist bereits ausgebucht' });
         }
 
-        // Teilnahme erstellen
+        // Create participation
         const participation = await prisma.eventParticipant.create({
           data: {
-            eventId,
-            userId: user.id,
+            event: {
+              connect: { id: eventId },
+            },
+            profile: {
+              connect: { id: userId },
+            },
           },
         });
 

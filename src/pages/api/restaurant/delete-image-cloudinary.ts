@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { PrismaClient } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
 
-// Konfiguration von Cloudinary
+// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -14,100 +14,78 @@ cloudinary.config({
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Nur DELETE-Anfragen erlauben
   if (req.method !== 'DELETE') {
-    return res.status(405).json({ message: 'Methode nicht erlaubt' });
+    return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Authentifizierung überprüfen
-  const session = await getSession({ req });
-  
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
   if (!session) {
-    return res.status(401).json({ message: 'Nicht authentifiziert' });
+    return res.status(401).json({ message: 'Not authenticated' });
   }
 
   const { imageId, restaurantId } = req.body;
 
   if (!imageId || !restaurantId) {
-    return res.status(400).json({ message: 'Bild-ID und Restaurant-ID sind erforderlich' });
+    return res.status(400).json({ message: 'Image ID and Restaurant ID are required' });
   }
 
   try {
-    // Restaurant in der Datenbank finden
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
-      select: {
-        userId: true
-      }
+      select: { userId: true }
     });
 
     if (!restaurant) {
-      return res.status(404).json({ message: 'Restaurant nicht gefunden' });
+      return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    // Überprüfen, ob der Benutzer berechtigt ist
-    if (restaurant.userId !== session.user.id && session.user.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
+    const userRole = session.user.user_metadata?.role;
+    if (restaurant.userId !== session.user.id && userRole !== 'ADMIN') {
+      return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Bild in der Datenbank finden
     const image = await prisma.restaurantImage.findUnique({
-      where: { id: imageId },
-      select: {
-        url: true,
-        publicId: true,
-        isPrimary: true,
-        restaurantId: true
-      }
+      where: { id: imageId }
     });
 
-    if (!image) {
-      return res.status(404).json({ message: 'Bild nicht gefunden' });
+    if (!image || image.restaurantId !== restaurantId) {
+      return res.status(404).json({ message: 'Image not found or does not belong to this restaurant' });
     }
 
-    if (image.restaurantId !== restaurantId) {
-      return res.status(403).json({ message: 'Dieses Bild gehört nicht zu diesem Restaurant' });
-    }
-
-    // Bild aus Cloudinary löschen
-    if (image.publicId) {
+    if (image.url) {
       try {
-        await cloudinary.uploader.destroy(image.publicId);
+        const publicIdMatch = image.url.match(/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+        const publicId = publicIdMatch ? publicIdMatch[1] : null;
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId);
+        }
       } catch (cloudinaryError) {
-        console.error('Fehler beim Löschen des Bildes aus Cloudinary:', cloudinaryError);
-        // Wir setzen den Prozess fort, auch wenn das Löschen aus Cloudinary fehlschlägt
+        console.error('Error deleting image from Cloudinary:', cloudinaryError);
+        // Continue even if Cloudinary deletion fails
       }
     }
 
-    // Transaktion starten, um alle Änderungen atomar durchzuführen
     await prisma.$transaction(async (tx) => {
-      // Bild aus der Datenbank löschen
-      await tx.restaurantImage.delete({
-        where: { id: imageId }
-      });
+      await tx.restaurantImage.delete({ where: { id: imageId } });
 
-      // Wenn das gelöschte Bild das Hauptbild war, ein neues Hauptbild festlegen
       if (image.isPrimary) {
-        // Nächstes verfügbares Bild finden
         const nextImage = await tx.restaurantImage.findFirst({
           where: { restaurantId },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { id: 'desc' }
         });
 
         if (nextImage) {
-          // Dieses Bild als Hauptbild festlegen
           await tx.restaurantImage.update({
             where: { id: nextImage.id },
             data: { isPrimary: true }
           });
-
-          // Restaurant-Hauptbild aktualisieren
           await tx.restaurant.update({
             where: { id: restaurantId },
             data: { imageUrl: nextImage.url }
           });
         } else {
-          // Kein Bild mehr vorhanden, Restaurant-Hauptbild zurücksetzen
           await tx.restaurant.update({
             where: { id: restaurantId },
             data: { imageUrl: null }
@@ -116,9 +94,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     });
 
-    return res.status(200).json({ message: 'Bild erfolgreich gelöscht' });
-  } catch (error) {
-    console.error('Fehler beim Löschen des Bildes:', error);
-    return res.status(500).json({ message: 'Interner Serverfehler' });
+    return res.status(200).json({ message: 'Image successfully deleted' });
+  } catch (error: any) {
+    console.error('Error deleting image:', error);
+    return res.status(500).json({ message: error.message || 'Internal server error' });
+  } finally {
+    await prisma.$disconnect();
   }
 }

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
@@ -8,22 +8,20 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Nur POST-Anfragen zulassen
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    // Benutzer-Session überprüfen
-    const session = await getSession({ req });
+    const supabase = createPagesServerClient({ req, res });
+    const { data: { session } } = await supabase.auth.getSession();
     
-    if (!session || !session.user) {
+    if (!session) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
 
     const { restaurantId, title, description, date, time, maxParticipants, price = 0 } = req.body;
 
-    // Validierung der Eingabedaten
     if (!restaurantId || !title || !date || !time || !maxParticipants) {
       return res.status(400).json({ 
         message: 'Fehlende Pflichtfelder', 
@@ -31,7 +29,6 @@ export default async function handler(
       });
     }
 
-    // Überprüfen, ob das Restaurant existiert
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId }
     });
@@ -40,10 +37,8 @@ export default async function handler(
       return res.status(404).json({ message: 'Restaurant nicht gefunden' });
     }
 
-    // Datum und Uhrzeit kombinieren
     const datetime = new Date(`${date}T${time}`);
     
-    // Neues Event erstellen
     const newEvent = await prisma.event.create({
       data: {
         title,
@@ -56,7 +51,7 @@ export default async function handler(
         },
         participants: {
           create: {
-            user: {
+            profile: { // Corrected from 'user' to 'profile'
               connect: { id: session.user.id }
             },
             isHost: true
@@ -74,7 +69,7 @@ export default async function handler(
         },
         participants: {
           include: {
-            user: {
+            profile: { // Corrected from 'user' to 'profile'
               select: {
                 name: true,
                 id: true

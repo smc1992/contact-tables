@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { createBrowserClient } from '@supabase/ssr';
 import { motion } from 'framer-motion';
 import { FiCheck, FiAlertCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiTag, FiUsers, FiClock } from 'react-icons/fi';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import { supabase, auth } from '../../utils/supabase';
 
 interface FormData {
   name: string;
@@ -35,6 +35,10 @@ export default function RestaurantRegister() {
   });
   
   const [loading, setLoading] = useState(false);
+    const [supabase] = useState(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ));
 
   const [status, setStatus] = useState<{
     type: 'success' | 'error' | null;
@@ -49,86 +53,55 @@ export default function RestaurantRegister() {
     setStatus({ type: null, message: '' });
     setLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      setStatus({ type: 'error', message: 'Die Passwörter stimmen nicht überein.' });
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Passwörter überprüfen
-      if (formData.password !== formData.confirmPassword) {
-        throw new Error('Die Passwörter stimmen nicht überein');
+      const response = await fetch('/api/auth/register-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Wir senden jetzt alle Formulardaten an das Backend
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: 'RESTAURANT',
+          phone: formData.phone,
+          address: formData.address,
+          description: formData.description,
+          cuisine: formData.cuisine,
+          capacity: parseInt(formData.capacity, 10) || 0,
+          openingHours: formData.openingHours,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Ein Fehler bei der Registrierung ist aufgetreten.');
       }
 
-      if (formData.password.length < 8) {
-        throw new Error('Das Passwort muss mindestens 8 Zeichen lang sein');
+      // Schritt 2: Benutzer nach erfolgreicher Registrierung im Frontend anmelden
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInError) {
+        throw new Error(`Anmeldung nach Registrierung fehlgeschlagen: ${signInError.message}`);
       }
 
-      // 1. Benutzer mit Supabase registrieren
-      const { data: authData, error: authError } = await auth.signUp(
-        formData.email,
-        formData.password,
-        {
-          // options
-          data: { // Wird in raw_user_meta_data oder app_metadata gespeichert, je nach Supabase-Konfiguration
-            role: 'RESTAURANT',
-            name: formData.name, // Hinzugefügt, um den Namen für den Trigger bereitzustellen
-          }
-        }
-      );
-
-      if (authError) {
-        throw new Error(authError.message || 'Fehler bei der Registrierung');
-      }
-
-      const { user: authUser, session: authSession } = authData;
-      console.log('[Register Page] User after signUp:', JSON.stringify(authUser, null, 2));
-
-      if (!authUser) {
-        console.error('[Register Page] Kein Benutzerobjekt nach der Registrierung erhalten.');
-        setStatus({
-          type: 'error',
-          message: 'Fehler bei der Registrierung: Kein Benutzerobjekt erhalten.',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Metadaten aktualisieren (optional, aber gut für die Rolle)
-      if (formData.name || authUser.role !== 'RESTAURANT') { // Überprüfen, ob Rolle bereits gesetzt ist
-        const { data: updatedUser, error: updateUserError } = await supabase.auth.updateUser({
-          data: { 
-            full_name: formData.name, // Standard Supabase Metadatenfeld für den Namen
-            role: 'RESTAURANT' 
-          }
-        });
-        if (updateUserError) {
-          console.error('[Register Page] Fehler beim Aktualisieren der Benutzermetadaten:', updateUserError);
-          // Nicht unbedingt ein Showstopper, aber loggen
-        } else {
-          console.log('[Register Page] Benutzermetadaten aktualisiert:', updatedUser);
-        }
-      }
-
-      // WICHTIG: Restaurant-Profil NICHT sofort erstellen, da E-Mail-Bestätigung erforderlich ist.
-      // Informieren Sie den Benutzer stattdessen.
-      
+      // Schritt 3: Erfolgsmeldung anzeigen und zum Dashboard weiterleiten
       setStatus({
         type: 'success',
-        message: 'Registrierung erfolgreich! Bitte überprüfen Sie Ihr E-Mail-Postfach, um Ihre E-Mail-Adresse zu bestätigen. Danach können Sie sich anmelden und Ihr Restaurantprofil vervollständigen.',
+        message: 'Erfolgreich registriert und angemeldet! Die Weiterleitung wird vorbereitet...',
       });
-
-      // Formular leeren
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        phone: '',
-        address: '',
-        description: '',
-        cuisine: '',
-        capacity: '',
-        openingHours: '',
-      });
-
-      // Optional: Benutzer auf eine Informationsseite weiterleiten oder einfach die Nachricht anzeigen lassen.
-      // router.push('/auth/check-email'); 
+      // Die Weiterleitung wird jetzt durch den onAuthStateChange-Listener unten ausgelöst, um Race Conditions zu vermeiden.
 
     } catch (error) {
       setStatus({
@@ -147,6 +120,29 @@ export default function RestaurantRegister() {
       [name]: value,
     }));
   };
+
+  // Dieser Hook lauscht auf Anmelde-Ereignisse und leitet den Benutzer
+  // sicher zum Dashboard weiter, sobald die Sitzung im Browser aktiv ist.
+  // Dies verhindert Race Conditions mit der Middleware.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[Auth State Change] Event:', event);
+      if (session) {
+        console.log('[Auth State Change] Session User:', session.user);
+        console.log('[Auth State Change] User Metadata:', session.user.user_metadata);
+        console.log('[Auth State Change] User Role:', session.user.user_metadata?.role);
+      }
+
+      if (event === 'SIGNED_IN' && session?.user.user_metadata.role === 'RESTAURANT') {
+        console.log('[Auth State Change] Role-Check PASSED. Redirecting to dashboard...');
+        router.push('/restaurant/dashboard');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -414,4 +410,4 @@ export default function RestaurantRegister() {
       <Footer />
     </div>
   );
-} 
+}

@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Bild in der Datenbank finden, das zum Hauptbild werden soll
     const { data: imageToSetAsPrimary, error: imageError } = await supabase
-      .from('RestaurantImage')
+      .from('restaurant_images')
       .select('id, url, is_primary, restaurant_id')
       .eq('id', imageId)
       .eq('restaurant_id', restaurantId) // Sicherstellen, dass das Bild zum Restaurant gehört
@@ -73,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Schritt 1: Alle Bilder dieses Restaurants auf is_primary = false setzen
     const { error: updateOldPrimaryError } = await supabase
-      .from('RestaurantImage')
+      .from('restaurant_images')
       .update({ is_primary: false })
       .eq('restaurant_id', restaurantId);
 
@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Schritt 2: Das ausgewählte Bild als Hauptbild festlegen
     const { error: setNewPrimaryError } = await supabase
-      .from('RestaurantImage')
+      .from('restaurant_images')
       .update({ is_primary: true })
       .eq('id', imageId);
 

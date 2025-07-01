@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: restaurantId,
       },
       include: { // Hinzufügen, um die Benutzer-ID für Supabase zu erhalten
-        user: true, // Annahme: Relation 'user' zu 'Profile' Tabelle, wo 'Profile.id' die Supabase auth.users.id ist
+        profile: true, // Relation 'profile' zu 'Profile' Tabelle, wo 'Profile.id' die Supabase auth.users.id ist
       }
     });
 
@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Annahme: restaurant.user.id ist die Supabase auth.users.id
     // oder restaurant.userId, falls es eine direkte Spalte ist.
     // Wir verwenden restaurant.user.id basierend auf der Annahme der 'user' Relation.
-    const supabaseAuthUserId = restaurant.user?.id;
+    const supabaseAuthUserId = restaurant.profile?.id;
     const restaurantEmail = restaurant.email; // Für Logging, falls ID fehlt
 
     if (supabaseAuthUserId) {

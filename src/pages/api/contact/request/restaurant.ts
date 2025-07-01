@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
@@ -8,109 +8,109 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getSession({ req });
-  
-  if (!session || !session.user) {
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
   const userId = session.user.id;
-  
-  // Überprüfen, ob der Benutzer ein Restaurant ist
-  const user = await prisma.profile.findUnique({
+
+  // Check if the user is a restaurant user by checking their profile and role
+  const profile = await prisma.profile.findUnique({
     where: { id: userId },
     include: {
-      restaurant: true
-    }
+      restaurant: true,
+    },
   });
-  
-  if (!user || user.role !== 'RESTAURANT' || !user.restaurant) {
+
+  if (!profile || session.user.user_metadata?.role !== 'RESTAURANT' || !profile.restaurant) {
     return res.status(403).json({ message: 'Nur Restaurant-Benutzer können auf diese Ressource zugreifen' });
   }
 
-  const restaurantId = user.restaurant.id;
+  const restaurantId = profile.restaurant.id;
 
-  // GET: Kontakttische für das Restaurant abrufen
+  // GET: Get contact tables for the restaurant
   if (req.method === 'GET') {
     try {
       const { date } = req.query;
-      
-      // Filter für das Datum erstellen
+
+      // Create date filter
       let dateFilter = {};
       if (date && typeof date === 'string') {
         const startDate = new Date(date);
         startDate.setHours(0, 0, 0, 0);
-        
+
         const endDate = new Date(date);
         endDate.setHours(23, 59, 59, 999);
-        
+
         dateFilter = {
           datetime: {
             gte: startDate,
-            lte: endDate
-          }
+            lte: endDate,
+          },
         };
       }
-      
-      // Kontakttische abrufen
+
+      // Get contact tables
       const contactTables = await prisma.event.findMany({
         where: {
           restaurantId,
-          ...dateFilter
+          ...dateFilter,
         },
         include: {
           participants: {
             include: {
-              user: {
+              profile: { // Corrected from 'user' to 'profile'
                 select: {
                   id: true,
                   name: true,
-                  image: true
-                }
-              }
-            }
+                },
+              },
+            },
           },
           _count: {
             select: {
-              participants: true
-            }
-          }
+              participants: true,
+            },
+          },
         },
         orderBy: {
-          datetime: 'asc'
-        }
+          datetime: 'asc',
+        },
       });
-      
-      // Daten für die Antwort aufbereiten
+
+      // Prepare data for the response
       const formattedTables = contactTables.map(table => {
         const availableSeats = table.maxParticipants - table._count.participants;
         const isPast = new Date(table.datetime) < new Date();
-        
+
         let status: 'OPEN' | 'FULL' | 'PAST' = 'OPEN';
         if (isPast) {
           status = 'PAST';
         } else if (availableSeats <= 0) {
           status = 'FULL';
         }
-        
+
         return {
           ...table,
           availableSeats,
           status,
-          isPast
+          isPast,
         };
       });
-      
-      return res.status(200).json({ 
+
+      return res.status(200).json({
         message: 'Kontakttische erfolgreich abgerufen',
-        contactTables: formattedTables
+        contactTables: formattedTables,
       });
     } catch (error) {
       console.error('Fehler beim Abrufen der Kontakttische:', error);
       return res.status(500).json({ message: 'Interner Serverfehler' });
     }
   }
-  
-  // Andere HTTP-Methoden werden nicht unterstützt
+
+  // Other HTTP methods are not supported
   return res.status(405).json({ message: 'Methode nicht erlaubt' });
 }

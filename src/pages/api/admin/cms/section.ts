@@ -1,10 +1,17 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Language, CmsSectionType } from '@prisma/client';
-import { authenticateToken, requireRole, AuthenticatedRequest } from '../../../../middleware/auth';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
-async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session || session.user.user_metadata?.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Forbidden: Admins only' });
+  }
+
   switch (req.method) {
     case 'GET':
       try {
@@ -37,7 +44,6 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           type,
         } = req.body;
 
-        // Validierung
         if (!title || !key || !content || !position || !languageCode || !type) {
           return res.status(400).json({ message: 'Alle Felder sind erforderlich' });
         }
@@ -114,15 +120,4 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'DELETE']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-}
-
-// Middleware-Kette für Authentifizierung und Rollenbeschränkung
-export default async function (req: AuthenticatedRequest, res: NextApiResponse) {
-  await authenticateToken(req, res, () => {
-    // Verwende das UserRole-Enum aus dem auth-Modul
-    const { UserRole } = require('../../../../middleware/auth');
-    requireRole([UserRole.ADMIN])(req, res, () => {
-      handler(req, res);
-    });
-  });
 } 

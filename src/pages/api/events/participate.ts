@@ -8,13 +8,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Nur POST-Anfragen zulassen
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    // Benutzer-Session überprüfen
     const supabase = createPagesServerClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -28,19 +26,27 @@ export default async function handler(
       return res.status(400).json({ message: 'Event-ID ist erforderlich' });
     }
 
-    // Überprüfen, ob das Event existiert
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        participants: true
-      }
-    });
+    // Fetch event and current user's profile in parallel
+    const [event, currentUserProfile] = await Promise.all([
+      prisma.event.findUnique({
+        where: { id: eventId },
+        include: {
+          participants: true, // includes profileId
+        }
+      }),
+      prisma.profile.findUnique({
+        where: { id: session.user.id }
+      })
+    ]);
 
     if (!event) {
       return res.status(404).json({ message: 'Event nicht gefunden' });
     }
+    
+    if (!currentUserProfile) {
+        return res.status(404).json({ message: 'Benutzerprofil nicht gefunden' });
+    }
 
-    // Überprüfen, ob der Benutzer bereits teilnimmt
     const isAlreadyParticipating = event.participants.some(
       participant => participant.userId === session.user.id
     );
@@ -49,18 +55,16 @@ export default async function handler(
       return res.status(400).json({ message: 'Du nimmst bereits an diesem Event teil' });
     }
 
-    // Überprüfen, ob das Event voll ist
     if (event.participants.length >= event.maxParticipants) {
       return res.status(400).json({ message: 'Das Event ist bereits voll' });
     }
 
-    // Teilnahme hinzufügen
     const participation = await prisma.eventParticipant.create({
       data: {
         event: {
           connect: { id: eventId }
         },
-        user: {
+        profile: { // Corrected from user
           connect: { id: session.user.id }
         },
         isHost: false
@@ -77,7 +81,7 @@ export default async function handler(
             },
             participants: {
               include: {
-                user: {
+                profile: { // Corrected from user
                   select: {
                     name: true,
                     id: true
@@ -87,7 +91,7 @@ export default async function handler(
             }
           }
         },
-        user: {
+        profile: { // Corrected from user
           select: {
             name: true,
             id: true
@@ -96,21 +100,18 @@ export default async function handler(
       }
     });
 
-    // Benachrichtigung an den Host senden
+    // Find host to send notification
     const host = event.participants.find(participant => participant.isHost);
     
-    if (host) {
+    if (host && host.userId) {
       await prisma.notification.create({
         data: {
-          userId: host.userId,
+          profile: {
+            connect: { id: host.userId }
+          },
           title: 'Neue Teilnahme an deinem Event',
-          message: `${session.user.name} nimmt an deinem Event "${event.title}" teil.`,
-          type: 'EVENT_PARTICIPATION',
-          read: false,
-          data: JSON.stringify({
-            eventId: event.id,
-            participantId: session.user.id
-          })
+          content: `${currentUserProfile.name || 'Ein Benutzer'} nimmt an deinem Event "${event.title}" teil.`,
+          type: 'EVENT_PARTICIPATION'
         }
       });
     }

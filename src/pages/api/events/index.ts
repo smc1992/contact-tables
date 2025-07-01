@@ -1,73 +1,80 @@
-import { NextApiResponse } from 'next';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken, requireRole, AuthenticatedRequest } from '../../../middleware/auth';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
-async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
-  if (!req.user?.id) {
-    return res.status(401).json({ message: 'Nicht authentifiziert' });
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // GET is a public endpoint, no authentication required
+  if (req.method === 'GET') {
+    try {
+      const { page = '1', limit = '10', status } = req.query;
+      const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+      const where: any = {
+        restaurant: {
+          isVisible: true,
+        },
+      };
+      if (status && typeof status === 'string') {
+        where.status = status;
+      }
+
+      const [events, total] = await Promise.all([
+        prisma.event.findMany({
+          where,
+          include: {
+            restaurant: {
+              select: {
+                name: true,
+                address: true,
+                city: true,
+              },
+            },
+            _count: {
+              select: {
+                participants: true,
+              },
+            },
+          },
+          skip,
+          take: parseInt(limit as string),
+          orderBy: {
+            datetime: 'asc',
+          },
+        }),
+        prisma.event.count({ where }),
+      ]);
+
+      return res.status(200).json({
+        events,
+        pagination: {
+          total,
+          pages: Math.ceil(total / parseInt(limit as string)),
+          currentPage: parseInt(page as string),
+          perPage: parseInt(limit as string),
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      return res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
+    }
   }
 
+  // For POST and PATCH, we need an authenticated user
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    return res.status(401).json({ message: 'Nicht authentifiziert' });
+  }
+  const userId = session.user.id;
+  const userRole = session.user.user_metadata?.role;
+
   switch (req.method) {
-    case 'GET':
-      try {
-        const { page = '1', limit = '10', status } = req.query;
-        const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-
-        const where = {
-          ...(status && { status }),
-          restaurant: {
-            isVisible: true,
-          },
-        };
-
-        const [events, total] = await Promise.all([
-          prisma.event.findMany({
-            where,
-            include: {
-              restaurant: {
-                select: {
-                  name: true,
-                  address: true,
-                  city: true,
-                  imageUrl: true,
-                },
-              },
-              _count: {
-                select: {
-                  participants: true,
-                },
-              },
-            },
-            skip,
-            take: parseInt(limit as string),
-            orderBy: {
-              datetime: 'asc',
-            },
-          }),
-          prisma.event.count({ where }),
-        ]);
-
-        res.status(200).json({
-          events,
-          pagination: {
-            total,
-            pages: Math.ceil(total / parseInt(limit as string)),
-            currentPage: parseInt(page as string),
-            perPage: parseInt(limit as string),
-          },
-        });
-      } catch (error) {
-        console.error('Error fetching events:', error);
-        res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
-      }
-      break;
-
     case 'POST':
       try {
-        // Nur Restaurant-Benutzer können Events erstellen
-        if (req.user.role !== 'RESTAURANT') {
+        if (userRole !== 'RESTAURANT') {
           return res.status(403).json({ message: 'Keine Berechtigung' });
         }
 
@@ -75,16 +82,16 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           datetime,
           maxParticipants,
           notes,
+          title,
+          description,
         } = req.body;
 
-        // Validierung
-        if (!datetime || !maxParticipants) {
-          return res.status(400).json({ message: 'Datum/Uhrzeit und maximale Teilnehmerzahl sind erforderlich' });
+        if (!datetime || !maxParticipants || !title) {
+          return res.status(400).json({ message: 'Titel, Datum/Uhrzeit und maximale Teilnehmerzahl sind erforderlich' });
         }
 
-        // Finde das Restaurant des Benutzers
         const restaurant = await prisma.restaurant.findUnique({
-          where: { userId: req.user.id },
+          where: { userId: userId },
         });
 
         if (!restaurant) {
@@ -95,8 +102,9 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           data: {
             restaurantId: restaurant.id,
             datetime: new Date(datetime),
-            maxParticipants,
-            notes,
+            maxParticipants: Number(maxParticipants),
+            title,
+            description,
             status: 'OPEN',
           },
           include: {
@@ -110,25 +118,23 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         });
 
-        res.status(201).json(event);
+        return res.status(201).json(event);
       } catch (error) {
         console.error('Error creating event:', error);
-        res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
+        return res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
       }
-      break;
 
     case 'PATCH':
       try {
         const { id } = req.query;
         const { status } = req.body;
 
-        if (!id) {
+        if (!id || typeof id !== 'string') {
           return res.status(400).json({ message: 'Event-ID ist erforderlich' });
         }
 
-        // Prüfe, ob der Benutzer das Event bearbeiten darf
         const event = await prisma.event.findUnique({
-          where: { id: id as string },
+          where: { id: id },
           include: {
             restaurant: true,
           },
@@ -138,12 +144,12 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           return res.status(404).json({ message: 'Event nicht gefunden' });
         }
 
-        if (req.user.role === 'RESTAURANT' && event.restaurant.userId !== req.user.id) {
+        if (userRole !== 'ADMIN' && (userRole !== 'RESTAURANT' || event.restaurant.userId !== userId)) {
           return res.status(403).json({ message: 'Keine Berechtigung' });
         }
 
         const updatedEvent = await prisma.event.update({
-          where: { id: id as string },
+          where: { id: id },
           data: {
             status,
           },
@@ -158,22 +164,14 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           },
         });
 
-        res.status(200).json(updatedEvent);
+        return res.status(200).json(updatedEvent);
       } catch (error) {
         console.error('Error updating event:', error);
-        res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
+        return res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
       }
-      break;
 
     default:
       res.setHeader('Allow', ['GET', 'POST', 'PATCH']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-}
-
-// Middleware-Kette für Authentifizierung
-export default async function (req: AuthenticatedRequest, res: NextApiResponse) {
-  await authenticateToken(req, res, () => {
-    handler(req, res);
-  });
 } 

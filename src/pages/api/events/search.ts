@@ -92,7 +92,7 @@ export default async function handler(
             select: {
               userId: true,
               isHost: true,
-              user: {
+              profile: {
                 select: {
                   name: true,
                   id: true

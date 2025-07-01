@@ -68,10 +68,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (city !== undefined) updateData.city = city;
   if (website !== undefined) updateData.website = website;
   if (capacity !== undefined) updateData.capacity = Number(capacity);
-  if (cuisine !== undefined) updateData.cuisine = cuisine; // Angepasst an DB-Spalte 'cuisine' (text)
+  if (cuisine !== undefined) updateData.cuisine = cuisine;
   if (phone !== undefined) updateData.phone = phone;
   if (email !== undefined) updateData.email = email;
-  if (openingHours !== undefined) updateData.opening_hours = openingHours;
+  if (openingHours !== undefined) updateData.opening_hours = openingHours; // Korrekter Spaltenname
 
   if (Object.keys(updateData).length === 0) {
     return res.status(400).json({ message: 'Keine Daten zum Aktualisieren bereitgestellt' });
@@ -82,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('restaurants')
       .update(updateData)
       .eq('id', id)
-      .eq('userId', user.id) // Sicherheitsüberprüfung: User muss der Eigentümer sein
+      .eq('userId', user.id) // Korrekt, da Prisma 'userId' verwendet // Sicherheitsüberprüfung: User muss der Eigentümer sein
       .select()
       .single();
 

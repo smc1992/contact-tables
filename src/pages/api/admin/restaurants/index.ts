@@ -1,19 +1,25 @@
-import { NextApiResponse } from 'next';
-import { PrismaClient, ContractStatus, Prisma } from '@prisma/client';
-import { authenticateToken, requireRole, AuthenticatedRequest, UserRole } from '../../../../middleware/auth';
+import { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
-async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session || session.user.user_metadata?.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Forbidden: Admins only' });
+  }
+
   switch (req.method) {
     case 'GET':
       try {
         const { status, page = '1', limit = '10' } = req.query;
         const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
         
-        // TypeScript-Cast für contractStatus
         const where = status ? {
-          contractStatus: status as any, // Cast zu any, um Typfehler zu vermeiden
+          contractStatus: status as any, 
         } : {};
 
         const [restaurants, total] = await Promise.all([
@@ -103,7 +109,6 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
           return res.status(400).json({ message: 'Restaurant-ID ist erforderlich' });
         }
 
-        // Lösche zuerst alle abhängigen Datensätze
         await prisma.$transaction([
           prisma.event.deleteMany({
             where: { restaurantId: id as string },
@@ -127,13 +132,4 @@ async function handler(req: AuthenticatedRequest, res: NextApiResponse) {
       res.setHeader('Allow', ['GET', 'PATCH', 'DELETE']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-}
-
-// Middleware-Kette für Authentifizierung und Rollenbeschränkung
-export default async function (req: AuthenticatedRequest, res: NextApiResponse) {
-  await authenticateToken(req, res, () => {
-    requireRole([UserRole.ADMIN])(req, res, () => {
-      handler(req, res);
-    });
-  });
 } 
