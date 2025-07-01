@@ -11,17 +11,7 @@ export default async function handler(
     try {
       const restaurant = await prisma.restaurant.findUnique({
         where: { id: id as string },
-        include: {
-          ratings: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
+                include: {
           events: {
             where: {
               datetime: {
@@ -31,7 +21,7 @@ export default async function handler(
             include: {
               participants: {
                 include: {
-                  user: {
+                  profile: { // Corrected from 'user'
                     select: {
                       id: true,
                       name: true,
@@ -39,6 +29,16 @@ export default async function handler(
                   },
                 },
               },
+              ratings: { // Ratings are on events
+                include: {
+                  profile: { // Rating is linked to profile
+                    select: {
+                      id: true,
+                      name: true
+                    }
+                  }
+                }
+              }
             },
           },
         },
@@ -57,7 +57,7 @@ export default async function handler(
 
   if (req.method === 'PUT') {
     try {
-      const { name, description, address, city, postalCode, latitude, longitude, contactEmail, bookingUrl, imageUrls } = req.body;
+      const { name, description, address, city, postal_code, latitude, longitude, email, bookingUrl, imageUrl } = req.body;
 
       const restaurant = await prisma.restaurant.update({
         where: { id: id as string },
@@ -66,12 +66,12 @@ export default async function handler(
           description,
           address,
           city,
-          postalCode,
+          postal_code,
           latitude,
           longitude,
-          contactEmail,
+          email,
           bookingUrl,
-          imageUrls,
+          imageUrl,
         },
       });
 
