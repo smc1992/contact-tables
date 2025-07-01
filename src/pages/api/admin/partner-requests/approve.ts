@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
 import { PrismaClient, ContractStatus } from '@prisma/client';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { sendEmail } from '../../../../utils/emailService';
@@ -21,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   
   // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const user = await prisma.user.findUnique({
+  const user = await prisma.profile.findUnique({
     where: { id: session.user.id },
     select: { role: true }
   });
@@ -50,46 +51,48 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant oder zugehöriges Profil nicht gefunden' });
     }
 
-    // Benutzer aus der auth.users-Tabelle abrufen, um die E-Mail zu erhalten
-    const authUser = await prisma.user.findUnique({
-      where: { id: restaurant.userId },
-      select: { email: true },
-    });
-
-    if (!authUser || !authUser.email) {
-      return res.status(400).json({ message: 'Keine E-Mail-Adresse für das Restaurant vorhanden' });
-    }
-
     if (restaurant.contractStatus !== 'PENDING') {
       return res.status(400).json({ message: 'Restaurant ist nicht im Status PENDING' });
     }
 
-    // Zahlungslink generieren (in einer echten Anwendung würde hier Stripe oder ein anderer Zahlungsanbieter verwendet)
+    // Zahlungslink generieren
     const paymentLink = `${process.env.NEXT_PUBLIC_APP_URL}/restaurant/payment/${restaurantId}`;
 
-    // E-Mail mit Zahlungslink an Restaurant senden
-    await sendEmail({
-      to: authUser.email,
-      subject: 'Ihre Partneranfrage wurde genehmigt - Nächste Schritte',
-      html: `
-        <h1>Herzlichen Glückwunsch!</h1>
-        <p>Liebe(r) ${restaurant.profile.name || 'Restaurantbetreiber'},</p>
-        <p>wir freuen uns, Ihnen mitteilen zu können, dass Ihre Anfrage für das Restaurant "${restaurant.name}" genehmigt wurde!</p>
-        <p>Um den Prozess abzuschließen und Ihr Restaurant auf Contact Tables zu aktivieren, folgen Sie bitte diesen Schritten:</p>
-        <ol>
-          <li>Klicken Sie auf den folgenden Link, um Ihre Zahlungsinformationen einzugeben und Ihren Vertrag zu bestätigen: <a href="${paymentLink}">Zahlungsinformationen eingeben</a></li>
-          <li>Nach erfolgreicher Bestätigung wird Ihr Restaurant auf unserer Plattform sichtbar.</li>
-        </ol>
-        <p>Vielen Dank, dass Sie Teil von Contact Tables sind!</p>
-        <p>Mit freundlichen Grüßen,<br>Ihr Contact Tables Team</p>
-      `
-    });
+    // Supabase Admin Client initialisieren, um die E-Mail des Benutzers abzurufen
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    // Restaurant-Status auf APPROVED aktualisieren (noch nicht ACTIVE, da Zahlung und Vertrag noch ausstehen)
+    const { data: { user: authUser }, error: userError } = await supabaseAdmin.auth.admin.getUserById(restaurant.userId);
+
+    // E-Mail nur senden, wenn der Benutzer gefunden wurde und eine E-Mail-Adresse hat
+    if (userError || !authUser || !authUser.email) {
+      console.error('Konnte Benutzer nicht für E-Mail-Versand abrufen oder E-Mail fehlt:', userError);
+    } else {
+      await sendEmail({
+        to: authUser.email,
+        subject: 'Ihre Partneranfrage wurde genehmigt - Nächste Schritte',
+        html: `
+          <h1>Herzlichen Glückwunsch!</h1>
+          <p>Liebe(r) ${restaurant.profile.name || 'Restaurantbetreiber'},</p>
+          <p>wir freuen uns, Ihnen mitteilen zu können, dass Ihre Anfrage für das Restaurant "${restaurant.name}" genehmigt wurde!</p>
+          <p>Um den Prozess abzuschließen und Ihr Restaurant auf Contact Tables zu aktivieren, folgen Sie bitte diesen Schritten:</p>
+          <ol>
+            <li>Klicken Sie auf den folgenden Link, um Ihre Zahlungsinformationen einzugeben und Ihren Vertrag zu bestätigen: <a href="${paymentLink}">Zahlungsinformationen eingeben</a></li>
+            <li>Nach erfolgreicher Bestätigung wird Ihr Restaurant auf unserer Plattform sichtbar.</li>
+          </ol>
+          <p>Vielen Dank, dass Sie Teil von Contact Tables sind!</p>
+          <p>Mit freundlichen Grüßen,<br>Ihr Contact Tables Team</p>
+        `
+      });
+    }
+
+    // Restaurant-Status auf APPROVED aktualisieren
     await prisma.restaurant.update({
       where: { id: restaurantId },
       data: {
-        contractStatus: 'APPROVED' as any, // TypeScript-Cast, um Typfehler zu vermeiden
+        contractStatus: 'APPROVED' as any,
       }
     });
 

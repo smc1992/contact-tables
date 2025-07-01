@@ -8,6 +8,7 @@ interface PageLayoutProps {
   showHeader?: boolean;
   showFooter?: boolean;
   className?: string;
+  noContainerPadding?: boolean;
 }
 
 export default function PageLayout({
@@ -16,14 +17,15 @@ export default function PageLayout({
   showHeader = true,
   showFooter = true,
   className = '',
+  noContainerPadding = false,
 }: PageLayoutProps) {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {showHeader && <Header />}
       
-      <main className="flex-grow pt-24">
+      <main className={`flex-grow ${!noContainerPadding ? 'pt-20' : ''}`}>
         {/* Container mit ausreichendem Abstand zum Header */}
-        <div className={`container mx-auto px-4 py-8 ${className}`}>
+        <div className={`container mx-auto px-4 ${!noContainerPadding ? 'py-8' : ''} ${className}`}>
           {title && (
             <h1 className="text-2xl font-bold mb-6 text-gray-800">{title}</h1>
           )}

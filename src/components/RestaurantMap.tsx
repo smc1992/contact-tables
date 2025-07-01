@@ -6,16 +6,16 @@ import { LatLngExpression } from 'leaflet';
 
 // Typdefinitionen für die Komponente
 interface Restaurant {
-  id: number;
+  id: string;
   name: string;
   address: string;
   city: string;
-  postal_code: string;
-  latitude: number;
-  longitude: number;
-  cuisine?: string;
-  price_range?: string;
-  image_url?: string;
+  postalCode: string;
+  latitude: number | null;
+  longitude: number | null;
+  cuisine?: string | null;
+  priceRange?: string | null;
+  imageUrl?: string | null;
 }
 
 interface RestaurantMapProps {
@@ -59,8 +59,8 @@ const RestaurantMap: React.FC<RestaurantMapProps> = ({
     const validRestaurants = restaurants.filter(r => r.latitude && r.longitude);
     if (validRestaurants.length === 0) return center;
     
-    const sumLat = validRestaurants.reduce((sum, r) => sum + r.latitude, 0);
-    const sumLng = validRestaurants.reduce((sum, r) => sum + r.longitude, 0);
+    const sumLat = validRestaurants.reduce((sum, r) => sum + r.latitude!, 0);
+    const sumLng = validRestaurants.reduce((sum, r) => sum + r.longitude!, 0);
     
     return [sumLat / validRestaurants.length, sumLng / validRestaurants.length] as LatLngExpression;
   };
@@ -89,16 +89,16 @@ const RestaurantMap: React.FC<RestaurantMapProps> = ({
               <Popup>
                 <div className="p-2">
                   <h3 className="font-semibold">{restaurant.name}</h3>
-                  <p className="text-sm text-gray-600">{restaurant.address}, {restaurant.postal_code} {restaurant.city}</p>
+                  <p className="text-sm text-gray-600">{restaurant.address}, {restaurant.postalCode} {restaurant.city}</p>
                   {restaurant.cuisine && (
                     <p className="text-sm text-gray-500 mt-1">Küche: {restaurant.cuisine}</p>
                   )}
-                  {restaurant.price_range && (
-                    <p className="text-sm text-gray-500">Preisklasse: {restaurant.price_range}</p>
+                  {restaurant.priceRange && (
+                    <p className="text-sm text-gray-500">Preisklasse: {restaurant.priceRange}</p>
                   )}
-                  {restaurant.image_url && (
+                  {restaurant.imageUrl && (
                     <img 
-                      src={restaurant.image_url} 
+                      src={restaurant.imageUrl} 
                       alt={restaurant.name} 
                       className="mt-2 w-full h-24 object-cover rounded"
                     />

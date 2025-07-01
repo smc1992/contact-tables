@@ -30,7 +30,7 @@ export default async function handler(
   }
 
   // Alle erwarteten Felder aus dem Request-Body destrukturieren
-  const { name, email, password, role, phone, address, description, cuisine, capacity, openingHours } = req.body;
+  const { name, email, password, role, phone, address, postalCode, city, description, cuisine, capacity, openingHours } = req.body;
 
   // Grundlegende Validierung für Kernfelder
   if (!name || !email || !password || !role) {
@@ -38,7 +38,7 @@ export default async function handler(
   }
   
   // Spezifische Validierung für die Rolle 'RESTAURANT'
-  if (role === 'RESTAURANT' && (!phone || !address || !description || !cuisine || capacity === undefined || !openingHours)) {
+  if (role === 'RESTAURANT' && (!phone || !address || !postalCode || !city || !description || !cuisine || capacity === undefined || !openingHours)) {
     return res.status(400).json({ message: 'Für die Registrierung eines Restaurants sind alle Felder erforderlich.' });
   }
 
@@ -91,6 +91,8 @@ export default async function handler(
               email: user.email,
               phone: phone,
               address: address,
+              postalCode: postalCode,
+              city: city,
               description: description,
               cuisine: cuisine,
               capacity: capacity,

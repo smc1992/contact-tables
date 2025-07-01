@@ -13,6 +13,8 @@ interface FormData {
   confirmPassword: string;
   phone: string;
   address: string;
+  postalCode: string;
+  city: string;
   description: string;
   cuisine: string;
   capacity: string;
@@ -28,6 +30,8 @@ export default function RestaurantRegister() {
     confirmPassword: '',
     phone: '',
     address: '',
+    postalCode: '',
+    city: '',
     description: '',
     cuisine: '',
     capacity: '',
@@ -73,6 +77,8 @@ export default function RestaurantRegister() {
           role: 'RESTAURANT',
           phone: formData.phone,
           address: formData.address,
+          postalCode: formData.postalCode,
+          city: formData.city,
           description: formData.description,
           cuisine: formData.cuisine,
           capacity: parseInt(formData.capacity, 10) || 0,
@@ -275,7 +281,7 @@ export default function RestaurantRegister() {
                       </div>
                     </div>
 
-                    <div>
+                    <div className="md:col-span-2">
                       <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
                         Adresse *
                       </label>
@@ -293,6 +299,36 @@ export default function RestaurantRegister() {
                           className="w-full pl-10 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-2">
+                        PLZ *
+                      </label>
+                      <input
+                        type="text"
+                        id="postalCode"
+                        name="postalCode"
+                        required
+                        value={formData.postalCode}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
+                        Ort *
+                      </label>
+                      <input
+                        type="text"
+                        id="city"
+                        name="city"
+                        required
+                        value={formData.city}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
                     </div>
 
                     <div>

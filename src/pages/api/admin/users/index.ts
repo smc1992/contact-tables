@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
@@ -18,7 +18,7 @@ export default async function handler(
   }
   
   // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const adminUser = await prisma.user.findUnique({
+  const adminUser = await prisma.profile.findUnique({
     where: { id: session.user.id },
     select: { role: true }
   });
@@ -44,28 +44,28 @@ export default async function handler(
       const skip = (pageNumber - 1) * limitNumber;
 
       // Filter erstellen
-      const where: Prisma.usersWhereInput = {};
+      let where: Prisma.ProfileWhereInput = {};
 
       // Suchfilter (nur auf E-Mail)
       // TODO: Suche nach Name erfordert eine komplexere Abfrage
       if (search) {
-        where.email = { contains: search as string, mode: 'insensitive' };
+        where.name = { contains: search as string, mode: 'insensitive' };
       }
 
       // Rollenfilter
       if (role) {
-        where.role = { equals: role as string };
+        where.role = { equals: role as UserRole };
       }
 
       // Benutzer abrufen
       const [users, totalCount] = await Promise.all([
-        prisma.user.findMany({
+        prisma.profile.findMany({
           where,
-          orderBy: { created_at: 'desc' },
+          orderBy: { createdAt: 'desc' },
           skip,
           take: limitNumber
         }),
-        prisma.user.count({ where })
+        prisma.profile.count({ where })
       ]);
 
       // Zugehörige Profile abrufen
@@ -88,12 +88,11 @@ export default async function handler(
         const profile = profilesMap.get(u.id);
         return {
           id: u.id,
+          email: '', // HACK: Email is not on profile model, needs to be fetched from auth.users
           name: profile?.name,
-          email: u.email,
           role: u.role,
-          isPaying: profile?.isPaying,
-          createdAt: u.created_at,
-          updatedAt: u.updated_at,
+          createdAt: u.createdAt,
+          updatedAt: u.updatedAt,
           restaurant: profile?.restaurant || null
         };
       });

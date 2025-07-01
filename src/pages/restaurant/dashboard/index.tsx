@@ -12,6 +12,7 @@ interface RestaurantData {
   name: string | null;
   description: string | null;
   address: string | null;
+  postalCode: string | null;
   city: string | null;
   cuisine: string | null;
   phone: string | null;
@@ -48,7 +49,7 @@ function RestaurantDashboard({ restaurant }: DashboardProps) {
   useEffect(() => {
     // Berechne die Vollständigkeit des Profils
     const requiredFields = [
-      'name', 'description', 'address', 'city', 'cuisine', 
+      'name', 'description', 'address', 'postalCode', 'city', 'cuisine', 
       'phone', 'email', 'capacity', 'openingHours', 'imageUrl'
     ];
     
@@ -73,6 +74,7 @@ function RestaurantDashboard({ restaurant }: DashboardProps) {
       name: 'Name',
       description: 'Beschreibung',
       address: 'Adresse',
+      postalCode: 'PLZ',
       city: 'Stadt',
       cuisine: 'Küche',
       phone: 'Telefon',
@@ -162,6 +164,27 @@ function RestaurantDashboard({ restaurant }: DashboardProps) {
                     </svg>
                     Neuen Kontakttisch erstellen
                   </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Stammdaten-Übersicht */}
+            <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="text-lg font-semibold text-gray-800">Ihre Stammdaten</h2>
+              </div>
+              <div className="p-6 text-sm text-gray-600">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-medium text-gray-800">Adresse</h3>
+                    <p>{restaurant.address}</p>
+                    <p>{restaurant.postalCode} {restaurant.city}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-800">Kontakt</h3>
+                    <p>Tel: {restaurant.phone || 'N/A'}</p>
+                    <p>E-Mail: {restaurant.email || 'N/A'}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -503,7 +526,7 @@ export const getServerSideProps: GetServerSideProps = async (context: GetServerS
     const { data: dbData, error } = await supabase
       .from('restaurants')
       .select(`
-        id, name, description, address, city, cuisine, phone, email, website, capacity, opening_hours, is_active, created_at, updated_at, userId, contract_status,
+        id, name, description, address, postal_code, city, cuisine, phone, email, website, capacity, opening_hours, is_active, created_at, updated_at, userId, contract_status,
         contact_tables(count)
       `)
       .eq('userId', user.id);
@@ -533,6 +556,7 @@ export const getServerSideProps: GetServerSideProps = async (context: GetServerS
       name: firstRestaurant.name,
       description: firstRestaurant.description,
       address: firstRestaurant.address,
+      postalCode: firstRestaurant.postal_code,
       city: firstRestaurant.city,
       cuisine: firstRestaurant.cuisine,
       phone: firstRestaurant.phone,

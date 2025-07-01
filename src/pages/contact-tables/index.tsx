@@ -51,7 +51,7 @@ export default function ContactTables({ initialContactTables, userRole, error: s
       filterDate.setHours(0, 0, 0, 0); // Setze Uhrzeit auf 00:00:00
       
       result = result.filter(table => {
-        const tableDate = new Date(table.date);
+        const tableDate = new Date(table.datetime);
         tableDate.setHours(0, 0, 0, 0);
         return tableDate.getTime() === filterDate.getTime();
       });
@@ -227,11 +227,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     .from('contact_tables')
     .select(`
       *,
-      restaurant:restaurants!restaurant_id(*)
+      restaurant:restaurants(*)
     `)
     .eq('status', 'PUBLISHED')
-    .gte('date', new Date().toISOString().split('T')[0]) // Nur zukünftige Kontakttische
-    .order('date', { ascending: true });
+    .gte('datetime', new Date().toISOString().split('T')[0]) // Nur zukünftige Kontakttische
+    .order('datetime', { ascending: true });
     
   // Filtern, um nur Kontakttische von aktiven Restaurants anzuzeigen
   const filteredTables = contactTables?.filter(table => 

@@ -1,26 +1,8 @@
-const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+// DEPRECATED: This script is conceptually flawed and should not be used.
+// It attempts to manage user passwords directly in the public.profiles table,
+// which bypasses Supabase's auth.users table and security mechanisms.
 
-const prisma = new PrismaClient();
+// Password updates must be handled through the Supabase Auth interface or API.
 
-async function updateAdminPassword() {
-  const hashedPassword = await bcrypt.hash('admin123', 10);
-  
-  try {
-    const admin = await prisma.user.update({
-      where: {
-        email: 'admin@contact-tables.com'
-      },
-      data: {
-        password: hashedPassword
-      }
-    });
-    console.log('Admin-Passwort erfolgreich aktualisiert:', admin);
-  } catch (error) {
-    console.error('Fehler beim Aktualisieren des Admin-Passworts:', error);
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
-updateAdminPassword(); 
+console.warn('This script (update-admin-password.js) is deprecated and should not be run.');
+ 

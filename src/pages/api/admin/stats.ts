@@ -10,8 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Zähle die Anzahl der Benutzer
-    const usersCount = await prisma.user.count({
-      where: { role: 'USER' },
+    const usersCount = await prisma.profile.count({
+      where: { role: 'CUSTOMER' },
     });
 
     // Zähle die Anzahl der Restaurants

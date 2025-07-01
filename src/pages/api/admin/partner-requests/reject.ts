@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
 import { PrismaClient, ContractStatus } from '@prisma/client';
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { sendEmail } from '../../../../utils/emailService';
@@ -21,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   
   // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const user = await prisma.user.findUnique({
+  const user = await prisma.profile.findUnique({
     where: { id: session.user.id },
     select: { role: true }
   });
@@ -50,40 +51,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant oder zugehöriges Profil nicht gefunden' });
     }
 
-    // Benutzer aus der auth.users-Tabelle abrufen, um die E-Mail zu erhalten
-    const authUser = await prisma.user.findUnique({
-      where: { id: restaurant.userId },
-      select: { email: true },
-    });
-
-    if (!authUser || !authUser.email) {
-      return res.status(400).json({ message: 'Keine E-Mail-Adresse für das Restaurant vorhanden' });
-    }
-
     if (restaurant.contractStatus !== 'PENDING') {
       return res.status(400).json({ message: 'Restaurant ist nicht im Status PENDING' });
     }
 
-    // E-Mail mit Ablehnungsgrund an Restaurant senden
-    await sendEmail({
-      to: authUser.email,
-      subject: 'Ihre Partneranfrage für Contact Tables',
-      html: `
-        <h1>Entscheidung zu Ihrer Partneranfrage</h1>
-        <p>Liebe(r) ${restaurant.profile.name || 'Restaurantbetreiber'},</p>
-        <p>vielen Dank für Ihr Interesse an einer Partnerschaft mit Contact Tables für Ihr Restaurant "${restaurant.name}".</p>
-        <p>Nach sorgfältiger Prüfung Ihrer Anfrage müssen wir Ihnen leider mitteilen, dass wir Ihre Anfrage derzeit nicht annehmen können.</p>
-        ${reason ? `<p><strong>Grund:</strong> ${reason}</p>` : ''}
-        <p>Sie können gerne zu einem späteren Zeitpunkt erneut eine Anfrage stellen oder uns kontaktieren, wenn Sie Fragen haben.</p>
-        <p>Mit freundlichen Grüßen,<br>Ihr Contact Tables Team</p>
-      `
-    });
+    // Supabase Admin Client initialisieren, um die E-Mail des Benutzers abzurufen
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data: { user: authUser }, error: userError } = await supabaseAdmin.auth.admin.getUserById(restaurant.userId);
+
+    // E-Mail nur senden, wenn der Benutzer gefunden wurde und eine E-Mail-Adresse hat
+    if (userError || !authUser || !authUser.email) {
+      console.error('Konnte Benutzer nicht für E-Mail-Versand abrufen oder E-Mail fehlt:', userError);
+    } else {
+      await sendEmail({
+        to: authUser.email,
+        subject: 'Ihre Partneranfrage für Contact Tables',
+        html: `
+          <h1>Entscheidung zu Ihrer Partneranfrage</h1>
+          <p>Liebe(r) ${restaurant.profile.name || 'Restaurantbetreiber'},</p>
+          <p>vielen Dank für Ihr Interesse an einer Partnerschaft mit Contact Tables für Ihr Restaurant "${restaurant.name}".</p>
+          <p>Nach sorgfältiger Prüfung Ihrer Anfrage müssen wir Ihnen leider mitteilen, dass wir Ihre Anfrage derzeit nicht annehmen können.</p>
+          ${reason ? `<p><strong>Grund:</strong> ${reason}</p>` : ''}
+          <p>Sie können gerne zu einem späteren Zeitpunkt erneut eine Anfrage stellen oder uns kontaktieren, wenn Sie Fragen haben.</p>
+          <p>Mit freundlichen Grüßen,<br>Ihr Contact Tables Team</p>
+        `
+      });
+    }
 
     // Restaurant-Status auf REJECTED aktualisieren
     await prisma.restaurant.update({
       where: { id: restaurantId },
       data: {
-        // Verwende einen TypeScript-Cast, um den Fehler zu umgehen
         contractStatus: 'REJECTED' as any,
       }
     });

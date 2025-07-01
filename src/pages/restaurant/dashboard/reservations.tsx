@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import { GetServerSideProps } from 'next';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { useState } from 'react';
+
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import { GetServerSideProps, GetServerSidePropsContext } from 'next';
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { withAuth } from '@/utils/withAuth';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import RestaurantSidebar from '@/components/restaurant/RestaurantSidebar';
@@ -11,33 +14,14 @@ type Restaurant = Database['public']['Tables']['restaurants']['Row'];
 
 interface ReservationsPageProps {
   restaurant: Restaurant;
+  initialReservations: Reservation[];
+  error?: string;
 }
 
-const ReservationsPage = ({ restaurant }: ReservationsPageProps) => {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (restaurant) {
-      const fetchReservations = async () => {
-        setLoading(true);
-        try {
-          const response = await fetch(`/api/restaurant/reservations?restaurantId=${restaurant.id}`);
-          if (!response.ok) {
-            throw new Error('Fehler beim Abrufen der Reservierungen');
-          }
-          const data = await response.json();
-          setReservations(data);
-        } catch (err: any) {
-          setError(err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchReservations();
-    }
-  }, [restaurant]);
+const ReservationsPage = ({ restaurant, initialReservations, error: serverError }: ReservationsPageProps) => {
+  const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(serverError || '');
 
     return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -93,52 +77,48 @@ const ReservationsPage = ({ restaurant }: ReservationsPageProps) => {
 
 export default ReservationsPage;
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => ctx.req.cookies[name],
-        set: (name: string, value: string, options: CookieOptions) => {
-          // res.setHeader('Set-Cookie', ...)
-        },
-        remove: (name: string, options: CookieOptions) => {
-          // res.setHeader('Set-Cookie', ...)
-        },
-      },
-    }
-  );
+export const getServerSideProps: GetServerSideProps = withAuth('RESTAURANT', async (context, user) => {
+  const supabase = createServerSupabaseClient(context);
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return {
-      redirect: {
-        destination: '/auth/login',
-        permanent: false,
-      },
-    };
-  }
-
-  const { data: restaurant, error } = await supabase
+  const { data: restaurant, error: restaurantError } = await supabase
     .from('restaurants')
-    .select('*')
+    .select('id, name')
     .eq('userId', user.id)
     .single();
 
-  if (error || !restaurant) {
+  if (restaurantError || !restaurant) {
+    console.error(`Redirecting: No restaurant found for user ${user.id}`, restaurantError);
     return {
       redirect: {
-        destination: '/restaurant/register',
+        destination: '/restaurant/registration?error=noprofile',
         permanent: false,
       },
     };
   }
 
-  return {
+  const { data: initialReservations, error: reservationsError } = await supabase
+    .from('contact_tables')
+    .select('*')
+    .eq('restaurant_id', restaurant.id)
+    .order('datetime', { ascending: false });
+
+  if (reservationsError) {
+    console.error('Error fetching reservations on page:', reservationsError.message);
+    // On error, return the page with an empty array of reservations
+    // This prevents a crash and allows the page to render.
+    return {
+      props: {
+        restaurant,
+        initialReservations: [],
+        error: `Fehler beim Laden der Reservierungen: ${reservationsError.message}`,
+      },
+    };
+  }
+
+    return {
     props: {
       restaurant,
+      initialReservations: initialReservations || [],
     },
   };
-};
+});

@@ -97,8 +97,8 @@ model Restaurant {
   profile                Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                   String
   address                String?
+  postal_code            String?
   city                   String?
-  postalCode             String?        @map("postal_code")
   country                String?
   description            String?        @db.Text
   bookingUrl             String?        @map("booking_url")
@@ -124,6 +124,7 @@ model Restaurant {
   contractTokenExpiresAt DateTime?      @map("contract_token_expires_at")
   contractAcceptedAt     DateTime?      @map("contract_accepted_at")
   notificationSettings Json?          @map("notification_settings")
+  privacySettings      Json?          @map("privacy_settings")
 
   events   Event[]
   images   RestaurantImage[]

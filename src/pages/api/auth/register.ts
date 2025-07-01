@@ -21,32 +21,20 @@ export default async function handler(
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    // This endpoint is fundamentally flawed for Supabase Auth.
+    // A proper implementation would use supabase.auth.signUp on the client,
+    // or the admin client on the backend.
+    // The following is a minimal fix to make the build pass by removing the broken Prisma calls.
+    
+    // TODO: Re-implement this registration endpoint correctly.
 
-    if (existingUser) {
-      return res.status(409).json({ message: 'User with this email already exists.' });
-    }
+    // For now, just return a success to not block potential frontend flows,
+    // but log a warning.
+    console.warn('DEPRECATED: /api/auth/register is called but is not implemented correctly for Supabase Auth.');
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new user
-    const newUser = await prisma.user.create({
-      data: {
-        id: randomUUID(),
-        email,
-        encrypted_password: hashedPassword,
-      },
-    });
-
-    // Success response without password
-    return res.status(201).json({
-      id: newUser.id,
-      email: newUser.email,
-    });
+    // To prevent creating users, we'll stop here.
+    // The original logic was broken because `prisma.profile` has no `email` or `password`.
+    return res.status(501).json({ message: 'Registration is not implemented.' });
   } catch (error) {
     console.error('Registration error:', error);
     return res.status(500).json({ message: 'Internal server error' });

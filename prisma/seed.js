@@ -4,97 +4,56 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  // Standardpasswort für alle Testkonten
-  const testPassword = await bcrypt.hash('test123', 10);
-  
-  // 1. Admin-Benutzer erstellen
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {
-      password: testPassword,
-      role: 'ADMIN',
-    },
-    create: {
-      email: 'admin@example.com',
-      name: 'Administrator',
-      password: testPassword,
-      role: 'ADMIN',
-    },
-  });
-  console.log('Admin-Benutzer erstellt:', admin.email);
-  
-  // 2. Restaurant-Benutzer erstellen
-  const restaurant = await prisma.user.upsert({
-    where: { email: 'restaurant@example.com' },
-    update: {
-      password: testPassword,
-      role: 'RESTAURANT',
-    },
-    create: {
-      email: 'restaurant@example.com',
-      name: 'Restaurant Manager',
-      password: testPassword,
-      role: 'RESTAURANT',
-    },
-  });
-  console.log('Restaurant-Benutzer erstellt:', restaurant.email);
-  
-  // 3. Kundenbenutzer erstellen (CUSTOMER)
-  const customer = await prisma.user.upsert({
-    where: { email: 'customer@example.com' },
-    update: {
-      password: testPassword,
-      role: 'CUSTOMER',
-    },
-    create: {
-      email: 'customer@example.com',
-      name: 'Max Mustermann',
-      password: testPassword,
-      role: 'CUSTOMER',
-    },
-  });
-  console.log('Kunden-Benutzer erstellt:', customer.email);
-  
-  // 4. Standard-Benutzer erstellen (USER)
-  const user = await prisma.user.upsert({
-    where: { email: 'user@example.com' },
-    update: {
-      password: testPassword,
-      role: 'USER',
-    },
-    create: {
-      email: 'user@example.com',
-      name: 'Anna Schmidt',
-      password: testPassword,
-      role: 'USER',
-    },
-  });
-  console.log('Standard-Benutzer erstellt:', user.email);
-  
-  // 5. Benutzer für den Projektinhaber
-  const owner = await prisma.user.upsert({
-    where: { email: 'info@consulting-smc.de' },
-    update: {
-      password: testPassword,
-      role: 'ADMIN',
-    },
-    create: {
-      email: 'info@consulting-smc.de',
-      name: 'Simon Müller',
-      password: testPassword,
-      role: 'ADMIN',
-    },
-  });
-  console.log('Projektinhaber-Benutzer erstellt:', owner.email);
-  
-  console.log('Alle Testbenutzer wurden erfolgreich erstellt');
-  
-  // Testrestaurants erstellen
-  const restaurant1 = await prisma.restaurant.upsert({
-    where: { id: 'cltest1' },
+  // This seed script creates profiles and associated data.
+  // It assumes that corresponding users in Supabase Auth already exist or will be created manually.
+  // The IDs used here should match the UUIDs of the users in Supabase Auth.
+
+  // 1. Admin-Benutzer erstellen/aktualisieren
+  const admin = await prisma.profile.upsert({
+    where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' }, // Replace with actual Supabase user ID
     update: {},
     create: {
-      id: 'cltest1',
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      name: 'Administrator',
+      role: 'ADMIN',
+    },
+  });
+  console.log('Admin-Profil erstellt/aktualisiert für ID:', admin.id);
+
+  // 2. Restaurant-Benutzer erstellen/aktualisieren
+  const restaurantManager = await prisma.profile.upsert({
+    where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12' }, // Replace with actual Supabase user ID
+    update: {},
+    create: {
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
+      name: 'Restaurant Manager',
+      role: 'RESTAURANT',
+    },
+  });
+  console.log('Restaurant-Profil erstellt/aktualisiert für ID:', restaurantManager.id);
+
+  // 3. Kundenbenutzer erstellen (CUSTOMER)
+  const customer = await prisma.profile.upsert({
+    where: { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13' }, // Replace with actual Supabase user ID
+    update: {},
+    create: {
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13',
+      name: 'Max Mustermann',
+      role: 'CUSTOMER',
+    },
+  });
+  console.log('Kunden-Profil erstellt/aktualisiert für ID:', customer.id);
+
+  console.log('Alle Testprofile wurden erfolgreich erstellt/aktualisiert.');
+
+  // Testrestaurants erstellen
+  const restaurant1 = await prisma.restaurant.upsert({
+    where: { userId: restaurantManager.id }, // Use the unique userId for the upsert operation
+    update: {
+      name: 'Bella Italia', // Ensure critical fields are correct on subsequent seeds
+      description: 'Authentische italienische Küche in gemütlicher Atmosphäre',
+    },
+    create: {
       name: 'Bella Italia',
       address: 'Hauptstraße 1',
       city: 'Berlin',
@@ -108,57 +67,17 @@ async function main() {
       bookingUrl: 'https://www.bella-italia.de/reservierung',
       imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0',
       isVisible: true,
-      user: {
-        create: {
-          email: 'restaurant1@example.com',
-          name: 'Restaurant Manager 1',
-          password: await bcrypt.hash('restaurant123', 10),
-          role: 'RESTAURANT',
-        }
-      }
+      userId: restaurantManager.id, // Link to the restaurant manager's profile
     },
   });
-  
-  const restaurant2 = await prisma.restaurant.upsert({
-    where: { id: 'cltest2' },
-    update: {},
-    create: {
-      id: 'cltest2',
-      name: 'Zum Goldenen Drachen',
-      address: 'Kantstraße 45',
-      city: 'Berlin',
-      postalCode: '10623',
-      country: 'Deutschland',
-      description: 'Traditionelle chinesische Spezialitäten',
-      cuisine: 'Chinesisch',
-      phone: '+49 30 98765432',
-      email: 'info@goldener-drache.de',
-      website: 'www.goldener-drache.de',
-      bookingUrl: 'https://www.goldener-drache.de/reservierung',
-      imageUrl: 'https://images.unsplash.com/photo-1526318896980-cf78c088247c',
-      isVisible: true,
-      user: {
-        create: {
-          email: 'restaurant2@example.com',
-          name: 'Restaurant Manager 2',
-          password: await bcrypt.hash('restaurant123', 10),
-          role: 'RESTAURANT',
-        }
-      }
-    },
-  });
-  
-  console.log('Testrestaurants erstellt:', restaurant1, restaurant2);
-  
+
+  console.log('Testrestaurant erstellt:', restaurant1.name);
+
   // Kontakttische erstellen
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(19, 0, 0, 0);
-  
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  nextWeek.setHours(18, 30, 0, 0);
-  
+
   const contactTable1 = await prisma.event.create({
     data: {
       title: 'Gemeinsames Abendessen',
@@ -166,44 +85,18 @@ async function main() {
       datetime: tomorrow,
       maxParticipants: 4,
       price: 0,
-      restaurant: {
-        connect: { id: restaurant1.id }
-      },
+      restaurantId: restaurant1.id,
       participants: {
         create: {
-          user: {
-            connect: { id: customer.id }
-          },
+          userId: customer.id, // The customer is the host
           isHost: true,
-          message: 'Ich freue mich auf neue Kontakte!'
-        }
-      }
-    },
-  });
-  
-  const contactTable2 = await prisma.event.create({
-    data: {
-      title: 'Chinesisch essen gehen',
-      description: 'Wer hat Lust auf authentisches chinesisches Essen in geselliger Runde?',
-      datetime: nextWeek,
-      maxParticipants: 6,
-      price: 0,
-      restaurant: {
-        connect: { id: restaurant2.id }
+          message: 'Ich freue mich auf neue Kontakte!',
+        },
       },
-      participants: {
-        create: {
-          user: {
-            connect: { id: user.id }
-          },
-          isHost: true,
-          message: 'Ich bin offen für neue Bekanntschaften und liebe chinesisches Essen!'
-        }
-      }
     },
   });
-  
-  console.log('Kontakttische erstellt:', contactTable1, contactTable2);
+
+  console.log('Kontakttisch erstellt:', contactTable1.title);
 }
 
 main()

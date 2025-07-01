@@ -19,7 +19,7 @@ export default async function handler(
     }
 
     const token = authorization.split(' ')[1];
-    const user = await prisma.user.findUnique({
+    const user = await prisma.profile.findUnique({
       where: { id: token },
       select: { role: true },
     });
@@ -35,7 +35,7 @@ export default async function handler(
       totalEvents,
       recentEvents,
     ] = await Promise.all([
-      prisma.user.count(),
+      prisma.profile.count(),
       prisma.restaurant.count(),
       prisma.event.count(),
       prisma.event.findMany({

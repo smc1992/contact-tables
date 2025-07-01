@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { FiStar, FiMapPin, FiUsers, FiClock, FiHeart } from 'react-icons/fi';
 import { userApi } from '../utils/api';
 
-interface RestaurantCardProps {
+export interface RestaurantCardProps {
   restaurant: {
     id: string;
     name: string;

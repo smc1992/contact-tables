@@ -1,207 +1,139 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMenu, FiX, FiUser, FiHome, FiMapPin, FiInfo, FiLogIn, FiUserPlus, FiUsers, FiSettings, FiList, FiCoffee } from 'react-icons/fi';
-import UserMenu from './UserMenu';
+import { FiMenu, FiX, FiMapPin, FiInfo, FiLogIn, FiUserPlus, FiUsers, FiCoffee, FiHelpCircle } from 'react-icons/fi';
+
 import { useAuth } from '../contexts/AuthContext';
+import UserMenu from './UserMenu';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  // userRole direkt aus useAuth() beziehen
-  const { session, user, loading, userRole } = useAuth();
-  
-  useEffect(() => {
-    console.log('Header - Auth Status:', { 
-      isLoggedIn: !!session, 
-      user: user?.email,
-      userRole: userRole, // userRole kommt jetzt aus dem AuthContext
-      userFullObject: user // Um das gesamte User-Objekt zu sehen, falls nötig
-    });
-  }, [session, user, userRole]);
-  
+  const { user } = useAuth();
+
   useEffect(() => {
     const handleScroll = () => {
-      const offset = window.scrollY;
-      if (offset > 50) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
+      setScrolled(window.scrollY > 10);
     };
-    
     window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  return (
-    <header className="fixed w-full top-0 z-50 transition-all duration-300 bg-white shadow-md py-3">
-      <nav className="container mx-auto px-4">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="h-10 flex items-center bg-white/90 px-3 py-1 rounded-lg">
-              <img 
-                src="/images/logo-fixed/Logo CT quer 4c.webp" 
-                alt="Contact Tables Logo" 
-                className="h-8 md:h-10 transition-all group-hover:scale-105"
-              />
-            </div>
-          </Link>
+  const isRestaurantOwner = user?.user_metadata?.role === 'RESTAURANT';
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
-            <div className="flex items-center rounded-full py-2 px-4 bg-primary-300 shadow-sm">
-              <Link href="/restaurants" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                <FiMapPin size={18} />
-                <span>Restaurants</span>
-              </Link>
-              <Link href="/contact-tables" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                <FiUsers size={18} />
-                <span>Kontakttische</span>
-              </Link>
-              
-              {/* Admin-spezifische Links */}
-              {userRole === 'ADMIN' && (
-                <Link href="/admin/contact-tables" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                  <FiSettings size={18} />
-                  <span>Admin</span>
-                </Link>
-              )}
-              
-              {/* Restaurant-spezifische Links */}
-              {userRole === 'RESTAURANT' && (
-                <Link href="/restaurant/contact-tables" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                  <FiList size={18} />
-                  <span>Mein Restaurant</span>
-                </Link>
-              )}
-              
-              {/* Kunden-spezifische Links */}
-              {(userRole === 'CUSTOMER' || userRole === 'USER') && (
-                <Link href="/customer/dashboard" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                  <FiUser size={18} />
-                  <span>Mein Dashboard</span>
-                </Link>
-              )}
-              
-              <Link href="/about" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                <FiInfo size={18} />
-                <span>Über uns</span>
-              </Link>
-              <Link href="/faq" className="flex items-center space-x-1 transition-colors px-4 py-2 text-black font-medium hover:text-gray-600">
-                <FiInfo size={18} />
-                <span>FAQ</span>
-              </Link>
-            </div>
-            
-            {/* Auth Buttons und User Menu */}
-            <div className="flex items-center space-x-4">
-              {/* UserMenu Komponente */}
-              <UserMenu />
-              
-              <div className="h-6 w-px bg-neutral-300"></div>
-              
-              {/* Login Button - Einziger Button für alle Benutzertypen */}
-              {!user && (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+  const navItems = [
+    { href: '/restaurants', label: 'Restaurants', icon: FiMapPin },
+    { href: '/contact-tables', label: 'Kontakttische', icon: FiUsers },
+    ...(isRestaurantOwner ? [{ href: '/restaurant/dashboard', label: 'Mein Restaurant', icon: FiCoffee }] : []),
+    { href: '/about', label: 'Über uns', icon: FiInfo },
+    { href: '/faq', label: 'FAQ', icon: FiHelpCircle },
+  ];
+
+  const mobileMenuVariants = {
+    hidden: { opacity: 0, y: -20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
+  return (
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled ? 'bg-white/80 shadow-md backdrop-blur-sm' : 'bg-white'
+      }`}
+    >
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
+          <div className="flex-shrink-0">
+            <Link href="/" className="flex items-center space-x-2">
+              <img className="h-10 w-auto" src="/images/logo-fixed/Logo CT mittig 4c.webp" alt="contact-tables-logo" />
+            </Link>
+          </div>
+
+          <nav className="hidden md:flex md:items-center md:space-x-2 lg:space-x-4">
+            <div className="bg-primary-50/50 rounded-full p-1 flex items-center space-x-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="px-3 py-2 rounded-full text-sm font-medium text-gray-700 hover:bg-primary-100 hover:text-primary-600 transition-colors flex items-center space-x-2"
                 >
+                  {item.icon && <item.icon className="h-5 w-5" />}
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </nav>
+
+          <div className="flex items-center">
+            <div className="hidden md:block">
+              {user ? (
+                <UserMenu />
+              ) : (
+                <div className="flex items-center space-x-2">
                   <Link href="/auth/login" className="bg-white hover:bg-neutral-100 text-secondary-700 font-bold py-2 px-4 rounded-full flex items-center space-x-1 transition-all border-2 border-primary-500 shadow-sm">
                     <FiLogIn size={18} />
                     <span>Login</span>
                   </Link>
-                </motion.div>
+                  <Link href="/auth/register" className="bg-primary-500 hover:bg-primary-600 text-white font-bold py-2 px-4 rounded-full flex items-center space-x-1 transition-all shadow-sm">
+                    <FiUserPlus size={18} />
+                    <span>Registrieren</span>
+                  </Link>
+                </div>
               )}
             </div>
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+              >
+                <span className="sr-only">Menü öffnen</span>
+                {isMenuOpen ? <FiX className="h-6 w-6" /> : <FiMenu className="h-6 w-6" />}
+              </button>
+            </div>
           </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 rounded-full text-secondary-700 hover:bg-neutral-100 transition-all border border-neutral-200"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-          </button>
         </div>
+      </div>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="md:hidden py-4 space-y-4 overflow-hidden bg-white shadow-lg rounded-b-xl"
-            >
-              <Link href="/restaurants" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                <FiMapPin size={18} />
-                <span>Restaurants</span>
-              </Link>
-              <Link href="/contact-tables" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                <FiUsers size={18} />
-                <span>Kontakttische</span>
-              </Link>
-              
-              {/* Admin-spezifische Links (Mobil) */}
-              {userRole === 'ADMIN' && (
-                <Link href="/admin/contact-tables" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                  <FiSettings size={18} />
-                  <span>Admin</span>
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            className="md:hidden"
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={mobileMenuVariants}
+          >
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+              {navItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100"
+                >
+                   {item.icon && <item.icon className="h-6 w-6 mr-3" />}
+                  <span>{item.label}</span>
                 </Link>
+              ))}
+              <div className="border-t border-gray-200 my-2"></div>
+              {user ? (
+                 <div className="p-2">
+                    <UserMenu />
+                 </div>
+              ) : (
+                <>
+                  <Link href="/auth/login" className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100">
+                    <FiLogIn className="h-6 w-6 mr-3" />
+                    <span>Login</span>
+                  </Link>
+                  <Link href="/auth/register" className="flex items-center w-full p-2 text-base text-gray-900 transition duration-75 rounded-lg group hover:bg-gray-100">
+                    <FiUserPlus className="h-6 w-6 mr-3" />
+                    <span>Registrieren</span>
+                  </Link>
+                </>
               )}
-              
-              {/* Restaurant-spezifische Links (Mobil) */}
-              {userRole === 'RESTAURANT' && (
-                <Link href="/restaurant/contact-tables" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                  <FiList size={18} />
-                  <span>Mein Restaurant</span>
-                </Link>
-              )}
-              
-              {/* Kunden-spezifische Links (Mobil) */}
-              {(userRole === 'CUSTOMER' || userRole === 'USER') && (
-                <Link href="/customer/dashboard" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                  <FiUser size={18} />
-                  <span>Mein Dashboard</span>
-                </Link>
-              )}
-              
-              <Link href="/about" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                <FiInfo size={18} />
-                <span>Über uns</span>
-              </Link>
-              <Link href="/faq" className="flex items-center space-x-2 px-4 py-3 text-secondary-500 hover:bg-neutral-50 hover:text-primary-500 transition-colors">
-                <FiInfo size={18} />
-                <span>FAQ</span>
-              </Link>
-              <div className="pt-4 border-t border-neutral-100 space-y-2 px-4">
-                {loading ? (
-                  <div className="animate-pulse h-8 w-20 bg-gray-300 rounded"></div>
-                ) : user ? (
-                  <UserMenu />
-                ) : (
-                  <>
-                    <Link href="/auth/login" className="flex items-center space-x-2 py-3 px-4 bg-primary-500 text-white font-bold rounded-lg hover:bg-primary-600 transition-colors">
-                      <FiLogIn size={18} />
-                      <span>Login</span>
-                    </Link>
-                    <Link href="/auth/register" className="flex items-center space-x-2 py-3 px-4 mt-2 border border-primary-500 text-secondary-500 rounded-lg hover:bg-neutral-50 transition-colors">
-                      <FiUserPlus size={18} />
-                      <span>Registrieren</span>
-                    </Link>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
-} 
+}

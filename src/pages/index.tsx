@@ -2,7 +2,8 @@ import { useRouter } from 'next/router';
 import { useState, useEffect, useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiCoffee, FiUsers, FiCalendar, FiMapPin, FiStar, FiInfo, FiHeart, FiGlobe, FiCheck, FiArrowRight, FiHelpCircle } from 'react-icons/fi';
-import PageLayout from '../components/PageLayout';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
 import { restaurantApi } from '../utils/api';
 import Image from 'next/image';
@@ -67,7 +68,9 @@ export default function Home() {
   const router = useRouter();
   const { session, user, loading } = useAuth();
   const [popularRestaurants, setPopularRestaurants] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+  const [searchLocation, setSearchLocation] = useState('');
+  const [searchCuisine, setSearchCuisine] = useState('');
   
   // Benutzerrolle bestimmen
   const userRole = user?.user_metadata?.role || 'GUEST';
@@ -109,25 +112,25 @@ export default function Home() {
   }, []);
 
   // Suchfunktion
-  const handleSearch = (searchParams: any) => {
+    const handleHomepageSearch = () => {
     const params = new URLSearchParams();
-    if (searchParams.searchTerm) params.append('q', searchParams.searchTerm);
-    if (searchParams.date) params.append('date', searchParams.date);
-    if (searchParams.time) params.append('time', searchParams.time);
-    if (searchParams.guests) params.append('guests', searchParams.guests);
-    if (searchParams.latitude && searchParams.longitude) {
-      params.append('lat', searchParams.latitude.toString());
-      params.append('lng', searchParams.longitude.toString());
+    if (searchLocation) {
+      // The /restaurants page uses 'q' for a general text search (e.g., name, city)
+      params.append('q', searchLocation);
     }
-    
-    router.push(`/search?${params.toString()}`);
+    if (searchCuisine && searchCuisine !== '') {
+      params.append('cuisine', searchCuisine);
+    }
+    router.push(`/restaurants?${params.toString()}`);
   };
 
   return (
-    <PageLayout>
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Header />
+      <main className="flex-grow">
       
       {/* Hero-Sektion mit verbessertem Design und Lesbarkeit */}
-      <div className="relative overflow-hidden min-h-[90vh] flex items-center bg-black">
+      <div className="relative overflow-hidden bg-black">
         {/* Hintergrundbild mit moderatem Overlay für bessere Lesbarkeit */}
         <div className="absolute inset-0 z-0 opacity-30">
           <motion.img
@@ -143,12 +146,12 @@ export default function Home() {
         <div className="container mx-auto px-4 relative z-10">
           {/* Haupttitel und Einleitung mit modernem Design */}
           <div className="max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="backdrop-blur-xl bg-black/40 p-12 rounded-3xl shadow-xl text-center"
-            >
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="backdrop-blur-xl bg-black/40 px-12 pt-6 pb-12 rounded-3xl shadow-xl text-center"
+              >
 
               
               <motion.h1 
@@ -179,7 +182,7 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.7, delay: 0.4 }}
               >
-                Du bist allein unterwegs – ob auf Reisen, neu in der Stadt oder beruflich –<br />und hast Lust, beim Essen mit jemandem ins Gespräch zu kommen –<br />ganz spontan und unkompliziert?
+                Egal ob auf Reisen, neu in der Stadt oder im Alltag – finde bei uns unkompliziert Gesellschaft für ein gemeinsames Essen.
               </motion.p>
               <motion.p 
                 className="text-2xl font-semibold text-primary-300 mb-10"
@@ -274,7 +277,7 @@ export default function Home() {
               </div>
               <div className="absolute -top-4 -right-4 w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">1</div>
               <h3 className="text-xl font-bold mb-4">Restaurant finden</h3>
-              <p className="text-gray-600">Suchen Sie nach Restaurants in Ihrer Nähe, die Contact Tables anbieten und finden Sie einen Tisch, der zu Ihrem Zeitplan passt.</p>
+              <p className="text-gray-600">Entdecke Restaurants mit offenen Tischen für spontane Begegnungen.</p>
             </motion.div>
             
             <motion.div 
@@ -290,7 +293,7 @@ export default function Home() {
               </div>
               <div className="absolute -top-4 -right-4 w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">2</div>
               <h3 className="text-xl font-bold mb-4">Reservieren</h3>
-              <p className="text-gray-600">Kontaktieren Sie das Restaurant direkt und geben Sie an, dass Sie an einem Contact Table teilnehmen möchten.</p>
+              <p className="text-gray-600">Reserviere deinen Platz oder erstelle selbst einen neuen Kontakttisch, um andere einzuladen.</p>
             </motion.div>
             
             <motion.div 
@@ -306,7 +309,7 @@ export default function Home() {
               </div>
               <div className="absolute -top-4 -right-4 w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">3</div>
               <h3 className="text-xl font-bold mb-4">Neue Leute kennenlernen</h3>
-              <p className="text-gray-600">Genießen Sie Ihr Essen in guter Gesellschaft und führen Sie interessante Gespräche mit neuen Bekanntschaften.</p>
+              <p className="text-gray-600">Triff neue Leute, genieße gutes Essen und erlebe inspirierende Gespräche.</p>
             </motion.div>
           </div>
           
@@ -352,10 +355,12 @@ export default function Home() {
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <FiMapPin className="text-gray-400" />
                     </div>
-                    <input 
+                                        <input 
                       type="text" 
                       placeholder="Stadt, Stadtteil oder PLZ" 
                       className="w-full pl-10 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      value={searchLocation}
+                      onChange={(e) => setSearchLocation(e.target.value)}
                     />
                   </div>
                 </div>
@@ -375,8 +380,10 @@ export default function Home() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Küche</label>
-                  <select 
+                                    <select 
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    value={searchCuisine}
+                    onChange={(e) => setSearchCuisine(e.target.value)}
                   >
                     <option value="">Alle Küchen</option>
                     <option value="deutsch">Deutsch</option>
@@ -399,26 +406,17 @@ export default function Home() {
                   </select>
                 </div>
               </div>
-              
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center">
-                  <input 
-                    type="checkbox" 
-                    id="offerTableToday" 
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="offerTableToday" className="ml-2 block text-sm text-gray-700">
-                    Nur Restaurants mit Kontakttischen heute
-                  </label>
-                </div>
-                
-                <button 
-                  className="w-full md:w-auto bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-8 rounded-lg transition duration-300 flex items-center justify-center"
-                  onClick={() => handleSearch({searchTerm: 'restaurant'})}
+              <div className="text-center mt-8">
+                <button
+                  onClick={handleHomepageSearch}
+                  className="bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-12 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 flex items-center justify-center w-full md:w-auto"
                 >
-                  <FiSearch className="mr-2" /> Restaurants finden
+                  <FiSearch className="mr-2" />
+                  Restaurants suchen
                 </button>
               </div>
+              
+
             </div>
             
             <div className="mt-6 text-center text-gray-500 text-sm">
@@ -428,77 +426,7 @@ export default function Home() {
         </div>
       </div>
       
-      {/* Partner-Sektion */}
-      <section className="py-12 bg-white border-t border-gray-100">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-bold text-gray-700 mb-3">Unsere Partner</h2>
-            <p className="text-gray-500">Gemeinsam für mehr Begegnung und weniger Einsamkeit</p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 items-center justify-items-center">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="grayscale hover:grayscale-0 transition-all duration-300"
-            >
-              <img src="/images/partners/partner1.png" alt="Partner Logo" className="h-12 w-auto" />
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="grayscale hover:grayscale-0 transition-all duration-300"
-            >
-              <img src="/images/partners/partner2.png" alt="Partner Logo" className="h-12 w-auto" />
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="grayscale hover:grayscale-0 transition-all duration-300"
-            >
-              <img src="/images/partners/partner3.png" alt="Partner Logo" className="h-12 w-auto" />
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="grayscale hover:grayscale-0 transition-all duration-300"
-            >
-              <img src="/images/partners/partner4.png" alt="Partner Logo" className="h-12 w-auto" />
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="grayscale hover:grayscale-0 transition-all duration-300"
-            >
-              <img src="/images/partners/partner5.png" alt="Partner Logo" className="h-12 w-auto" />
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="grayscale hover:grayscale-0 transition-all duration-300"
-            >
-              <img src="/images/partners/partner6.png" alt="Partner Logo" className="h-12 w-auto" />
-            </motion.div>
-          </div>
-        </div>
-      </section>
+
       
 
       
@@ -872,7 +800,6 @@ export default function Home() {
               <div className="p-12 flex flex-col justify-center">
                 <h3 className="text-3xl font-bold text-gray-900 mb-4">Bleiben Sie informiert</h3>
                 <p className="text-gray-600 mb-8">Abonnieren Sie unseren Newsletter und erhalten Sie regelmäßig Updates zu neuen Restaurants, Events und Tipps für Ihre nächsten Kontakttische.</p>
-                
                 <div className="space-y-4">
                   <input 
                     type="email" 
@@ -892,7 +819,6 @@ export default function Home() {
                   </motion.button>
                 </div>
               </div>
-              
               <div className="bg-primary-600 p-12 flex items-center justify-center relative overflow-hidden">
                 <div className="relative z-10 text-white text-center">
                   <FiHeart className="text-5xl mb-6 mx-auto" />
@@ -907,7 +833,8 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
-    </PageLayout>
+      </main>
+      <Footer />
+    </div>
   );
 }

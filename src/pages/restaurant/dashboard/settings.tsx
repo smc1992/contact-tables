@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { GetServerSideProps } from 'next';
-import { useRouter } from 'next/router'; // Hinzugefügt
-import { createBrowserClient } from '@supabase/ssr'; // Hinzugefügt
+import { useRouter } from 'next/router'; 
+import { createBrowserClient } from '@supabase/ssr'; 
 import { motion } from 'framer-motion';
 import { FiAlertCircle, FiCheckCircle, FiBell, FiLock, FiGlobe, FiTrash2, FiSave } from 'react-icons/fi';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import RestaurantSidebar from '../../../components/restaurant/RestaurantSidebar';
 import { NotificationSettings, PrivacySettings } from '@/types/settings';
+import toast from 'react-hot-toast';
 
 interface RestaurantData {
   id: string;
   name: string;
-  // email: string; // Entfernt, da nicht mehr von GSSP für Restaurant-Objekt geladen
   userId: string;
   isActive: boolean;
   contractStatus: string;
@@ -27,7 +27,7 @@ interface SettingsPageProps {
 export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
   console.log('Initial Notification Settings:', restaurant.notificationSettings);
   console.log('Initial Privacy Settings:', restaurant.privacySettings);
-  const router = useRouter(); // Hinzugefügt
+  const router = useRouter(); 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -51,7 +51,9 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
   const [success, setSuccess] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+  const [isSavingPrivacy, setIsSavingPrivacy] = useState(false);
+
   const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setNotificationSettings(prev => ({
@@ -76,149 +78,97 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
     }));
   };
   
-  const handleNotificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    
+  const handleSaveNotificationSettings = async () => {
+    setIsSavingNotifications(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Nicht authentifiziert. Bitte erneut anmelden.');
-      }
-
       const response = await fetch('/api/restaurant/update-notification-settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          settings: notificationSettings
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: notificationSettings }),
       });
-      
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Aktualisieren der Benachrichtigungseinstellungen');
+        throw new Error(data.error || 'Failed to save notification settings.');
       }
-      
-      setSuccess('Benachrichtigungseinstellungen erfolgreich aktualisiert');
+      toast.success('Benachrichtigungseinstellungen gespeichert!');
     } catch (error: any) {
-      console.error('Fehler beim Aktualisieren der Benachrichtigungseinstellungen:', error);
-      setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
+      toast.error(error.message || 'Ein unerwarteter Fehler ist aufgetreten.');
     }
+    setIsSavingNotifications(false);
   };
-  
-  const handlePrivacySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Nicht authentifiziert. Bitte erneut anmelden.');
-      }
 
+  const handleSavePrivacySettings = async () => {
+    setIsSavingPrivacy(true);
+    try {
       const response = await fetch('/api/restaurant/update-privacy-settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          settings: privacySettings
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: privacySettings }),
       });
-      
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Aktualisieren der Datenschutzeinstellungen');
+        throw new Error(data.error || 'Failed to save privacy settings.');
       }
-      
-      setSuccess('Datenschutzeinstellungen erfolgreich aktualisiert');
+      toast.success('Datenschutzeinstellungen gespeichert!');
     } catch (error: any) {
-      console.error('Fehler beim Aktualisieren der Datenschutzeinstellungen:', error);
-      setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
+      toast.error(error.message || 'Ein unerwarteter Fehler ist aufgetreten.');
     }
+    setIsSavingPrivacy(false);
   };
-  
+
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-    
-    // Validierung
+
     if (password.new !== password.confirm) {
-      setError('Die neuen Passwörter stimmen nicht überein');
+      toast.error('Die neuen Passwörter stimmen nicht überein');
       return;
     }
-    
     if (password.new.length < 8) {
-      setError('Das neue Passwort muss mindestens 8 Zeichen lang sein');
+      toast.error('Das neue Passwort muss mindestens 8 Zeichen lang sein');
       return;
     }
-    
+
     try {
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          newPassword: password.new
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Ändern des Passworts');
+      const { error } = await supabase.auth.updateUser({ password: password.new });
+      if (error) {
+        throw new Error(error.message);
       }
-      
-      setSuccess('Passwort erfolgreich geändert');
-      setPassword({
-        current: '',
-        new: '',
-        confirm: ''
-      });
+      toast.success('Passwort erfolgreich geändert!');
+      setPassword({ current: '', new: '', confirm: '' });
     } catch (error: any) {
-      console.error('Fehler beim Ändern des Passworts:', error);
-      setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
+      toast.error(error.message || 'Ein unerwarteter Fehler ist aufgetreten.');
     }
   };
   
   const handleDeleteAccount = async () => {
     if (deleteConfirmation !== restaurant.name) {
-      setError('Bitte geben Sie den Namen Ihres Restaurants korrekt ein, um fortzufahren');
+      toast.error('Der Bestätigungstext ist nicht korrekt.');
       return;
     }
-    
-    setError('');
-    setSuccess('');
-    
+
     try {
-      const response = await fetch('/api/auth/delete-account', {
-        method: 'POST',
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Nicht authentifiziert. Bitte erneut anmelden.');
+      }
+
+      const response = await fetch('/api/user/delete-account', {
+        method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${session.access_token}`,
         },
       });
-      
+
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler bei der Anfrage zur Kontolöschung');
+        throw new Error(data.error || 'Fehler beim Löschen des Kontos.');
       }
-      
-      const result = await response.json();
-      setSuccess(result.message || 'Anfrage zur Kontolöschung erfolgreich. Sie werden abgemeldet.');
-      
-      // Logout und Redirect
+
+      toast.success('Konto erfolgreich gelöscht. Sie werden abgemeldet.');
       await supabase.auth.signOut();
       router.push('/');
     } catch (error: any) {
-      console.error('Fehler bei der Anfrage zur Kontolöschung:', error);
-      setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
+      toast.error(error.message || 'Ein unerwarteter Fehler ist aufgetreten.');
     }
   };
   
@@ -238,8 +188,6 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
               </p>
             </div>
 
-
-            
             {/* Erfolgs- oder Fehlermeldung */}
             {success && (
               <motion.div
@@ -274,7 +222,7 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                 <h2 className="text-xl font-semibold text-gray-800">Benachrichtigungseinstellungen</h2>
               </div>
               
-              <form onSubmit={handleNotificationSubmit}>
+              <form>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -371,7 +319,9 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                 
                 <div className="mt-6 flex justify-end">
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSaveNotificationSettings}
+                    disabled={isSavingNotifications}
                     className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center"
                   >
                     <FiSave className="mr-2" />
@@ -388,7 +338,7 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                 <h2 className="text-xl font-semibold text-gray-800">Datenschutzeinstellungen</h2>
               </div>
               
-              <form onSubmit={handlePrivacySubmit}>
+              <form>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -456,7 +406,9 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                 
                 <div className="mt-6 flex justify-end">
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSavePrivacySettings}
+                    disabled={isSavingPrivacy}
                     className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center"
                   >
                     <FiSave className="mr-2" />
@@ -604,31 +556,12 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
   );
 }
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient } from '../../../utils/supabase/server';
 
 // Behalte die Interfaces NotificationSettings, PrivacySettings, RestaurantData, SettingsPageProps bei
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return context.req.cookies[name];
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          context.res.setHeader('Set-Cookie', `${name}=${value}; Path=${options.path}; Max-Age=${options.maxAge}; HttpOnly=${options.httpOnly}; SameSite=${options.sameSite}; Secure=${options.secure}`);
-        },
-        remove(name: string, options: CookieOptions) {
-          context.res.setHeader('Set-Cookie', `${name}=; Path=${options.path}; Max-Age=0; HttpOnly=${options.httpOnly}; SameSite=${options.sameSite}; Secure=${options.secure}`);
-        },
-      },
-      cookieOptions: {
-        name: process.env.NEXT_PUBLIC_SUPABASE_COOKIE_NAME || 'contact-tables-auth',
-      },
-    }
-  );
+  const supabase = createClient(context);
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -659,7 +592,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   const { data: restaurantData, error: restaurantError } = await supabase
     .from('restaurants')
-    .select('id, name, is_active, contract_status, userId, notification_settings, privacy_settings') // Annahme: email, notification_settings, privacy_settings existieren
+    .select('id, name, is_active, contract_status, userId, notification_settings, privacy_settings')
     .eq('userId', user.id) // Verwende 'userId' gemäß vorheriger Korrektur für tables.tsx
     .single();
 
@@ -672,32 +605,40 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         permanent: false,
       },
     };
+  } else {
+    const defaultNotificationSettings: NotificationSettings = {
+      newReservations: true,
+      contactTableUpdates: true,
+      platformNews: true,
+      marketingEmails: false,
+    };
+
+    const defaultPrivacySettings: PrivacySettings = {
+      showContactInfo: true,
+      allowReviews: true,
+      shareForAnalytics: false,
+    };
+
+    return {
+      props: {
+        restaurant: {
+          id: restaurantData.id,
+          name: restaurantData.name,
+          isActive: restaurantData.is_active,
+          contractStatus: restaurantData.contract_status,
+          userId: restaurantData.userId,
+          notificationSettings: {
+            ...defaultNotificationSettings,
+            ...(restaurantData.notification_settings || {}),
+          },
+          privacySettings: {
+            ...defaultPrivacySettings,
+            ...(restaurantData.privacy_settings || {}),
+          },
+        },
+      },
+    };
   }
-
-  const defaultNotificationSettings: NotificationSettings = {
-    newReservations: true,
-    contactTableUpdates: true,
-    platformNews: true,
-    marketingEmails: false,
-  };
-
-  const defaultPrivacySettings: PrivacySettings = {
-    showContactInfo: true,
-    allowReviews: true,
-    shareForAnalytics: false,
-  };
-
-  return {
-    props: {
-      restaurant: {
-        id: restaurantData.id,
-        name: restaurantData.name,
-        isActive: restaurantData.is_active,
-        contractStatus: restaurantData.contract_status,
-        userId: restaurantData.userId, // Wieder einkommentiert und auf userId angepasst
-        notificationSettings: restaurantData.notification_settings || defaultNotificationSettings,
-        privacySettings: restaurantData.privacy_settings || defaultPrivacySettings,
-      } as RestaurantData, // Type assertion, stelle sicher, dass Interface RestaurantData übereinstimmt
-    },
-  };
 };
+
+// ...
