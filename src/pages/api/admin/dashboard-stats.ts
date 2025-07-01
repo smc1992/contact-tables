@@ -57,7 +57,7 @@ export default async function handler(
       recentContracts
     ] = await Promise.all([
       // Gesamtzahl der Benutzer
-      prisma.user.count(),
+      prisma.profile.count(),
       
       // Gesamtzahl der Restaurants
       prisma.restaurant.count(),
