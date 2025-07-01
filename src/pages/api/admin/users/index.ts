@@ -18,7 +18,7 @@ export default async function handler(
   }
   
   // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const adminUser = await prisma.users.findUnique({
+  const adminUser = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { role: true }
   });
@@ -59,13 +59,13 @@ export default async function handler(
 
       // Benutzer abrufen
       const [users, totalCount] = await Promise.all([
-        prisma.users.findMany({
+        prisma.user.findMany({
           where,
           orderBy: { created_at: 'desc' },
           skip,
           take: limitNumber
         }),
-        prisma.users.count({ where })
+        prisma.user.count({ where })
       ]);
 
       // Zugehörige Profile abrufen

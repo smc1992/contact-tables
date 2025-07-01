@@ -39,13 +39,11 @@ export default async function handler(
   
   try {
     // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-    const user = await prisma.users.findUnique({
-      where: { id: session.user.id },
-      select: { role: true }
-    });
+    const userRole = session.user.user_metadata?.role;
+      
     
     // Prüfen, ob der Benutzer ein Admin ist
-    if (!user || user.role !== 'ADMIN') {
+    if (userRole !== 'ADMIN') {
       return res.status(403).json({ message: 'Keine Berechtigung' });
     }
     
@@ -59,7 +57,7 @@ export default async function handler(
       recentContracts
     ] = await Promise.all([
       // Gesamtzahl der Benutzer
-      prisma.users.count(),
+      prisma.user.count(),
       
       // Gesamtzahl der Restaurants
       prisma.restaurant.count(),

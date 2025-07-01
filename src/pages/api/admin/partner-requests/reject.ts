@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   
   // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const user = await prisma.users.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { role: true }
   });
@@ -51,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Benutzer aus der auth.users-Tabelle abrufen, um die E-Mail zu erhalten
-    const authUser = await prisma.users.findUnique({
+    const authUser = await prisma.user.findUnique({
       where: { id: restaurant.userId },
       select: { email: true },
     });

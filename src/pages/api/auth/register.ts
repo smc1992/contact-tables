@@ -22,7 +22,7 @@ export default async function handler(
     }
 
     // Check if user already exists
-    const existingUser = await prisma.users.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
@@ -34,7 +34,7 @@ export default async function handler(
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user
-    const newUser = await prisma.users.create({
+    const newUser = await prisma.user.create({
       data: {
         id: randomUUID(),
         email,
