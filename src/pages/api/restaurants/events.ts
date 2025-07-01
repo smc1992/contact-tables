@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { createClient } from '../../../utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -7,41 +8,52 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { authorization } = req.headers;
+  const supabase = createClient({ req, res });
+  const {
+    data: { user: authUser },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (!authorization) {
-    return res.status(401).json({ message: 'Nicht autorisiert' });
+  if (userError || !authUser) {
+    return res.status(401).json({ message: userError?.message || 'Nicht autorisiert' });
   }
 
-  const token = authorization.split(' ')[1];
-  const user = await prisma.profile.findUnique({
-    where: { id: token },
-    select: { role: true, restaurantId: true },
+  const userProfile = await prisma.profile.findUnique({
+    where: { id: authUser.id },
+    select: {
+      role: true,
+      restaurant: {
+        select: {
+          id: true,
+        },
+      },
+    },
   });
 
-  if (!user || user.role !== 'RESTAURANT') {
-    return res.status(403).json({ message: 'Zugriff verweigert' });
+  if (!userProfile || userProfile.role !== 'RESTAURANT' || !userProfile.restaurant?.id) {
+    return res.status(403).json({ message: 'Zugriff verweigert oder kein Restaurant zugeordnet' });
   }
+
+  const restaurantId = userProfile.restaurant.id;
 
   switch (req.method) {
     case 'GET':
       try {
         const events = await prisma.event.findMany({
-          where: { restaurantId: user.restaurantId },
+          where: { restaurantId: restaurantId },
           include: {
             participants: {
               include: {
-                user: {
+                profile: {
                   select: {
                     id: true,
                     name: true,
-                    email: true,
                   },
                 },
               },
             },
           },
-          orderBy: { date: 'asc' },
+          orderBy: { datetime: 'asc' },
         });
 
         return res.status(200).json(events);
@@ -52,16 +64,16 @@ export default async function handler(
 
     case 'POST':
       try {
-        const { title, description, date, maxParticipants, price } = req.body;
+        const { title, description, datetime, maxParticipants, price } = req.body;
 
         const event = await prisma.event.create({
           data: {
             title,
             description,
-            date: new Date(date),
+            datetime: new Date(datetime),
             maxParticipants,
             price,
-            restaurantId: user.restaurantId!,
+            restaurantId: restaurantId,
           },
         });
 
