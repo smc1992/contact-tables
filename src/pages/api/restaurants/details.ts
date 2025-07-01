@@ -1,23 +1,68 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
+
+// Definiert einen Typ für das Restaurant-Objekt mit allen Relationen
+const restaurantWithDetailsInclude = {
+  events: {
+    where: {
+      datetime: {
+        gte: new Date()
+      }
+    },
+    orderBy: {
+      datetime: 'asc' as const
+    },
+    include: {
+      _count: {
+        select: {
+          participants: true
+        }
+      },
+      ratings: {
+        include: {
+          profile: {
+            select: {
+              name: true,
+              id: true
+            }
+          }
+        }
+      }
+    }
+  },
+  profile: {
+    select: {
+      name: true,
+      id: true,
+      email: true
+    }
+  }
+};
+
+const restaurantWithDetails = Prisma.validator<Prisma.RestaurantArgs>()({
+  include: restaurantWithDetailsInclude
+});
+
+type RestaurantWithDetails = Prisma.RestaurantGetPayload<typeof restaurantWithDetails>;
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getSession({ req });
-  
-  if (!session || !session.user) {
+      const supabase = createClient({ req, res });
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   // GET: Restaurantdetails abrufen
-  if (req.method === 'GET') {
+    if (req.method === 'GET') {
     try {
       const { id } = req.query;
 
@@ -25,87 +70,42 @@ export default async function handler(
         return res.status(400).json({ message: 'Restaurant-ID ist erforderlich' });
       }
 
-      // Restaurant mit Bewertungen und Events abrufen
       const restaurant = await prisma.restaurant.findUnique({
         where: { id: id as string },
-        include: {
-          ratings: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  id: true
-                }
-              }
-            },
-            orderBy: {
-              createdAt: 'desc'
-            }
-          },
-          events: {
-            where: {
-              datetime: {
-                gte: new Date()
-              }
-            },
-            orderBy: {
-              datetime: 'asc'
-            },
-            include: {
-              _count: {
-                select: {
-                  participants: true
-                }
-              }
-            }
-          },
-          user: {
-            select: {
-              name: true,
-              id: true,
-              email: true
-            }
-          }
-        }
+        include: restaurantWithDetailsInclude,
       });
 
       if (!restaurant) {
         return res.status(404).json({ message: 'Restaurant nicht gefunden' });
       }
 
-      // Durchschnittliche Bewertung berechnen
-      const avgRating = restaurant.ratings.length > 0
-        ? restaurant.ratings.reduce((sum, rating) => sum + rating.value, 0) / restaurant.ratings.length
+      const allRatings = restaurant.events.flatMap(event => event.ratings);
+      const avgRating = allRatings.length > 0
+        ? allRatings.reduce((sum, rating) => sum + rating.value, 0) / allRatings.length
         : 0;
 
-      // Verfügbarkeit für Events berechnen
       const eventsWithAvailability = restaurant.events.map(event => {
         const availableSeats = event.maxParticipants - event._count.participants;
         return {
           ...event,
           availableSeats,
-          isFull: availableSeats <= 0
+          isFull: availableSeats <= 0,
         };
       });
 
-      // Überprüfen, ob der Benutzer der Besitzer ist
       const isOwner = restaurant.userId === userId;
+      const { profile, ...restOfRestaurant } = restaurant;
 
-      // Wenn der Benutzer nicht der Besitzer ist, sensible Daten entfernen
       const sanitizedRestaurant = {
-        ...restaurant,
+        ...restOfRestaurant,
         avgRating,
-        totalRatings: restaurant.ratings.length,
+        totalRatings: allRatings.length,
         events: eventsWithAvailability,
-        // Sensible Daten nur für den Besitzer zugänglich machen
         contractStatus: isOwner ? restaurant.contractStatus : undefined,
         contractStartDate: isOwner ? restaurant.contractStartDate : undefined,
         trialEndDate: isOwner ? restaurant.trialEndDate : undefined,
         stripeSubscriptionId: isOwner ? restaurant.stripeSubscriptionId : undefined,
-        user: isOwner ? restaurant.user : {
-          name: restaurant.user.name,
-          id: restaurant.user.id
-        }
+        user: isOwner ? profile : (profile ? { name: profile.name, id: profile.id } : null),
       };
 
       return res.status(200).json(sanitizedRestaurant);

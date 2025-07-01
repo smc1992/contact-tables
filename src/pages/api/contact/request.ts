@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { createClient } from '../../../utils/supabase/server';
 
 const prisma = new PrismaClient();
@@ -9,14 +9,14 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const supabase = createClient({ req, res });
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  if (sessionError || !session) {
-    return res.status(401).json({ message: sessionError?.message || 'Nicht authentifiziert' });
+  if (userError || !user) {
+    return res.status(401).json({ message: userError?.message || 'Nicht authentifiziert' });
   }
 
-  const userId = session.user.id;
-  const userRole = session.user.user_metadata?.role || 'CUSTOMER';
+  const userId = user.id;
+  const userRole = user.user_metadata?.role || 'CUSTOMER';
 
   // Überprüfen, ob der Benutzer ein zahlender Kunde ist, falls er kein Admin ist
   if (userRole !== 'ADMIN') {
@@ -102,7 +102,7 @@ export default async function handler(
   if (req.method === 'GET') {
     try {
       const { status, date, city, minSeats } = req.query;
-      const whereClause: any = {};
+            const whereClause: Prisma.EventWhereInput = {};
 
       if (status === 'host') {
         whereClause.participants = { some: { userId, isHost: true } };

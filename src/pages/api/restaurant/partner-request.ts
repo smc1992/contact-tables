@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           name: restaurantName,
           address,
           city,
-          postalCode,
+          postal_code: postalCode,
           country,
           phone,
           email,
