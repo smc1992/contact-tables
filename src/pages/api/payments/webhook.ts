@@ -113,7 +113,7 @@ export default async function handler(
                 description: 'Keine Beschreibung vorhanden',
                 address: '',
                 city: '',
-                postalCode: '',
+                postal_code: '',
                 country: 'DE',
                 phone: '',
                 email: session.customer_details?.email || '',
