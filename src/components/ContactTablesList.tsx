@@ -113,9 +113,9 @@ export default function ContactTablesList({ initialContactTables }: ContactTable
           className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
         >
           <div className="relative h-48 bg-neutral-200">
-            {table.restaurant?.profile_image_url ? (
+            {table.restaurant?.image_url ? (
               <img 
-                src={table.restaurant.profile_image_url} 
+                src={table.restaurant.image_url} 
                 alt={table.title} 
                 className="w-full h-full object-cover"
               />
