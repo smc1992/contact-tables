@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 
 const prisma = new PrismaClient();
 
@@ -8,21 +8,30 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getSession({ req });
+  const supabase = createPagesServerClient({ req, res });
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   
-  if (!session || !session.user) {
+  if (!session) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
   const userId = session.user.id;
   
   // Überprüfen, ob der Benutzer bezahlt hat
-  const user = await prisma.profile.findUnique({
-    where: { id: userId }
-  });
-  
-  if (!user || (!user.isPaying && user.role !== 'ADMIN')) {
-    return res.status(403).json({ message: 'Nur bezahlte Benutzer können Kontakttische nutzen' });
+  const userRole = session.user.user_metadata?.role || 'CUSTOMER';
+
+  // Admins have full access, others need to be paying users
+  if (userRole !== 'ADMIN') {
+    const profile = await prisma.profile.findUnique({
+      where: { id: userId },
+      select: { isPaying: true },
+    });
+
+    if (!profile || !profile.isPaying) {
+      return res.status(403).json({ message: 'Diese Aktion ist nur für bezahlte Benutzer oder Admins verfügbar.' });
+    }
   }
   
   const { id } = req.query;
@@ -36,32 +45,12 @@ export default async function handler(
     try {
       // Kontaktanfrage mit allen Details abrufen
       const contactRequest = await prisma.event.findUnique({
-        where: { id },
+        where: { id: id as string },
         include: {
-          restaurant: {
-            select: {
-              id: true,
-              name: true,
-              address: true,
-              city: true,
-              postalCode: true,
-              phone: true,
-              email: true,
-              website: true,
-              bookingUrl: true,
-              imageUrl: true,
-            }
-          },
           participants: {
             include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                }
-              }
-            }
+              profile: true,
+            },
           },
           _count: {
             select: {
