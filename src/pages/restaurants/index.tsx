@@ -255,23 +255,18 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
 
   try {
     const restaurantsData = await prisma.restaurant.findMany({
-      where: { isVisible: true },
+      where: { isActive: true },
       include: {
-        events: {
-          select: {
-            ratings: {
-              select: { value: true },
-            },
-          },
+        ratings: { // Direkter Include der Ratings
+          select: { value: true },
         },
       },
     });
 
     const restaurants: RestaurantPageItem[] = restaurantsData.map((restaurant) => {
-      const allRatings = restaurant.events.flatMap(e => e.ratings);
-      const ratingCount = allRatings.length;
+      const ratingCount = restaurant.ratings.length;
       const avgRating = ratingCount > 0
-        ? allRatings.reduce((acc: number, rating: { value: number }) => acc + rating.value, 0) / ratingCount
+        ? restaurant.ratings.reduce((acc, rating) => acc + rating.value, 0) / ratingCount
         : 0;
 
       const { postal_code, ...rest } = restaurant;

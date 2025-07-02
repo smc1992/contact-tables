@@ -7,9 +7,10 @@ import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import RestaurantSidebar from '../../../components/restaurant/RestaurantSidebar';
 import { createClient } from '../../../utils/supabase/server';
-import { Tables } from '../../../types/supabase'; // Assuming Database type is not directly needed here
+import { Database } from '../../../types/supabase';
 
-// RestaurantData interface removed, using Restaurant type from types/supabase
+// Der Typ 'Tables' wird aus dem Haupt-Database-Typ abgeleitet.
+type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 
 interface ProfilePageProps {
   restaurant: Tables<'restaurants'> | null;
@@ -23,6 +24,7 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
     description: restaurant?.description || '',
     address: restaurant?.address || '',
     city: restaurant?.city || '',
+    postal_code: restaurant?.postal_code || '',
     cuisine: restaurant?.cuisine || '', // Assuming 'cuisine' is the correct field name and it's a string
     phone: restaurant?.phone || '',     // Assuming 'phone' is the correct field name
     email: restaurant?.email || '',     // Assuming 'email' is the correct field name
@@ -56,22 +58,9 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
 
     try {
       const payload = {
-        ...formData, // Ensure all fields in formData are valid for the 'restaurants' table
-        id: restaurant.id, // Pass the restaurant ID
-        // Map form fields back to Supabase column names if they differ
-        // e.g., if form uses 'cuisine' but DB needs 'cuisine_type' as an array:
-        cuisine_type: formData.cuisine ? [formData.cuisine] : [], 
-        contact_phone: formData.phone,
-        contact_email: formData.email,
-        // 'capacity' is already included via ...formData and is a number
-        opening_hours: formData.openingHours 
+        ...formData,
+        id: restaurant.id,
       };
-
-      // Remove fields from payload that are only for form display if they don't match DB columns directly
-      // For example, if 'cuisine', 'phone', 'email' were just aliases for 'cuisine_type', 'contact_phone', 'contact_email'
-      // delete (payload as any).cuisine;
-      // delete (payload as any).phone;
-      // delete (payload as any).email;
 
       const response = await fetch(`/api/restaurant/update-profile`, {
         method: 'PUT',
@@ -190,6 +179,22 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
                     id="address"
                     name="address"
                     value={formData.address}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Postleitzahl */}
+                <div>
+                  <label htmlFor="postal_code" className="block text-sm font-medium text-secondary-600 mb-1">
+                    Postleitzahl *
+                  </label>
+                  <input
+                    type="text"
+                    id="postal_code"
+                    name="postal_code"
+                    value={formData.postal_code}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                     required

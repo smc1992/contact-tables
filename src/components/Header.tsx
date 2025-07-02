@@ -37,14 +37,14 @@ export default function Header() {
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-white/80 shadow-md backdrop-blur-sm' : 'bg-white'
+        scrolled ? 'bg-white shadow-md' : 'bg-white'
       }`}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center space-x-2">
-              <img className="h-10 w-auto" src="/images/logo-fixed/Logo CT mittig 4c.webp" alt="contact-tables-logo" />
+              <img className="h-12 w-auto" src="/images/logo-fixed/Logo CT mittig 4c.webp" alt="contact-tables-logo" />
             </Link>
           </div>
 
@@ -96,7 +96,7 @@ export default function Header() {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            className="md:hidden"
+            className="md:hidden bg-white"
             initial="hidden"
             animate="visible"
             exit="hidden"

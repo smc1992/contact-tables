@@ -54,24 +54,24 @@ const testimonials = [
 // Meilensteine
 const milestones = [
   {
-    year: "2023",
+    year: "2024",
     title: "Die Idee entsteht",
-    description: "Aus persönlichen Erfahrungen mit Einsamkeit in der Großstadt wird die Idee für Contact Tables geboren."
+    description: "Aus dem Wunsch, Menschen wieder an einen Tisch zu bringen und Einsamkeit zu überwinden, wird die Vision von Contact Tables geboren."
   },
   {
     year: "2024",
-    title: "Offizieller Launch",
-    description: "Contact Tables startet in Berlin mit 15 Partnerrestaurants und über 100 Kontakttischen im ersten Monat."
-  },
-  {
-    year: "2024",
-    title: "Expansion",
-    description: "Erweiterung auf München, Hamburg und Köln mit über 50 Partnerrestaurants deutschlandweit."
+    title: "Entwicklung & Planung",
+    description: "Ein engagiertes Team entwickelt die Plattform und bereitet den Start vor, um die bestmögliche Erfahrung zu schaffen."
   },
   {
     year: "2025",
-    title: "Community wächst",
-    description: "Über 5.000 Menschen haben durch Contact Tables neue Bekanntschaften geschlossen."
+    title: "Offizieller Launch",
+    description: "Contact Tables geht online! Wir starten unsere Mission, echte Verbindungen in Restaurants zu schaffen."
+  },
+  {
+    year: "Zukunft",
+    title: "Unsere Vision",
+    description: "Wir wachsen weiter, um in ganz Deutschland Menschen zusammenzubringen und die lokale Gastronomie zu beleben."
   }
 ];
 
@@ -174,8 +174,8 @@ export default function AboutPage() {
                     die Menschen am Restauranttisch zusammenbringt – für echte Gespräche statt Smartphone-Scrollen.
                   </p>
                   <p>
-                    Heute verbinden wir täglich Menschen in Restaurants in ganz Deutschland und arbeiten 
-                    eng mit unseren Partnerrestaurants zusammen, um nicht nur soziale Verbindungen zu schaffen, 
+                    Mit unserem Launch 2025 wollen wir Menschen in Restaurants in ganz Deutschland verbinden und 
+                    eng mit unseren Partnerrestaurants zusammenarbeiten, um nicht nur soziale Verbindungen zu schaffen, 
                     sondern auch kulinarische Entdeckungen zu ermöglichen.
                   </p>
                 </div>
@@ -196,7 +196,7 @@ export default function AboutPage() {
                   />
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                  <p className="text-white font-medium">Unsere ersten Contact Tables in Berlin, 2024</p>
+                  <p className="text-white font-medium">Gemeinsam am Tisch – unsere Vision für die Zukunft.</p>
                 </div>
               </motion.div>
             </div>

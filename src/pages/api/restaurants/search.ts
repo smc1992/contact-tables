@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/supabase';
+import { createClient } from '../../../utils/supabase/server';
 
 // Hilfsfunktion zur Distanzberechnung (Haversine-Formel)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -27,24 +26,7 @@ export default async function handler(
 
   console.log('[API /api/restaurants/search] Received query params:', JSON.stringify(req.query, null, 2));
   try {
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    console.log('[DIAGNOSTIC LOG] SUPABASE_SERVICE_ROLE_KEY Check:');
-    console.log(`  - Exists: ${!!serviceKey}`)
-    console.log(`  - Type: ${typeof serviceKey}`)
-    console.log(`  - Length: ${serviceKey?.length || 0}`)
-    console.log(`  - Starts with: ${serviceKey?.substring(0, 5) || 'N/A'}`)
-    console.log(`  - Ends with: ${serviceKey?.slice(-5) || 'N/A'}`);
-    const supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false
-        }
-      }
-    );
+    const supabase = createClient({ req, res });
 
     const safeQueryParam = (param: string | string[] | undefined): string | undefined => {
       return Array.isArray(param) ? param[0] : param;
@@ -76,13 +58,14 @@ export default async function handler(
     let query = supabase
       .from('restaurants')
       .select(`
-        id, name, description, address, city, postal_code, latitude, longitude, cuisine, price_range, website, opening_hours, offer_table_today, phone, email
+        *,
+        ratings(value),
+        favorites(user_id)
       `)
       .eq('is_active', true)
       .eq('contract_status', 'ACTIVE');
 
     if (searchTerm) {
-      // Temporär vereinfacht, um Fehler in der .or-Klausel zu vermeiden
       query = query.ilike('name', `%${searchTerm}%`);
     }
     if (cuisine) {
@@ -106,6 +89,7 @@ export default async function handler(
     }
 
     if (!restaurantsData || restaurantsData.length === 0) {
+      // Demo-Daten bleiben unverändert, da sie nicht Teil des Problems sind.
       const demoRestaurants = [
         {
           id: 'demo1',
@@ -124,10 +108,9 @@ export default async function handler(
           website: 'https://www.bella-italia.de',
           opening_hours: 'Mo-Fr: 11:00-23:00, Sa-So: 12:00-00:00',
           offer_table_today: true,
-          
-          avgRating: 4.3, // Demo rating
+          avgRating: 4.3,
           distance: hasLocation ? calculateDistance(Number(latitude), Number(longitude), 52.5200, 13.4050) : null,
-          user: null // User data removed
+          user: null
         },
         {
           id: 'demo2',
@@ -146,23 +129,15 @@ export default async function handler(
           website: 'https://www.sushi-palace.de',
           opening_hours: 'Mo-So: 12:00-22:00',
           offer_table_today: true,
-          
-          avgRating: 4.8, // Demo rating
+          avgRating: 4.8,
           distance: hasLocation ? calculateDistance(Number(latitude), Number(longitude), 52.5180, 13.3880) : null,
-          user: null // User data removed
+          user: null
         }
       ];
       return res.status(200).json({
         restaurants: demoRestaurants,
-        pagination: {
-          totalResults: demoRestaurants.length,
-          totalPages: 1,
-          currentPage: 1,
-          resultsPerPage: demoRestaurants.length
-        },
-        filters: {
-          searchTerm: searchTerm || null, date: date || null, time: time || null, guests: guests || null, cuisine: cuisine || null, priceRange: priceRange || null, offerTableToday: offerTableToday === 'true' || false, sortBy
-        },
+        pagination: { totalResults: demoRestaurants.length, totalPages: 1, currentPage: 1, resultsPerPage: demoRestaurants.length },
+        filters: { searchTerm: searchTerm || null, date: date || null, time: time || null, guests: guests || null, cuisine: cuisine || null, priceRange: priceRange || null, offerTableToday: offerTableToday === 'true' || false, sortBy },
         message: 'Demo-Restaurants zurückgegeben.'
       });
     }
@@ -177,11 +152,24 @@ export default async function handler(
           restaurant.longitude
         );
       }
+
+      const ratings = (restaurant.ratings as unknown as { value: number }[]) || [];
+      const avgRating =
+        ratings.length > 0
+          ? ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length
+          : null;
+
+      const popularity = ((restaurant.favorites as unknown as any[]) || []).length;
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { ratings: _ratings, favorites: _favorites, ...rest } = restaurant;
+
       return {
-        ...restaurant,
-        avgRating: null, // Ratings data removed, so no avgRating
+        ...rest,
+        avgRating,
+        popularity,
         distance,
-        user: null // User data removed
+        user: null,
       };
     });
 
@@ -190,10 +178,10 @@ export default async function handler(
     if (sortBy === 'distance' && hasLocation) {
       sortedRestaurants.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     } else if (sortBy === 'popularity') {
-      // Placeholder for popularity sort, e.g., by number of events
-      // sortedRestaurants.sort((a, b) => (b.events?.length || 0) - (a.events?.length || 0));
+      sortedRestaurants.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+    } else if (sortBy === 'rating') {
+      sortedRestaurants.sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0));
     }
-    // Sort by rating is removed as ratings are not fetched
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;

@@ -1,19 +1,21 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
 import { PrismaClient } from '@prisma/client';
+import { createClient } from '../../../../utils/supabase/server';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Authentifizierung überprüfen
-  const session = await getSession({ req });
-  
-  if (!session) {
+  const supabase = createClient({ req, res });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
-  
-  // Überprüfen, ob der Benutzer ein Admin ist
-  if (session.user?.role !== 'ADMIN') {
+
+  // Check if the user is an admin
+  if (user.user_metadata.role !== 'ADMIN') {
     return res.status(403).json({ message: 'Keine Berechtigung' });
   }
   

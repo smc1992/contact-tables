@@ -10,6 +10,7 @@ import { ContactTable, Restaurant } from '../../types/supabase';
 // Erweiterte Typdefinition für Kontakttische mit Restaurant-Informationen
 type ContactTableWithRestaurant = ContactTable & {
   restaurant: Restaurant;
+  participants: { count: number }[];
 };
 
 interface ContactTablesProps {
@@ -61,7 +62,7 @@ export default function ContactTables({ initialContactTables, userRole, error: s
     if (currentFilters.city.trim()) {
       const cityLower = currentFilters.city.trim().toLowerCase();
       result = result.filter(table => 
-        table.restaurant.city.toLowerCase().includes(cityLower)
+        table.restaurant?.city?.toLowerCase().includes(cityLower)
       );
     }
     
@@ -69,7 +70,8 @@ export default function ContactTables({ initialContactTables, userRole, error: s
     if (currentFilters.minSeats) {
       const minSeats = parseInt(currentFilters.minSeats, 10);
       result = result.filter(table => {
-        const availableSeats = table.max_participants - table.participant_count;
+        const participantCount = table.participants[0]?.count ?? 0;
+        const availableSeats = table.max_participants - participantCount;
         return availableSeats >= minSeats;
       });
     }
@@ -227,15 +229,16 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     .from('contact_tables')
     .select(`
       *,
-      restaurant:restaurants(*)
+      restaurant:restaurants(*),
+      participants:participations(count)
     `)
-    .eq('status', 'PUBLISHED')
-    .gte('datetime', new Date().toISOString().split('T')[0]) // Nur zukünftige Kontakttische
+    .eq('status', 'OPEN') // Korrekter Status für neue, offene Tische
+    .gte('datetime', new Date().toISOString()) // Nur zukünftige Kontakttische
     .order('datetime', { ascending: true });
-    
+
   // Filtern, um nur Kontakttische von aktiven Restaurants anzuzeigen
   const filteredTables = contactTables?.filter(table => 
-    table.restaurant && table.restaurant.status === 'ACTIVE'
+    table.restaurant && table.restaurant.isActive === true
   ) || [];
   
   if (error) {

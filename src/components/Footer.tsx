@@ -25,20 +25,7 @@ export default function Footer() {
             <p className="text-neutral-400 leading-relaxed">
               Wir verbinden Menschen am Restauranttisch – für echte Gespräche statt einsamkeit.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-neutral-800 hover:bg-primary-700 flex items-center justify-center text-white transition-all duration-300">
-                <FaFacebookF size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-neutral-800 hover:bg-primary-700 flex items-center justify-center text-white transition-all duration-300">
-                <FaInstagram size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-neutral-800 hover:bg-primary-700 flex items-center justify-center text-white transition-all duration-300">
-                <FaTwitter size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-neutral-800 hover:bg-primary-700 flex items-center justify-center text-white transition-all duration-300">
-                <FaYoutube size={18} />
-              </a>
-            </div>
+
           </div>
 
           {/* Quick Links */}

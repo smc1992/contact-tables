@@ -791,48 +791,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      
-      {/* Newsletter-Anmeldung */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2">
-              <div className="p-12 flex flex-col justify-center">
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Bleiben Sie informiert</h3>
-                <p className="text-gray-600 mb-8">Abonnieren Sie unseren Newsletter und erhalten Sie regelmäßig Updates zu neuen Restaurants, Events und Tipps für Ihre nächsten Kontakttische.</p>
-                <div className="space-y-4">
-                  <input 
-                    type="email" 
-                    placeholder="Ihre E-Mail-Adresse" 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
-                  <div className="flex items-center">
-                    <input type="checkbox" id="privacy" className="mr-3" />
-                    <label htmlFor="privacy" className="text-sm text-gray-600">Ich akzeptiere die <Link href="/privacy" className="text-primary-600 hover:underline">Datenschutzbestimmungen</Link></label>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full bg-primary-600 text-white font-medium py-3 px-6 rounded-lg hover:bg-primary-700 transition duration-300"
-                  >
-                    Anmelden
-                  </motion.button>
-                </div>
-              </div>
-              <div className="bg-primary-600 p-12 flex items-center justify-center relative overflow-hidden">
-                <div className="relative z-10 text-white text-center">
-                  <FiHeart className="text-5xl mb-6 mx-auto" />
-                  <h3 className="text-2xl font-bold mb-4">Contact Tables verbindet Menschen</h3>
-                  <p className="text-primary-100">Jeder Newsletter-Abonnent unterstützt unsere Mission, Menschen zusammenzubringen und Einsamkeit zu bekämpfen.</p>
-                </div>
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary-700 to-primary-500"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+
       </main>
       <Footer />
     </div>

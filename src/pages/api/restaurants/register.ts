@@ -1,66 +1,63 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import prisma from '../../../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
+
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  const {
+    name,
+    email,
+    phone,
+    address,
+    description,
+    cuisine,
+    openingHours,
+  } = req.body;
+
+  if (!name || !email || !phone || !address) {
+    return res.status(400).json({ message: 'Required fields are missing.' });
   }
 
   try {
-    const {
-      name,
-      email,
-      phone,
-      address,
-      description,
-      cuisine,
-      capacity,
-      openingHours,
-    } = req.body;
-
-    // Validierung
-    if (!name || !email || !phone || !address || !description || !cuisine || !capacity || !openingHours) {
-      return res.status(400).json({ message: 'Alle Felder sind erforderlich' });
-    }
-
-    // Prüfe, ob Restaurant mit dieser E-Mail bereits existiert
-    const existingRestaurant = await prisma.restaurant.findUnique({
-      where: { email },
+    const existingRestaurant = await prisma.restaurant.findFirst({
+      where: { email: email },
     });
 
     if (existingRestaurant) {
-      return res.status(400).json({ message: 'Ein Restaurant mit dieser E-Mail existiert bereits' });
+      return res.status(409).json({ message: 'A restaurant with this email already exists.' });
     }
 
-    // Erstelle neues Restaurant
     const restaurant = await prisma.restaurant.create({
       data: {
+        userId: user.id,
         name,
         email,
         phone,
         address,
         description,
         cuisine,
-        capacity: parseInt(capacity),
         openingHours,
-        status: 'PENDING', // Restaurant muss erst von Admin freigegeben werden
       },
     });
 
-    // Erfolgreiche Antwort
-    res.status(201).json({
-      message: 'Restaurant erfolgreich registriert',
-      restaurant: {
-        id: restaurant.id,
-        name: restaurant.name,
-      },
-    });
+    res.status(201).json(restaurant);
   } catch (error) {
     console.error('Error registering restaurant:', error);
-    res.status(500).json({ message: 'Ein Fehler ist aufgetreten' });
-  } finally {
-    await prisma.$disconnect();
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      return res.status(500).json({ message: 'Database error.', code: error.code });
+    }
+    res.status(500).json({ message: 'An unexpected error occurred.' });
   }
 } 

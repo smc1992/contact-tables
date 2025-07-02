@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '../../../utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -15,17 +15,16 @@ export default async function handler(
 
   try {
     // Supabase-Client erstellen
-    const supabase = createPagesServerClient({ req, res });
-    
-    // Authentifizierung prüfen
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const supabase = createClient({ req, res });
+
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !authUser) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
-    
-    // Benutzer aus der Datenbank abrufen, um Rolle und Restaurant-ID zu erhalten
+
     const user = await prisma.profile.findUnique({
-      where: { id: session.user.id },
+      where: { id: authUser.id },
       select: { 
         role: true,
         restaurant: {
@@ -83,7 +82,7 @@ export default async function handler(
         description,
         address,
         city,
-        postalCode,
+        postal_code: postalCode,
         country,
         phone,
         email,
@@ -110,10 +109,11 @@ export default async function handler(
 
       // Neue Bilder hinzufügen
       await prisma.restaurantImage.createMany({
-        data: images.map((image: string, index: number) => ({
+        data: images.map((image: { url: string; publicId: string }, index: number) => ({
           restaurantId,
-          url: image,
-          sortOrder: index
+          url: image.url,
+          publicId: image.publicId,
+          isPrimary: index === 0,
         }))
       });
     }

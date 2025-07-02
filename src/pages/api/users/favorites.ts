@@ -1,173 +1,88 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { getSession } from 'next-auth/react';
-
-const prisma = new PrismaClient();
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import prisma from '../../../lib/prisma';
+import { Prisma, Restaurant } from '@prisma/client';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const session = await getSession({ req });
-  
-  if (!session || !session.user) {
-    return res.status(401).json({ message: 'Nicht authentifiziert' });
+  const supabase = createPagesServerClient({ req, res });
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  const userId = session.user.id;
-
-  // GET: Favorisierte Restaurants abrufen
   if (req.method === 'GET') {
     try {
-      // Benutzer mit seinen favorisierten Restaurants abrufen
       const favorites = await prisma.favorite.findMany({
-        where: { userId: userId },
+        where: { userId: user.id },
         include: {
-          restaurant: {
-            select: {
-              id: true,
-              name: true,
-              address: true,
-              city: true,
-              cuisine: true,
-              imageUrl: true,
-              ratings: true
-            }
-          }
-        }
+          restaurant: true,
+        },
       });
 
-      if (!favorites || favorites.length === 0) {
-        return res.status(200).json([]); // Leere Liste zurückgeben, wenn keine Favoriten gefunden wurden
-      }
+      const favoriteRestaurants = favorites
+        .map((fav) => fav.restaurant)
+        .filter((r): r is Restaurant => r !== null);
 
-      // Durchschnittliche Bewertungen berechnen
-      const restaurantsWithRatings = favorites.map(favorite => {
-        const restaurant = favorite.restaurant;
-        const avgRating = restaurant.ratings.length > 0
-          ? restaurant.ratings.reduce((sum, rating) => sum + rating.value, 0) / restaurant.ratings.length
-          : 0;
-        
-        return {
-          ...restaurant,
-          avgRating,
-          totalRatings: restaurant.ratings.length,
-          // Entferne die einzelnen Bewertungen aus der Antwort
-          ratings: undefined
-        };
-      });
-
-      return res.status(200).json(restaurantsWithRatings);
+      return res.status(200).json(favoriteRestaurants);
     } catch (error) {
-      console.error('Fehler beim Abrufen der favorisierten Restaurants:', error);
-      return res.status(500).json({ 
-        message: 'Interner Serverfehler', 
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined 
-      });
+      console.error('Error fetching favorites:', error);
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
-  }
+  } else if (req.method === 'POST') {
+    const { restaurantId } = req.body;
 
-  // POST: Restaurant zu Favoriten hinzufügen
-  if (req.method === 'POST') {
+    if (!restaurantId) {
+      return res.status(400).json({ message: 'Restaurant ID is required' });
+    }
+
     try {
-      const { restaurantId } = req.body;
-
-      if (!restaurantId) {
-        return res.status(400).json({ message: 'Restaurant-ID ist erforderlich' });
-      }
-
-      // Überprüfen, ob das Restaurant existiert
-      const restaurant = await prisma.restaurant.findUnique({
-        where: { id: restaurantId }
-      });
-
-      if (!restaurant) {
-        return res.status(404).json({ message: 'Restaurant nicht gefunden' });
-      }
-
-      // Überprüfen, ob das Restaurant bereits favorisiert ist
-      const existingFavorite = await prisma.favorite.findUnique({
-        where: {
-          userId_restaurantId: {
-            userId: userId,
-            restaurantId: restaurantId
-          }
-        }
-      });
-
-      if (existingFavorite) {
-        return res.status(400).json({ message: 'Restaurant ist bereits favorisiert' });
-      }
-
-      // Restaurant zu Favoriten hinzufügen
-      await prisma.favorite.create({
+      const newFavorite = await prisma.favorite.create({
         data: {
-          user: {
-            connect: { id: userId }
-          },
-          restaurant: {
-            connect: { id: restaurantId }
-          }
-        }
+          userId: user.id,
+          restaurantId: restaurantId,
+        },
       });
-
-      return res.status(200).json({
-        message: 'Restaurant erfolgreich zu Favoriten hinzugefügt'
-      });
+      return res.status(201).json(newFavorite);
     } catch (error) {
-      console.error('Fehler beim Hinzufügen des Restaurants zu Favoriten:', error);
-      return res.status(500).json({ 
-        message: 'Interner Serverfehler', 
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined 
-      });
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const existingFavorite = await prisma.favorite.findUnique({
+          where: { userId_restaurantId: { userId: user.id, restaurantId } },
+        });
+        return res.status(200).json(existingFavorite);
+      }
+      console.error('Error adding favorite:', error);
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
-  }
+  } else if (req.method === 'DELETE') {
+    const { restaurantId } = req.body;
 
-  // DELETE: Restaurant aus Favoriten entfernen
-  if (req.method === 'DELETE') {
+    if (!restaurantId) {
+      return res.status(400).json({ message: 'Restaurant ID is required' });
+    }
+
     try {
-      const { restaurantId } = req.body;
-
-      if (!restaurantId) {
-        return res.status(400).json({ message: 'Restaurant-ID ist erforderlich' });
-      }
-
-      // Überprüfen, ob das Restaurant favorisiert ist
-      const existingFavorite = await prisma.favorite.findUnique({
-        where: {
-          userId_restaurantId: {
-            userId: userId,
-            restaurantId: restaurantId
-          }
-        }
-      });
-
-      if (!existingFavorite) {
-        return res.status(400).json({ message: 'Restaurant ist nicht favorisiert' });
-      }
-
-      // Restaurant aus Favoriten entfernen
       await prisma.favorite.delete({
         where: {
           userId_restaurantId: {
-            userId: userId,
-            restaurantId: restaurantId
-          }
-        }
+            userId: user.id,
+            restaurantId: restaurantId,
+          },
+        },
       });
-
-      return res.status(200).json({
-        message: 'Restaurant erfolgreich aus Favoriten entfernt'
-      });
+      return res.status(204).end();
     } catch (error) {
-      console.error('Fehler beim Entfernen des Restaurants aus Favoriten:', error);
-      return res.status(500).json({ 
-        message: 'Interner Serverfehler', 
-        error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined 
-      });
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        return res.status(404).json({ message: 'Favorite not found.' });
+      }
+      console.error('Error deleting favorite:', error);
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
+  } else {
+    res.setHeader('Allow', ['GET', 'POST', 'DELETE']);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-
-  // Andere HTTP-Methoden nicht erlaubt
-  return res.status(405).json({ message: 'Method not allowed' });
 }

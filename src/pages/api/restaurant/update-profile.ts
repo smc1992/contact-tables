@@ -45,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     description,
     address,
     city,
+    postal_code,
     cuisine, // Wird zu cuisine_type (Array) konvertiert
     phone,   // Wird zu contact_phone
     email,   // Wird zu contact_email
@@ -66,6 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (description !== undefined) updateData.description = description;
   if (address !== undefined) updateData.address = address;
   if (city !== undefined) updateData.city = city;
+  if (postal_code !== undefined) updateData.postal_code = postal_code;
   if (website !== undefined) updateData.website = website;
   if (capacity !== undefined) updateData.capacity = Number(capacity);
   if (cuisine !== undefined) updateData.cuisine = cuisine;

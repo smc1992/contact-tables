@@ -79,6 +79,7 @@ export default async function handler(
           data: {
             id: user.id, // Muss mit der Auth-Benutzer-ID übereinstimmen
             name: name,
+            role: role, // Die Rolle aus dem Request explizit setzen
           }
         });
 
