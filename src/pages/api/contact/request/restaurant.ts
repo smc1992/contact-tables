@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -8,14 +8,14 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   // Check if the user is a restaurant user by checking their profile and role
   const profile = await prisma.profile.findUnique({
@@ -25,7 +25,7 @@ export default async function handler(
     },
   });
 
-  if (!profile || session.user.user_metadata?.role !== 'RESTAURANT' || !profile.restaurant) {
+  if (!profile || user.user_metadata?.role !== 'RESTAURANT' || !profile.restaurant) {
     return res.status(403).json({ message: 'Nur Restaurant-Benutzer können auf diese Ressource zugreifen' });
   }
 

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import prisma from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
 
@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user) {

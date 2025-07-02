@@ -6,7 +6,7 @@ import { FiCheckCircle, FiAlertCircle, FiFileText, FiDownload, FiCheck } from 'r
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import { PrismaClient } from '@prisma/client';
-import { supabase } from '../../../utils/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 interface Restaurant {
   id: string;
@@ -15,7 +15,7 @@ interface Restaurant {
   city: string;
   contractStatus: string;
   plan: string | null;
-  user: {
+  profile: {
     id: string;
     name: string;
     email: string;
@@ -165,11 +165,11 @@ export default function RestaurantContract({ restaurant, token }: ContractPagePr
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Kontaktperson</p>
-                    <p className="font-medium">{restaurant.user.name}</p>
+                    <p className="font-medium">{restaurant.profile.name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">E-Mail</p>
-                    <p className="font-medium">{restaurant.user.email}</p>
+                    <p className="font-medium">{restaurant.profile.email}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Gewählter Tarif</p>
@@ -284,22 +284,18 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const { id, token } = context.query;
 
   if (!id || !token) {
-    return {
-      redirect: {
-        destination: '/',
-        permanent: false,
-      },
-    };
+    return { redirect: { destination: '/', permanent: false } };
   }
 
+  const prisma = new PrismaClient();
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   try {
-    const prisma = new PrismaClient();
-    
-    // Restaurant mit der angegebenen ID abrufen
-    const restaurant = await prisma.restaurant.findUnique({
-      where: {
-        id: id as string,
-      },
+    const restaurantData = await prisma.restaurant.findUnique({
+      where: { id: id as string },
       select: {
         id: true,
         name: true,
@@ -307,29 +303,21 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         city: true,
         contractStatus: true,
         plan: true,
-        user: {
+        profile: {
           select: {
             id: true,
             name: true,
-            email: true,
           },
         },
       },
     });
 
-    await prisma.$disconnect();
-
-    if (!restaurant) {
-      return {
-        redirect: {
-          destination: '/404',
-          permanent: false,
-        },
-      };
+    if (!restaurantData || !restaurantData.profile) {
+      return { redirect: { destination: '/404', permanent: false } };
     }
 
     // Überprüfen, ob der Vertragsstatus "APPROVED" ist
-    if (restaurant.contractStatus !== "APPROVED") {
+    if (restaurantData.contractStatus !== 'APPROVED') {
       return {
         redirect: {
           destination: '/',
@@ -337,6 +325,23 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         },
       };
     }
+
+    // Fetch email from Supabase Auth
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(restaurantData.profile.id);
+
+    if (userError || !user) {
+      console.error(`Error fetching user ${restaurantData.profile.id} for contract page:`, userError);
+      return { redirect: { destination: '/500', permanent: false } };
+    }
+
+    // Augment the restaurant object with the email
+    const restaurant = {
+      ...restaurantData,
+      profile: {
+        ...restaurantData.profile,
+        email: user.email || '',
+      },
+    };
 
     return {
       props: {
@@ -346,12 +351,13 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     };
   } catch (error) {
     console.error('Fehler beim Abrufen des Restaurants:', error);
-    
     return {
       redirect: {
         destination: '/500',
         permanent: false,
       },
     };
+  } finally {
+    await prisma.$disconnect();
   }
 };

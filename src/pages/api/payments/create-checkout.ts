@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
@@ -17,15 +17,15 @@ export default async function handler(
   }
 
   try {
-    const supabase = createPagesServerClient({ req, res });
+    const supabase = createClient({ req, res });
     
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
 
     const user = await prisma.profile.findUnique({
-      where: { id: session.user.id }
+      where: { id: authUser.id }
     });
 
     if (!user) {
@@ -67,7 +67,9 @@ export default async function handler(
     if (user.stripeCustomerId) {
       checkoutSessionOptions.customer = user.stripeCustomerId;
     } else {
-      checkoutSessionOptions.customer_email = session.user.email;
+      if (authUser.email) {
+        checkoutSessionOptions.customer_email = authUser.email;
+      }
     }
 
     const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionOptions);

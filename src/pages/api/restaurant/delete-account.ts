@@ -1,8 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -15,7 +15,7 @@ cloudinary.config({
 const prisma = new PrismaClient();
 
 // Initialize Supabase Admin client for admin actions
-const supabaseAdmin = createClient(
+const supabaseAdmin = createSupabaseAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
@@ -25,15 +25,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
 
   const { restaurantId } = req.body;
-  const userIdToDelete = session.user.id; // The user requesting deletion
+  const userIdToDelete = user.id; // The user requesting deletion
 
   if (!restaurantId) {
     return res.status(400).json({ message: 'Restaurant ID is required' });
@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    const userRole = session.user.user_metadata?.role;
+    const userRole = user.user_metadata?.role;
     // Authorization: only the restaurant owner or an admin can delete
     if (restaurant.userId !== userIdToDelete && userRole !== 'ADMIN') {
       return res.status(403).json({ message: 'Not authorized' });

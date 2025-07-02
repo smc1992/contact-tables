@@ -82,7 +82,7 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaur
 
   const cuisines = useMemo(() => {
     const allCuisines = initialRestaurants.map(r => r.cuisine).filter(Boolean) as string[];
-    return [...new Set(allCuisines)].sort();
+    return Array.from(new Set(allCuisines)).sort();
   }, [initialRestaurants]);
 
   const filteredRestaurants = useMemo(() => {
@@ -279,7 +279,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
         address: restaurant.address ?? 'Keine Adresse',
         city: restaurant.city ?? 'Unbekannte Stadt',
         cuisine: restaurant.cuisine ?? 'Unbekannt',
-        imageUrl: restaurant.imageUrl ?? '/images/restaurant-placeholder.jpg',
+        imageUrl: restaurant.imageUrl || '/images/logo.svg',
         capacity: restaurant.capacity ?? 0,
         offerTableToday: restaurant.offerTableToday ?? false,
         priceRange: restaurant.priceRange ?? 'N/A',

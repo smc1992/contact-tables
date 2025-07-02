@@ -23,7 +23,7 @@ export default function NotificationsPage() {
         setLoading(true);
         
         // Echten API-Aufruf verwenden
-        const { data, error } = await userApi.getNotifications();
+        const { data, error } = await userApi.getNotifications({});
         
         if (error) {
           console.error('Fehler beim Laden der Benachrichtigungen:', error);
@@ -120,6 +120,7 @@ export default function NotificationsPage() {
   const markAllAsRead = async () => {
     try {
       // Echten API-Aufruf verwenden
+      if (!user) return;
       const { error } = await userApi.markAllNotificationsAsRead();
       
       if (error) {

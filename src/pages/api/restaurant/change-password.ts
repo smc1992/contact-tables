@@ -1,16 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT') {
     return res.status(405).json({ message: 'Methode nicht erlaubt' });
   }
 
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 

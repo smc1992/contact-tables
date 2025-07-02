@@ -388,12 +388,13 @@ export default function CreateContactTable() {
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const authResult = await requireAuth(context, '/contact-tables/create');
   
-  // Wenn der Benutzer nicht authentifiziert ist, wird er bereits umgeleitet
-  if ('redirect' in authResult) {
+  // If the user is not authenticated (or another redirect occurred), pass through the result.
+  if (!('props' in authResult)) {
     return authResult;
   }
   
-  const user = authResult.props.user;
+  const props = await authResult.props;
+  const user = props.user;
 
   // Prisma-Client importieren und initialisieren
   const { PrismaClient } = require('@prisma/client');

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -8,14 +8,14 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
   
   // Fetch user profile to check for payment status and get user name
   const profile = await prisma.profile.findUnique({
@@ -28,7 +28,7 @@ export default async function handler(
   }
 
   // Admins have full access, others need to be paying users
-  const userRole = session.user.user_metadata?.role || 'CUSTOMER';
+  const userRole = user.user_metadata?.role || 'CUSTOMER';
   if (userRole !== 'ADMIN' && !profile.isPaying) {
     return res.status(403).json({ message: 'Diese Aktion ist nur für bezahlte Benutzer oder Admins verfügbar.' });
   }

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FiShield, FiUser, FiDatabase, FiCookie, FiMail, FiAlertCircle } from 'react-icons/fi';
+import { FiShield, FiUser, FiDatabase, FiDisc, FiMail, FiAlertCircle } from 'react-icons/fi';
 import PageLayout from '../components/PageLayout';
 import Link from 'next/link';
 
@@ -129,7 +129,7 @@ export default function PrivacyPage() {
               <motion.div variants={itemVariants} className="mb-8">
                 <div className="flex items-center mb-4">
                   <div className="bg-primary-100 p-3 rounded-full mr-4">
-                    <FiCookie className="text-primary-600 w-6 h-6" />
+                    <FiDisc className="text-primary-600 w-6 h-6" />
                   </div>
                   <h2 className="text-2xl font-bold text-secondary-800">Cookies und Analysedienste</h2>
                 </div>

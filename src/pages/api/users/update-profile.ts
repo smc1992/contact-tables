@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withAuth } from '../../../utils/serverAuth';
-import { createServerSupabaseClient } from '../../../utils/serverAuth';
+
+import { createClient } from '@/utils/supabase/server';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Der Benutzer wurde bereits durch withAuth authentifiziert
@@ -17,7 +17,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       }
 
       // Supabase-Client erstellen
-      const supabase = createPagesServerClient(req, res);
+      const supabase = createClient({ req, res });
       
       // Benutzermetadaten aktualisieren
       const { data, error } = await supabase.auth.updateUser({
@@ -53,4 +53,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 }
 
 // Export der Handler-Funktion mit dem withAuth-Middleware
-export default withAuth(handler);
+export default handler;

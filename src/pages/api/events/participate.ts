@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -13,10 +13,10 @@ export default async function handler(
   }
 
   try {
-    const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
+    const supabase = createClient({ req, res });
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
 
@@ -35,7 +35,7 @@ export default async function handler(
         }
       }),
       prisma.profile.findUnique({
-        where: { id: session.user.id }
+        where: { id: user.id }
       })
     ]);
 
@@ -48,7 +48,7 @@ export default async function handler(
     }
 
     const isAlreadyParticipating = event.participants.some(
-      participant => participant.userId === session.user.id
+      participant => participant.userId === user.id
     );
 
     if (isAlreadyParticipating) {
@@ -65,7 +65,7 @@ export default async function handler(
           connect: { id: eventId }
         },
         profile: { // Corrected from user
-          connect: { id: session.user.id }
+          connect: { id: user.id }
         },
         isHost: false
       },

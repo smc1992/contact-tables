@@ -1,72 +1,76 @@
-import { GetServerSidePropsContext } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
+import { createClient } from '@/utils/supabase/server';
+import { User } from '@supabase/supabase-js';
 
-/**
- * Erstellt einen Supabase-Client für die serverseitige Verwendung
- * Verwendet die empfohlene Funktion createPagesServerClient statt der veralteten createServerSupabaseClient
- */
-export const createServerSupabaseClient = (context: GetServerSidePropsContext) => {
-  // Verwenden der empfohlenen Funktion createPagesServerClient
-  return createPagesServerClient(context);
+type AuthenticatedProps = {
+  user: User;
 };
 
 /**
- * Überprüft die Authentifizierung auf der Serverseite und gibt die Sitzung und den Benutzer zurück
+ * A helper for `getServerSideProps` that requires a user to be authenticated.
+ * If the user is not authenticated, it redirects to the login page.
+ *
+ * @param context The context from getServerSideProps.
+ * @param callbackUrl An optional URL to redirect to after successful login.
+ * @returns {Promise<GetServerSidePropsResult<AuthenticatedProps>>} An object with `props` containing the `user` object, or a `redirect` object.
  */
-export const getServerAuthSession = async (context: GetServerSidePropsContext) => {
-  const supabase = createServerSupabaseClient(context);
-  const { data } = await supabase.auth.getSession();
-  
-  return {
-    session: data.session,
-    user: data.session?.user || null
-  };
-};
+export const requireAuth = async (
+  context: GetServerSidePropsContext,
+  callbackUrl?: string
+): Promise<GetServerSidePropsResult<AuthenticatedProps>> => {
+  const supabase = createClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
 
-/**
- * Überprüft die Authentifizierung auf der Serverseite und gibt die Sitzung und den Benutzer zurück
- */
-export const requireAuth = async (context: GetServerSidePropsContext, callbackUrl?: string) => {
-  const { session, user } = await getServerAuthSession(context);
-  
-  if (!session || !user) {
+  if (!user) {
+    const destination = `/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`;
     return {
       redirect: {
-        destination: `/auth/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`,
+        destination,
         permanent: false,
       },
     };
   }
-  
-  return { props: { user, session } };
+
+  return { props: { user } };
 };
 
 /**
- * Überprüft, ob der Benutzer eine bestimmte Rolle hat
+ * A helper for `getServerSideProps` that requires a user to be authenticated and have a specific role.
+ * If the conditions are not met, it redirects.
+ *
+ * @param context The context from getServerSideProps.
+ * @param role The required role or an array of roles.
+ * @param callbackUrl An optional URL to redirect to after successful login.
+ * @returns {Promise<GetServerSidePropsResult<AuthenticatedProps>>} An object with `props` containing the `user` object, or a `redirect` object.
  */
-export const requireRole = async (context: GetServerSidePropsContext, role: string | string[], callbackUrl?: string) => {
-  const result = await requireAuth(context, callbackUrl);
-  
-  // Wenn der Benutzer nicht authentifiziert ist, wird er bereits umgeleitet
-  if ('redirect' in result) {
-    return result;
+export const requireRole = async (
+  context: GetServerSidePropsContext,
+  role: string | string[],
+  callbackUrl?: string
+): Promise<GetServerSidePropsResult<AuthenticatedProps>> => {
+  const authResult = await requireAuth(context, callbackUrl);
+
+  // If the user is not authenticated (or another redirect occurred), pass through the result.
+  if (!('props' in authResult)) {
+    return authResult;
   }
-  
-  const user = result.props.user;
-  const userRole = user.user_metadata?.role || 'GUEST';
-  
-  const hasRequiredRole = Array.isArray(role) 
-    ? role.includes(userRole) 
+
+  const props = await authResult.props;
+  const user = props.user;
+  const userRole = user.user_metadata?.role || 'USER'; // Default to USER if not set
+
+  const hasRequiredRole = Array.isArray(role)
+    ? role.includes(userRole)
     : userRole === role;
-  
+
   if (!hasRequiredRole) {
     return {
       redirect: {
-        destination: '/',
+        destination: '/', // Redirect to home if role is not sufficient
         permanent: false,
       },
     };
   }
-  
-  return result;
+
+  return authResult;
 };

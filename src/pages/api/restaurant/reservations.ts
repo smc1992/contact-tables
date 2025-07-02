@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Create a Supabase client with the request and response objects
-  const supabase = createServerSupabaseClient({ req, res });
+  const supabase = createClient({ req, res });
 
   try {
     // Get the user from the session, which is implicitly read from the request cookies

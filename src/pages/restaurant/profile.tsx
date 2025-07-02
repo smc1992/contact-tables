@@ -7,10 +7,10 @@ import Header from '../../components/Header'; // Adjusted path
 import Footer from '../../components/Footer'; // Adjusted path
 import RestaurantSidebar from '../../components/restaurant/RestaurantSidebar'; // Adjusted path
 import { createClient } from '../../utils/supabase/server'; // Adjusted path
-import { Restaurant, Tables } from '../../types/supabase'; // Adjusted path
+import { PrismaClient, Restaurant } from '@prisma/client';
 
 interface ProfilePageProps {
-  restaurant: Tables<'restaurants'> | null;
+  restaurant: Restaurant | null;
   error?: string;
 }
 
@@ -21,11 +21,11 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
     description: restaurant?.description || '',
     address: restaurant?.address || '',
     city: restaurant?.city || '',
-    cuisine: restaurant?.cuisine_type?.[0] || '',
-    phone: restaurant?.contact_phone || '',
-    email: restaurant?.contact_email || '',
+    cuisine: restaurant?.cuisine || '',
+    phone: restaurant?.phone || '',
+    email: restaurant?.email || '',
     website: restaurant?.website || '',
-    openingHours: (restaurant?.opening_hours as string) || ''
+    openingHours: restaurant?.openingHours || ''
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,12 +54,8 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
 
     try {
       const payload = {
-        ...formData,
         id: restaurant.id,
-        cuisine_type: formData.cuisine ? [formData.cuisine] : [], 
-        contact_phone: formData.phone,
-        contact_email: formData.email,
-        opening_hours: formData.openingHours 
+        ...formData
       };
 
       const response = await fetch(`/api/restaurant/update-profile`, {
@@ -290,31 +286,40 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const supabase = createClient(context); // Uses context for server-side client
+  const supabase = createClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!user || user.user_metadata.role !== 'RESTAURANT') {
     return {
       redirect: {
-        destination: '/auth/login?message=Bitte melden Sie sich an, um Ihr Profil zu bearbeiten.',
+        destination: '/auth/login',
         permanent: false,
       },
     };
   }
 
-  // Check if the user is a restaurant owner
-  // This logic might need adjustment based on how roles are stored/verified
-  // For now, assume if they have a restaurant entry, they are an owner.
-  const { data: restaurant, error } = await supabase
-    .from('restaurants')
-    .select('*')
-    .eq('id', user.id) // Assuming restaurant id is the same as user id
-    .single();
+  const prisma = new PrismaClient();
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { userId: user.id },
+    });
 
-  if (error && error.code !== 'PGRST116') { // PGRST116: 'No rows found'
+    if (!restaurant) {
+      return {
+        props: {
+          restaurant: null,
+          error: 'Kein Restaurantprofil für diesen Benutzer gefunden.',
+        },
+      };
+    }
+
+    return {
+      props: {
+        restaurant: JSON.parse(JSON.stringify(restaurant)), // Serialize complex objects
+        error: null,
+      },
+    };
+  } catch (error) {
     console.error('Error fetching restaurant profile:', error);
     return {
       props: {
@@ -322,23 +327,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         error: 'Fehler beim Laden des Restaurantprofils.',
       },
     };
+  } finally {
+    await prisma.$disconnect();
   }
-  
-  if (!restaurant) {
-     // This case should ideally not happen if the user is on this page,
-     // but handle it just in case (e.g., direct navigation, or restaurant record deleted)
-    return {
-      props: {
-        restaurant: null,
-        error: 'Kein Restaurantprofil für diesen Benutzer gefunden. Bitte kontaktieren Sie den Support, wenn dies ein Fehler ist.',
-      },
-    };
-  }
-
-  return {
-    props: {
-      restaurant,
-      error: null,
-    },
-  };
 };

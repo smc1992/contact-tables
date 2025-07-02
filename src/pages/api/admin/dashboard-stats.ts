@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 // Definiere die Struktur der Antwort
 interface DashboardStats {
@@ -25,27 +25,24 @@ export default async function handler(
   }
 
   // Supabase-Client erstellen
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
   
   // Authentifizierung prüfen
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
+  }
+
+  // Prüfen, ob der Benutzer ein Admin ist
+  if (user.user_metadata?.role !== 'ADMIN') {
+    return res.status(403).json({ message: 'Keine Berechtigung' });
   }
   
   // Prisma-Client erstellen
   const prisma = new PrismaClient();
   
   try {
-    // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-    const userRole = session.user.user_metadata?.role;
-      
-    
-    // Prüfen, ob der Benutzer ein Admin ist
-    if (userRole !== 'ADMIN') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
-    }
     
     // Statistiken abrufen
     const [

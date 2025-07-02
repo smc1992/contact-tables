@@ -1,14 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Supabase-Client erstellen
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
 
   // Benutzer-Session überprüfen
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({
       error: 'Nicht autorisiert',
       message: 'Sie müssen angemeldet sein, um auf diese Ressource zuzugreifen.'
@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Benutzer-ID aus der Session abrufen
-  const userId = session.user.id;
+  const userId = user.id;
 
   // GET-Anfrage für Benutzereinstellungen
   if (req.method === 'GET') {

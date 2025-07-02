@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiUsers, FiMapPin, FiFilter, FiSearch, FiInfo, FiTrash2 } from 'react-icons/fi';
 import Header from '../../components/Header';
@@ -311,58 +311,21 @@ export default function AdminContactTables() {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const supabase = createPagesServerClient(context);
-  const { data: { session } } = await supabase.auth.getSession();
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const supabase = createClient(ctx);
 
-  if (!session) {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user || user.user_metadata.role !== 'ADMIN') {
     return {
       redirect: {
-        destination: '/auth/login?callbackUrl=/admin/contact-tables', // Adjusted for potential Supabase login page
+        destination: '/login?error=unauthorized',
         permanent: false,
       },
     };
   }
 
-  // Prisma-Client importieren und initialisieren
-  const { PrismaClient } = require('@prisma/client');
-  const prisma = new PrismaClient();
-
-  try {
-    // Überprüfen, ob der Benutzer ein Admin ist
-    // Supabase session.user.id ist die ID des authentifizierten Benutzers
-    const userProfile = await prisma.profile.findUnique({
-      where: { id: session.user.id } // Assuming your 'user' table's ID matches Supabase auth user ID
-    });
-
-    // Check user role (e.g., from userProfile.role or session.user.user_metadata.role)
-    // This example assumes the role is in your prisma 'user' table
-    if (!userProfile || userProfile.role !== 'ADMIN') {
-      return {
-        redirect: {
-          destination: '/', // Or an unauthorized page
-          permanent: false,
-        },
-      };
-    }
-
-    // Fetch data needed for the page using prisma, e.g.:
-    // const contactTableData = await prisma.contactTableEvent.findMany({});
-
-    return {
-      // Pass the Supabase session or necessary user info, and other data to the page
-      props: { 
-        user: session.user, // Or specific parts: initialUser: { id: session.user.id, email: session.user.email } 
-        // contactTableData: JSON.parse(JSON.stringify(contactTableData)), // Remember to serialize Prisma data
-      },
-    };
-  } catch (error) {
-    console.error('Error in getServerSideProps for /admin/contact-tables:', error);
-    // Return a generic error or handle appropriately
-    return {
-      props: { error: 'Failed to load page data.' },
-    };
-  } finally {
-    await prisma.$disconnect();
-  }
+  return {
+    props: {},
+  };
 };

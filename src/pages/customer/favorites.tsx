@@ -8,7 +8,9 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { FiHeart, FiMapPin, FiPhone, FiClock, FiTrash2, FiCalendar, FiUsers } from 'react-icons/fi';
 import { supabase } from '../../utils/supabase';
-import type { Database, ContactTable } from '../../types/supabase';
+import type { Database } from '../../types/supabase';
+
+type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
 
 interface ContactTableWithDetails extends ContactTable {
   restaurant?: {
@@ -18,7 +20,8 @@ interface ContactTableWithDetails extends ContactTable {
     city?: string;
     postal_code?: string;
   } | null;
-  participants?: any[] | null;
+    participants?: any[] | null;
+  participant_count?: number;
 }
 
 export default function CustomerFavorites() {
@@ -62,7 +65,7 @@ export default function CustomerFavorites() {
             restaurant:restaurant_id(*)
           `)
           .in('id', favoriteIds)
-          .order('start_time', { ascending: true });
+          .order('datetime', { ascending: true });
         
         // Teilnehmerzahlen separat abfragen
         let tablesWithParticipants: ContactTableWithDetails[] = [];
@@ -209,7 +212,7 @@ export default function CustomerFavorites() {
               ) : (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {favorites.map((table) => {
-                    const { date, time } = formatDateTime(table.start_time);
+                    const { date, time } = formatDateTime(table.datetime || '');
                     return (
                       <div
                         key={table.id}
@@ -235,7 +238,7 @@ export default function CustomerFavorites() {
                           
                           <div className="mt-2 flex items-center text-sm text-gray-500">
                             <FiUsers className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
-                            <p>{(table.participants as any)?.count || 0}/{table.max_participants} Teilnehmer</p>
+                            <p>{table.participant_count || 0}/{table.max_participants} Teilnehmer</p>
                           </div>
                           
                           <div className="mt-4 flex justify-between">

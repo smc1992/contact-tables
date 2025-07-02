@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -34,17 +34,17 @@ export default async function handler(
   try {
     // Authentifizierung prüfen
     // Supabase-Client erstellen
-    const supabase = createPagesServerClient({ req, res });
+    const supabase = createClient({ req, res });
     
     // Authentifizierung prüfen
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
     
     // Benutzer aus der Datenbank abrufen, um Rolle und Restaurant-ID zu erhalten
-    const user = await prisma.profile.findUnique({
-      where: { id: session.user.id },
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
       select: { 
         role: true,
         restaurant: {
@@ -53,12 +53,12 @@ export default async function handler(
       }
     });
     
-    if (!user) {
+    if (!profile) {
       return res.status(401).json({ message: 'Benutzer nicht gefunden' });
     }
 
     // Prüfen, ob der Benutzer ein Restaurant oder Admin ist
-    if (session.user.user_metadata?.role !== 'RESTAURANT' && session.user.user_metadata?.role !== 'ADMIN') {
+    if (user.user_metadata?.role !== 'RESTAURANT' && user.user_metadata?.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Keine Berechtigung' });
     }
 
@@ -91,8 +91,8 @@ export default async function handler(
 
         try {
           // Bild zu Cloudinary hochladen
-          const folder = user.role === 'RESTAURANT' && user.restaurant 
-            ? `restaurants/${user.restaurant.id}` 
+          const folder = profile.role === 'RESTAURANT' && profile.restaurant 
+            ? `restaurants/${profile.restaurant.id}` 
             : 'admin';
 
           const uploadResult = await cloudinary.uploader.upload(file.filepath, {

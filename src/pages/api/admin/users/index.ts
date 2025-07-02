@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Prisma, UserRole } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -9,91 +9,81 @@ export default async function handler(
   res: NextApiResponse
 ) {
   // Supabase-Client erstellen
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
   
   // Authentifizierung prüfen
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
   
-  // Benutzer aus der Datenbank abrufen, um die Rolle zu überprüfen
-  const adminUser = await prisma.profile.findUnique({
-    where: { id: session.user.id },
-    select: { role: true }
-  });
-  
   // Prüfen, ob der Benutzer ein Administrator ist
-  if (!adminUser || adminUser.role !== 'ADMIN') {
+  if (user.user_metadata?.role !== 'ADMIN') {
     return res.status(403).json({ message: 'Keine Berechtigung' });
   }
 
-  // GET-Anfrage: Benutzer auflisten
   if (req.method === 'GET') {
     try {
-      const { 
-        page = '1', 
-        limit = '10', 
-        search = '', 
+      const {
+        page = '1',
+        limit = '10',
+        search = '',
         role,
-        // isPaying // TODO: Filtering by isPaying requires a more complex query across users and profiles tables.
       } = req.query;
 
       const pageNumber = parseInt(page as string, 10);
       const limitNumber = parseInt(limit as string, 10);
       const skip = (pageNumber - 1) * limitNumber;
 
-      // Filter erstellen
-      let where: Prisma.ProfileWhereInput = {};
-
-      // Suchfilter (nur auf E-Mail)
-      // TODO: Suche nach Name erfordert eine komplexere Abfrage
+      // 1. Prisma-Filter erstellen
+      const where: Prisma.ProfileWhereInput = {};
       if (search) {
         where.name = { contains: search as string, mode: 'insensitive' };
       }
-
-      // Rollenfilter
       if (role) {
         where.role = { equals: role as UserRole };
       }
 
-      // Benutzer abrufen
-      const [users, totalCount] = await Promise.all([
+      // 2. Gefilterte Profile und Gesamtzahl von Prisma abrufen
+      const [profiles, totalCount] = await prisma.$transaction([
         prisma.profile.findMany({
           where,
+          include: {
+            restaurant: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
           orderBy: { createdAt: 'desc' },
           skip,
-          take: limitNumber
+          take: limitNumber,
         }),
-        prisma.profile.count({ where })
+        prisma.profile.count({ where }),
       ]);
 
-      // Zugehörige Profile abrufen
-      const userIds = users.map(u => u.id);
-      const profiles = await prisma.profile.findMany({
-        where: { id: { in: userIds } },
-        include: {
-          restaurant: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
-        }
+      // 3. E-Mails der Benutzer von Supabase Auth abrufen
+      // Hinweis: Dies ruft bis zu 1000 Benutzer ab. Für größere Mengen ist eine Paginierung erforderlich.
+      const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers({
+        perPage: 1000, 
       });
-      const profilesMap = new Map(profiles.map(p => [p.id, p]));
 
-      // Benutzerdaten für die Frontend-Anzeige kombinieren
-      const combinedUsers = users.map(u => {
-        const profile = profilesMap.get(u.id);
+      if (authError) throw authError;
+
+      const authUsersMap = new Map(authUsers.map(u => [u.id, u]));
+
+      // 4. Profildaten mit Auth-Daten (E-Mail) kombinieren
+      const combinedUsers = profiles.map(profile => {
+        const authUser = authUsersMap.get(profile.id);
         return {
-          id: u.id,
-          email: '', // HACK: Email is not on profile model, needs to be fetched from auth.users
-          name: profile?.name,
-          role: u.role,
-          createdAt: u.createdAt,
-          updatedAt: u.updatedAt,
-          restaurant: profile?.restaurant || null
+          id: profile.id,
+          email: authUser?.email || 'N/A',
+          name: profile.name,
+          role: profile.role,
+          createdAt: profile.createdAt,
+          updatedAt: profile.updatedAt,
+          restaurant: profile.restaurant || null,
         };
       });
 
@@ -103,8 +93,8 @@ export default async function handler(
           total: totalCount,
           page: pageNumber,
           limit: limitNumber,
-          totalPages: Math.ceil(totalCount / limitNumber)
-        }
+          totalPages: Math.ceil(totalCount / limitNumber),
+        },
       });
     } catch (error) {
       console.error('Fehler beim Abrufen der Benutzer:', error);

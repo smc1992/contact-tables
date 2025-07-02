@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { motion } from 'framer-motion';
 import { FiCheckCircle, FiAlertCircle, FiCreditCard, FiFileText, FiArrowRight, FiCheck } from 'react-icons/fi';
 import Header from '../../../components/Header';
@@ -541,10 +541,10 @@ export default function RestaurantPayment({ restaurant }: PaymentPageProps) {
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { id } = context.params as { id: string };
-  const supabase = createPagesServerClient(context);
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return {
       redirect: {
         destination: '/login',
@@ -562,7 +562,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       return { notFound: true };
     }
 
-    if (restaurant.userId !== session.user.id && session.user.user_metadata?.role !== 'ADMIN') {
+    if (restaurant.userId !== user.id && user.user_metadata?.role !== 'ADMIN') {
       return {
         redirect: {
           destination: '/',
@@ -574,7 +574,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return {
       props: {
         restaurant: JSON.parse(JSON.stringify(restaurant)),
-        user: session.user,
+        user: user,
       },
     };
   } catch (error) {

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
+
 import { GetServerSideProps, GetServerSidePropsContext } from 'next';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { withAuth } from '@/utils/withAuth';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -78,7 +78,7 @@ const ReservationsPage = ({ restaurant, initialReservations, error: serverError 
 export default ReservationsPage;
 
 export const getServerSideProps: GetServerSideProps = withAuth('RESTAURANT', async (context, user) => {
-  const supabase = createServerSupabaseClient(context);
+    const supabase = createClient(context);
 
   const { data: restaurant, error: restaurantError } = await supabase
     .from('restaurants')

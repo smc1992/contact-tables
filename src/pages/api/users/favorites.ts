@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import prisma from '../../../lib/prisma';
 import { Prisma, Restaurant } from '@prisma/client';
 
@@ -7,7 +7,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user) {

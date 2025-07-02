@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
@@ -25,10 +25,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
 
@@ -51,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    if (restaurant.userId !== session.user.id) {
+    if (restaurant.userId !== user.id) {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
@@ -60,7 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Create a Stripe customer if one doesn't exist
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        email: session.user.email,
+        email: user.email!,
         name: restaurant.profile.name || undefined,
         metadata: {
           userId: restaurant.userId,

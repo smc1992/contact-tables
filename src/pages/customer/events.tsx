@@ -71,7 +71,7 @@ export default function CustomerEvents() {
           restaurant:restaurant_id(*)
         `)
         .in('id', contactTableIds)
-        .order('start_time', { ascending: true });
+        .order('datetime', { ascending: true });
         
       if (tablesError) {
         console.error('Fehler beim Laden der Kontakttische:', tablesError);
@@ -186,15 +186,15 @@ export default function CustomerEvents() {
   };
   
   // Formatiere Datum und Zeit
-  const formatDateTime = (dateStr: string, timeStr: string) => {
+  const formatDateTime = (dateTimeStr: string) => {
     try {
-      const date = new Date(dateStr);
+      const date = new Date(dateTimeStr);
       return {
         date: date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-        time: timeStr
+        time: date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
       };
     } catch (e) {
-      return { date: dateStr, time: timeStr };
+      return { date: dateTimeStr, time: '' };
     }
   };
 
@@ -259,7 +259,7 @@ export default function CustomerEvents() {
               {contactTables.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {contactTables.map((table) => {
-                    const { date, time } = formatDateTime(table.date || '', table.start_time || '');
+                    const { date, time } = formatDateTime(table.datetime || '');
                     return (
                       <motion.div
                         key={table.id}

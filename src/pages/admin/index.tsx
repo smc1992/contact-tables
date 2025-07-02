@@ -1,9 +1,9 @@
-import { useAuth } from '../../contexts/AuthContext';
-import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { FiUsers, FiHome, FiSettings, FiList, FiPackage, FiMail, FiFileText, FiGrid, FiMapPin, FiTag, FiMenu } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 import Header from '../../components/Header';
+import { GetServerSideProps } from 'next';
+import { createClient } from '../../utils/supabase/server';
 
 interface DashboardCardProps {
   icon: IconType;
@@ -14,30 +14,8 @@ interface DashboardCardProps {
 }
 
 export default function AdminDashboard() {
-  const { session, user, loading: authLoading } = useAuth();
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/login');
-    } else if (session?.user?.role !== 'ADMIN') {
-      router.push('/');
-    }
-  }, [session, status, router]);
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (status === 'unauthenticated' || session?.user?.role !== 'ADMIN') {
-    return null;
-  }
 
   const menuItems = [
     { icon: FiHome, label: 'Dashboard', id: 'dashboard' },
@@ -170,6 +148,33 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const supabase = createClient(ctx);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      redirect: {
+        destination: '/auth/login',
+        permanent: false,
+      },
+    };
+  }
+
+  if (user.user_metadata?.role !== 'ADMIN') {
+    return {
+      redirect: {
+        destination: '/',
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {},
+  };
+};
 
 function DashboardCard({ icon: Icon, label, value, change, positive }: DashboardCardProps) {
   return (

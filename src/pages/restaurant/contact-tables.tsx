@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
-import { getSession } from 'next-auth/react';
+import { createClient } from '../../utils/supabase/server';
+import { PrismaClient } from '@prisma/client';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiUsers, FiMapPin, FiClock, FiInfo } from 'react-icons/fi';
 import Header from '../../components/Header';
@@ -204,48 +205,55 @@ export default function RestaurantContactTables() {
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const session = await getSession(context);
+  const supabase = createClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return {
       redirect: {
-        destination: '/auth/signin?callbackUrl=/restaurant/contact-tables',
+        destination: '/auth/login?callbackUrl=/restaurant/contact-tables',
         permanent: false,
       },
     };
   }
 
-  // Prisma-Client importieren und initialisieren
-  const { PrismaClient } = require('@prisma/client');
-  const prisma = new PrismaClient();
+  if (user.user_metadata?.role !== 'RESTAURANT') {
+    return {
+      redirect: {
+        destination: '/', // Not a restaurant, go home
+        permanent: false,
+      },
+    };
+  }
 
+  const prisma = new PrismaClient();
   try {
-    // Überprüfen, ob der Benutzer ein Restaurant ist
-    const user = await prisma.profile.findUnique({
-      where: { id: session.user.id },
-      include: {
-        restaurant: true
-      }
+    const restaurantProfile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { restaurant: true },
     });
 
-    if (!user || user.role !== 'RESTAURANT' || !user.restaurant) {
+    if (!restaurantProfile?.restaurant) {
       return {
         redirect: {
-          destination: '/',
+          destination: '/dashboard/restaurant',
           permanent: false,
         },
       };
     }
-
+  } catch (e) {
+    console.error("GSSP /restaurant/contact-tables: DB check failed", e);
     return {
-      props: { session },
-    };
-  } catch (error) {
-    console.error('Fehler beim Überprüfen des Benutzertyps:', error);
-    return {
-      props: { session },
+      redirect: {
+        destination: '/',
+        permanent: false,
+      },
     };
   } finally {
     await prisma.$disconnect();
   }
+
+  return {
+    props: {},
+  };
 };

@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -18,10 +18,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Not authenticated' });
   }
 
@@ -41,8 +41,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant not found' });
     }
 
-    const userRole = session.user.user_metadata?.role;
-    if (restaurant.userId !== session.user.id && userRole !== 'ADMIN') {
+    const userRole = user.user_metadata?.role;
+    if (restaurant.userId !== user.id && userRole !== 'ADMIN') {
       return res.status(403).json({ message: 'Not authorized' });
     }
 

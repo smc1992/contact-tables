@@ -6,7 +6,11 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SearchForm from '../components/SearchForm';
 import RestaurantCard from '../components/RestaurantCard';
+import { createClient } from '@/utils/supabase/client';
 import { restaurantApi, geoApi } from '../utils/api';
+import { GetServerSideProps } from 'next';
+import { createClient as createServerClient } from '../utils/supabase/server';
+import prisma from '@/lib/prisma';
 
 interface Restaurant {
   id: string;
@@ -25,8 +29,13 @@ interface Restaurant {
   longitude?: number;
 }
 
-export default function SearchPage() {
+interface SearchPageProps {
+  initialFavorites: string[];
+}
+
+export default function SearchPage({ initialFavorites }: SearchPageProps) {
   const router = useRouter();
+  const supabase = createClient();
   const { q: searchQuery, date, time, guests, lat, lng } = router.query;
   
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -45,25 +54,11 @@ export default function SearchPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [cuisineFilter, setCuisineFilter] = useState('');
   const [offerTodayOnly, setOfferTodayOnly] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<string[]>(initialFavorites);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const resultsPerPage = 10;
 
-  // Lade Favoriten beim Start
-  useEffect(() => {
-    const fetchFavorites = async () => {
-      try {
-        const response = await restaurantApi.getFavorites();
-        if (response && response.favorites) {
-          setFavorites(response.favorites.map((fav: any) => fav.id));
-        }
-      } catch (error) {
-        console.error('Fehler beim Laden der Favoriten:', error);
-      }
-    };
-    
-    fetchFavorites();
-  }, []);
+
 
   // Führe Suche durch, wenn die Parameter sich ändern
   useEffect(() => {
@@ -98,34 +93,38 @@ export default function SearchPage() {
     setLoading(true);
     try {
       const searchParams: any = {
+        searchTerm: searchTerm,
+        date: selectedDate,
+        time: selectedTime,
+        guests: Number(guestCount),
         page: currentPage,
         limit: resultsPerPage,
-        sortBy
+        sortBy: sortBy,
+        cuisine: cuisineFilter,
+        offerTableToday: offerTodayOnly,
       };
-      
-      if (searchTerm) searchParams.searchTerm = searchTerm;
-      if (selectedDate) searchParams.date = selectedDate;
-      if (selectedTime) searchParams.time = selectedTime;
-      if (guestCount) searchParams.guests = guestCount;
+
       if (location) {
         searchParams.latitude = location.latitude;
         searchParams.longitude = location.longitude;
       }
-      if (cuisineFilter) searchParams.cuisine = cuisineFilter;
-      if (offerTodayOnly) searchParams.offerTableToday = true;
       
       const response = await restaurantApi.search(searchParams);
       
       setRestaurants(response.restaurants || []);
       setTotalResults(response.total || 0);
       setTotalPages(response.totalPages || 1);
+
     } catch (error) {
-      console.error('Fehler bei der Suche:', error);
+      console.error('Fehler bei der Restaurantsuche:', error);
+      setRestaurants([]);
+      setTotalResults(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleSearch = (searchParams: any) => {
     setSearchTerm(searchParams.searchTerm || '');
     setSelectedDate(searchParams.date);
@@ -141,17 +140,43 @@ export default function SearchPage() {
     performSearch();
   };
 
-  const handleFavoriteToggle = async (id: string, isFavorite: boolean) => {
+  const handleFavoriteToggle = async (id: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push('/auth/login');
+      return;
+    }
+
+    const isFavorite = favorites.includes(id);
+
+    // Optimistic update
+    if (isFavorite) {
+      setFavorites(prev => prev.filter(favId => favId !== id));
+    } else {
+      setFavorites(prev => [...prev, id]);
+    }
+
     try {
-      if (isFavorite) {
-        await restaurantApi.addFavorite(id);
-        setFavorites(prev => [...prev, id]);
-      } else {
-        await restaurantApi.removeFavorite(id);
-        setFavorites(prev => prev.filter(favId => favId !== id));
+      const response = await fetch('/api/users/favorites', {
+        method: isFavorite ? 'DELETE' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ restaurantId: id }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update favorite status');
       }
     } catch (error) {
-      console.error('Fehler beim Ändern des Favoritenstatus:', error);
+      console.error('Fehler beim Umschalten des Favoritenstatus:', error);
+      // Revert optimistic update on failure
+      if (isFavorite) {
+        setFavorites(prev => [...prev, id]);
+      } else {
+        setFavorites(prev => prev.filter(favId => favId !== id));
+      }
+      // Optional: Zeige eine Fehlermeldung für den Benutzer an
     }
   };
   
@@ -399,4 +424,29 @@ export default function SearchPage() {
       <Footer />
     </div>
   );
-} 
+}
+
+export const getServerSideProps: GetServerSideProps<SearchPageProps> = async (context) => {
+  const supabase = createServerClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let favorites: string[] = [];
+  if (user) {
+    try {
+      const userFavorites = await prisma.favorite.findMany({
+        where: { userId: user.id },
+        select: { restaurantId: true },
+      });
+      favorites = userFavorites.map(fav => fav.restaurantId);
+    } catch (e) {
+      console.error("Error fetching favorites:", e);
+      // Don't fail the page, just return empty favorites
+    }
+  }
+
+  return {
+    props: {
+      initialFavorites: favorites,
+    },
+  };
+}; 

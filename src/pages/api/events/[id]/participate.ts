@@ -1,18 +1,18 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
   const { id: eventId } = req.query;
 
   if (!eventId || typeof eventId !== 'string') {
@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           select: { isPaying: true },
         });
 
-        if (!profile?.isPaying && session.user.user_metadata?.role !== 'ADMIN') {
+        if (!profile?.isPaying && user.user_metadata?.role !== 'ADMIN') {
           return res.status(403).json({ message: 'Nur für zahlende Mitglieder oder Admins verfügbar' });
         }
 

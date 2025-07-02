@@ -5,8 +5,11 @@ import { motion } from 'framer-motion';
 import { FiCalendar, FiUsers, FiMapPin, FiClock, FiPhone, FiMail, FiGlobe, FiMessageCircle } from 'react-icons/fi';
 import PageLayout from '../../components/PageLayout';
 import { createClient } from '../../utils/supabase/server';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { ContactTable, Restaurant, Participation, Database } from '../../types/supabase';
+import { createClient as createBrowserClient } from '../../utils/supabase/client';
+import { type Database } from '../../types/supabase';
+
+type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
+type Restaurant = Database['public']['Tables']['restaurants']['Row'];
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -62,7 +65,7 @@ export default function ContactTableDetail({ initialContactTable, userRole, user
   const [success, setSuccess] = useState<string | null>(null);
   
   const { id } = router.query;
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createBrowserClient();
 
   // Datum formatieren
   const formatDate = (dateString: string) => {
@@ -92,7 +95,7 @@ export default function ContactTableDetail({ initialContactTable, userRole, user
   const determineStatus = () => {
     if (!contactTable) return 'PAST';
     
-    const eventDate = new Date(contactTable.date);
+    const eventDate = new Date(contactTable.datetime);
     const today = new Date();
     
     if (eventDate < today) return 'PAST';
@@ -237,3 +240,4 @@ export default function ContactTableDetail({ initialContactTable, userRole, user
       </PageLayout>
     );
   }
+}

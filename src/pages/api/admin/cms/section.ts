@@ -1,14 +1,14 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Language, CmsSectionType } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session || session.user.user_metadata?.role !== 'ADMIN') {
+  if (!user || user.user_metadata?.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Forbidden: Admins only' });
   }
 

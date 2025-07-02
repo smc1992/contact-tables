@@ -1,12 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
 
 // Supabase Admin client for elevated privileges
-const supabaseAdmin = createClient(
+const supabaseAdmin = createSupabaseAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
@@ -16,10 +16,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Not authenticated. Please log in to become a partner.' });
   }
 
@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Please fill out all required fields.' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   try {
     // Check if the user already has a restaurant
@@ -93,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Update the user's role in Supabase Auth (source of truth)
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
-      { user_metadata: { ...session.user.user_metadata, role: 'RESTAURANT' } }
+      { user_metadata: { ...user.user_metadata, role: 'RESTAURANT' } }
     );
 
     if (updateError) {

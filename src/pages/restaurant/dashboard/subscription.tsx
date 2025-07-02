@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { GetServerSideProps } from 'next';
-import { getSession } from 'next-auth/react';
+import { createClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 import { motion } from 'framer-motion';
 import { FiCreditCard, FiAlertCircle, FiCheckCircle, FiArrowRight, FiClock, FiFileText } from 'react-icons/fi';
@@ -10,10 +10,10 @@ import RestaurantSidebar from '../../../components/restaurant/RestaurantSidebar'
 
 interface ContractData {
   id: string;
-  planId: string;
+  plan: string;
   status: string;
   startDate: string;
-  endDate: string;
+  trialEndDate: string | null;
   createdAt: string;
 }
 
@@ -30,6 +30,7 @@ interface RestaurantData {
   name: string;
   isActive: boolean;
   contractStatus: string;
+  plan: string | null;
   contract: ContractData | null;
   invoices: InvoiceData[];
 }
@@ -40,7 +41,7 @@ interface SubscriptionPageProps {
 
 export default function RestaurantSubscription({ restaurant }: SubscriptionPageProps) {
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(restaurant.contract?.planId || '');
+  const [selectedPlan, setSelectedPlan] = useState(restaurant.plan || '');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
@@ -259,16 +260,16 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                     <div className="flex items-center mb-2">
                       <FiCreditCard className="text-primary-500 mr-2" size={20} />
                       <h3 className="text-lg font-medium text-gray-800">
-                        {restaurant.contract.planId === 'basic' && 'Basic'}
-                        {restaurant.contract.planId === 'standard' && 'Standard'}
-                        {restaurant.contract.planId === 'premium' && 'Premium'}
+                        {restaurant.plan === 'basic' && 'Basic'}
+                        {restaurant.plan === 'standard' && 'Standard'}
+                        {restaurant.plan === 'premium' && 'Premium'}
                       </h3>
                     </div>
                     
                     <div className="flex items-center text-gray-600 mb-1">
                       <FiClock className="mr-2" size={16} />
                       <p>
-                        Aktiv bis: {formatDate(restaurant.contract.endDate)}
+                        Aktiv bis: {restaurant.contract.trialEndDate ? formatDate(restaurant.contract.trialEndDate) : 'Unbefristet'}
                       </p>
                     </div>
                     
@@ -419,9 +420,10 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const session = await getSession(context);
-  
-  if (!session) {
+  const supabase = createClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user || user.user_metadata.role !== 'RESTAURANT') {
     return {
       redirect: {
         destination: '/auth/login',
@@ -429,47 +431,74 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       },
     };
   }
-  
+
   const prisma = new PrismaClient();
-  
+
   try {
-    // Restaurant des eingeloggten Benutzers finden
-    const restaurant = await prisma.restaurant.findFirst({
+    const restaurant = await prisma.restaurant.findUnique({
       where: {
-        userId: session.user.id,
+        userId: user.id,
       },
-      include: {
-        contract: true,
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        contractStatus: true,
+        plan: true,
+        contract: {
+          select: {
+            id: true,
+            status: true,
+            startDate: true,
+            trialEndDate: true,
+            createdAt: true,
+          }
+        },
         invoices: {
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            date: true,
+            downloadUrl: true,
+          },
           orderBy: {
-            date: 'desc'
+            date: 'desc',
           }
         }
       }
     });
-    
+
     if (!restaurant) {
       return {
-        redirect: {
-          destination: '/restaurant/register',
-          permanent: false,
-        },
+        notFound: true,
       };
     }
-    
+
+    // Serialize date fields
+    const serializedRestaurant = {
+      ...restaurant,
+      contract: restaurant.contract ? {
+        ...restaurant.contract,
+        startDate: restaurant.contract.startDate.toISOString(),
+        trialEndDate: restaurant.contract.trialEndDate?.toISOString() || null,
+        createdAt: restaurant.contract.createdAt.toISOString(),
+      } : null,
+      invoices: restaurant.invoices.map(invoice => ({
+        ...invoice,
+        date: invoice.date.toISOString(),
+      })),
+    };
+
     return {
       props: {
-        restaurant: JSON.parse(JSON.stringify(restaurant)),
+        restaurant: serializedRestaurant,
       },
     };
   } catch (error) {
-    console.error('Fehler beim Abrufen des Restaurants:', error);
-    
+    console.error('Error fetching restaurant subscription data:', error);
     return {
-      redirect: {
-        destination: '/error',
-        permanent: false,
-      },
+      notFound: true,
     };
   } finally {
     await prisma.$disconnect();

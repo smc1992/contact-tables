@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { FiCheck, FiInfo, FiAlertCircle, FiMapPin, FiPhone, FiMail, FiGlobe, FiClock, FiUsers, FiChevronRight } from 'react-icons/fi';
+import { FiCheck, FiInfo, FiAlertCircle, FiMapPin, FiPhone, FiMail, FiGlobe, FiClock, FiUsers, FiChevronRight, FiHeart } from 'react-icons/fi';
 import Link from 'next/link';
 import PageLayout from '../../components/PageLayout';
 

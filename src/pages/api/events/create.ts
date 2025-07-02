@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -13,10 +13,10 @@ export default async function handler(
   }
 
   try {
-    const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
+    const supabase = createClient({ req, res });
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
 
@@ -52,7 +52,7 @@ export default async function handler(
         participants: {
           create: {
             profile: { // Corrected from 'user' to 'profile'
-              connect: { id: session.user.id }
+              connect: { id: user.id }
             },
             isHost: true
           }

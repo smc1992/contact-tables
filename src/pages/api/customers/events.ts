@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -8,18 +8,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = createClient({ req, res });
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  if (session.user.user_metadata?.role !== 'CUSTOMER') {
+  if (user.user_metadata?.role !== 'CUSTOMER') {
     return res.status(403).json({ message: 'Zugriff verweigert. Nur für Kunden.' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
 
   switch (req.method) {
     case 'GET':

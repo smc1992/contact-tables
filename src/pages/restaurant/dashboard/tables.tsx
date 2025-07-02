@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { GetServerSideProps } from 'next';
-import { getSession } from 'next-auth/react';
+import { createClient } from '../../../utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 import { motion } from 'framer-motion';
 import { FiPlus, FiCalendar, FiClock, FiUsers, FiEdit, FiTrash2, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
@@ -525,137 +525,96 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
   );
 }
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => context.req.cookies[name],
-        set: (name: string, value: string, options: CookieOptions) => {},
-        remove: (name: string, options: CookieOptions) => {},
-      },
-      cookieOptions: {
-        name: process.env.NEXT_PUBLIC_SUPABASE_COOKIE_NAME || 'contact-tables-auth',
-      },
-    }
-  );
+  const supabase = createClient(context);
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !user) {
+  if (!user || user.user_metadata.role !== 'RESTAURANT') {
     return {
       redirect: {
-        destination: '/auth/login?message=Bitte melde dich an, um auf das Dashboard zuzugreifen.', // Bessere Nachricht
+        destination: '/auth/login',
         permanent: false,
       },
     };
   }
 
-  console.log('[getServerSideProps /restaurant/dashboard/tables.tsx] User object retrieved:', JSON.stringify(user, null, 2));
-  console.log('[getServerSideProps /restaurant/dashboard/tables.tsx] User metadata:', JSON.stringify(user.user_metadata, null, 2));
-
-  // Überprüfen, ob der Benutzer die Rolle RESTAURANT hat
-  let userRole = 'CUSTOMER'; // Standardrolle
-  if (user && user.user_metadata) {
-    // Zuerst user.user_metadata.data.role prüfen (wahrscheinlich die spezifischere Anwendungsrolle)
-    if (user.user_metadata.data && typeof user.user_metadata.data.role === 'string' && user.user_metadata.data.role.trim() !== '') {
-      userRole = user.user_metadata.data.role;
-    } 
-    // Dann als Fallback user.user_metadata.role prüfen
-    else if (typeof user.user_metadata.role === 'string' && user.user_metadata.role.trim() !== '') {
-      userRole = user.user_metadata.role;
-    }
-  }
-  console.log(`[getServerSideProps /restaurant/dashboard/tables.tsx] Ermittelte Benutzerrolle: ${userRole} für User ID: ${user?.id}`);
-
-  if (userRole !== 'RESTAURANT') {
-    return {
-      redirect: {
-        destination: '/?message=Kein Zugriff auf das Restaurant Dashboard.', // Bessere Nachricht
-        permanent: false,
-      },
-    };
-  }
+  const prisma = new PrismaClient();
 
   try {
-    // Restaurant des eingeloggten Benutzers finden
-    const { data: restaurant, error: restaurantError } = await supabase
-      .from('restaurants')
-      .select('id, name, address, city, is_active, contract_status, userId') // userId hinzugefügt für Konsistenz
-      .eq('userId', user.id)
-      .single();
+    const restaurant = await prisma.restaurant.findUnique({
+      where: {
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        city: true,
+        isActive: true,
+        contractStatus: true,
+      },
+    });
 
-    if (restaurantError || !restaurant) {
-      console.error('Fehler beim Abrufen des Restaurants oder Restaurant nicht gefunden:', restaurantError);
+    if (!restaurant) {
       return {
         redirect: {
-          destination: '/restaurant/register?message=Restaurant nicht gefunden oder nicht zugeordnet.', // Bessere Nachricht
+          destination: '/restaurant/register?message=Restaurant nicht gefunden.',
           permanent: false,
         },
       };
     }
 
-    let contactTablesData: ContactTable[] = [];
-    if (restaurant.is_active) {
-      const { data: tables, error: tablesError } = await supabase
-        .from('contact_tables') // Annahme: Tabellenname ist 'contact_tables'
-        .select(`
-          id,
-          title,
-          description,
-          date,
-          time,
-          max_participants, 
-          current_participants,
-          status,
-          restaurant_id
-        `)
-        .eq('restaurant_id', restaurant.id)
-        .order('date', { ascending: true }); 
+    let contactTables: ContactTable[] = [];
+    if (restaurant.isActive) {
+      const tablesFromDb = await prisma.event.findMany({
+        where: {
+          restaurantId: restaurant.id,
+        },
+        include: {
+          _count: {
+            select: { participants: true },
+          },
+        },
+        orderBy: {
+          datetime: 'asc',
+        },
+      });
 
-      if (tablesError) {
-        console.error('Fehler beim Abrufen der Contact Tables:', tablesError);
-        // Fehler nicht fatal machen, leere Liste anzeigen
-      } else if (tables) {
-        // Daten an das ContactTable-Interface anpassen (z.B. max_participants zu maxParticipants)
-        contactTablesData = tables.map(table => ({
-          ...table,
-          maxParticipants: table.max_participants,
-          currentParticipants: table.current_participants,
-        }));
-      }
+      // Serialize and transform data for the client component
+      contactTables = tablesFromDb.map(table => {
+        const dt = new Date(table.datetime);
+        return {
+          id: table.id,
+          title: table.title,
+          description: table.description || '',
+          date: dt.toISOString().split('T')[0], // Format: YYYY-MM-DD
+          time: dt.toTimeString().split(' ')[0].substring(0, 5), // Format: HH:MM
+          maxParticipants: table.maxParticipants,
+          currentParticipants: table._count.participants,
+          status: table.status,
+        };
+      });
     }
 
     return {
       props: {
-        restaurant: {
-          id: restaurant.id,
-          name: restaurant.name,
-          address: restaurant.address,
-          city: restaurant.city,
-          isActive: restaurant.is_active,
-          contractStatus: restaurant.contract_status,
-          userId: restaurant.userId,
-        },
-        contactTables: contactTablesData,
+        restaurant,
+        contactTables,
       },
     };
-  } catch (error: any) {
-    console.error('Unerwarteter Fehler in getServerSideProps (tables.tsx):', error);
+  } catch (error) {
+    console.error('Error fetching restaurant tables data:', error);
+    // Return empty props or handle error appropriately
     return {
       props: {
         restaurant: null,
         contactTables: [],
-        error: `Ein Fehler ist aufgetreten: ${error.message}`,
-      }
-      // Optional: redirect to a generic error page
-      // redirect: {
-      //   destination: '/error?message=Ein unerwarteter Fehler ist aufgetreten.',
-      //   permanent: false,
-      // },
+        error: 'Fehler beim Laden der Daten.',
+      },
     };
+  } finally {
+    await prisma.$disconnect();
   }
 };

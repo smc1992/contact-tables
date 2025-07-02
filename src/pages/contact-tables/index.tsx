@@ -5,7 +5,10 @@ import { FiFilter } from 'react-icons/fi';
 import PageLayout from '../../components/PageLayout';
 import ContactTablesList from '../../components/ContactTablesList';
 import { createClient } from '../../utils/supabase/server';
-import { ContactTable, Restaurant } from '../../types/supabase';
+import { type Database } from '../../types/supabase';
+
+type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
+type Restaurant = Database['public']['Tables']['restaurants']['Row'];
 
 // Erweiterte Typdefinition für Kontakttische mit Restaurant-Informationen
 type ContactTableWithRestaurant = ContactTable & {

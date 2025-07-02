@@ -454,7 +454,7 @@ export default function Home() {
                   <div key={restaurant.id} className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
                     <div className="relative h-48">
                       <img 
-                        src={restaurant.imageUrl || '/images/restaurant-placeholder.jpg'} 
+                        src={restaurant.imageUrl || '/images/logo.svg'} 
                         alt={restaurant.name} 
                         className="w-full h-full object-cover"
                       />

@@ -8,7 +8,9 @@ import { motion } from 'framer-motion';
 import { FiCalendar, FiClock, FiMapPin, FiUsers, FiStar, FiInfo } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase';
-import { Database, ContactTable } from '../../types/supabase';
+import { type Database } from '../../types/supabase';
+
+type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
 
 interface ContactTableWithDetails extends ContactTable {
   restaurant?: {
@@ -336,7 +338,7 @@ export default function CustomerDashboard() {
                       <div className="bg-white shadow overflow-hidden sm:rounded-md">
                         <ul className="divide-y divide-gray-200">
                           {upcomingTables.map((table) => {
-                            const { date, start_time } = formatDateTime(table.start_time);
+                            const { date, start_time } = formatDateTime(table.datetime);
                             return (
                               <li key={table.id}>
                                 <Link href={`/contact-tables/${table.id}`} className="block hover:bg-gray-50">
@@ -396,7 +398,7 @@ export default function CustomerDashboard() {
                       <div className="bg-white shadow overflow-hidden sm:rounded-md">
                         <ul className="divide-y divide-gray-200">
                           {favoriteTables.map((table) => {
-                            const { date, start_time } = formatDateTime(table.start_time);
+                            const { date, start_time } = formatDateTime(table.datetime);
                             return (
                               <li key={table.id}>
                                 <Link href={`/contact-tables/${table.id}`} className="block hover:bg-gray-50">

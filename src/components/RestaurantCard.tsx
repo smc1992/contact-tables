@@ -83,7 +83,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
         <div className="relative">
           <div className="h-48 w-full relative">
             <Image
-              src={restaurant.imageUrl || '/images/restaurant-placeholder.jpg'}
+              src={restaurant.imageUrl || '/images/logo.svg'}
               alt={restaurant.name}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

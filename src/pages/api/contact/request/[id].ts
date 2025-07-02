@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
 
@@ -8,19 +8,19 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
   
-  if (!session) {
+  if (!user) {
     return res.status(401).json({ message: 'Nicht authentifiziert' });
   }
 
-  const userId = session.user.id;
+  const userId = user.id;
   
-  // Überprüfen, ob der Benutzer bezahlt hat
-  const userRole = session.user.user_metadata?.role || 'CUSTOMER';
+  // Überprüfen, ob der Benutzer die Berechtigung hat
+  const userRole = user.user_metadata?.role || 'CUSTOMER';
 
   // Admins have full access, others need to be paying users
   if (userRole !== 'ADMIN') {

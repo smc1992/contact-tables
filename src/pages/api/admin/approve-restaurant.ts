@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, ContractStatus } from '@prisma/client';
-import { createClient } from '../../../utils/supabase/server';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 import crypto from 'crypto';
 
 // Funktion zum Generieren eines sicheren Tokens
@@ -16,26 +15,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Supabase-Client für Authentifizierung erstellen
-  const supabaseServerClient = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
 
   try {
-    // Überprüfen, ob der Benutzer authentifiziert ist
+    // Überprüfen, ob der Benutzer authentifiziert und ein Admin ist
     const {
-      data: { session },
-    } = await supabaseServerClient.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return res.status(401).json({ message: 'Nicht authentifiziert' });
     }
 
-    // Überprüfen, ob der Benutzer ein Admin ist
-    const { data: userData, error: userError } = await supabaseServerClient
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (userError || !userData || userData.role !== 'ADMIN') {
+    if (user.user_metadata.role !== 'ADMIN') {
       return res.status(403).json({ message: 'Keine Berechtigung' });
     }
 

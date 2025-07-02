@@ -1,6 +1,6 @@
 // /pages/api/auth/delete-account.ts
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const supabase = createPagesServerClient({ req, res });
+  const supabase = createClient({ req, res });
 
   const {
     data: { user },
