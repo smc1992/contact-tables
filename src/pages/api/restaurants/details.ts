@@ -21,14 +21,14 @@ const restaurantWithDetailsInclude = {
           participants: true
         }
       },
-      ratings: {
-        include: {
-          profile: {
-            select: {
-              name: true,
-              id: true
-            }
-          }
+    }
+  },
+  ratings: {
+    include: {
+      profile: {
+        select: {
+          name: true,
+          id: true
         }
       }
     }
@@ -79,7 +79,7 @@ export default async function handler(
         return res.status(404).json({ message: 'Restaurant nicht gefunden' });
       }
 
-      const allRatings = restaurant.events.flatMap(event => event.ratings);
+      const allRatings = restaurant.ratings;
       const avgRating = allRatings.length > 0
         ? allRatings.reduce((sum, rating) => sum + rating.value, 0) / allRatings.length
         : 0;
