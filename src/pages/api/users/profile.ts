@@ -2,33 +2,32 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Supabase-Client erstellen
-  const supabase = createClient(req.cookies);
+  // Supabase-Client erstellen, der für serverseitige Vorgänge (API-Routen) geeignet ist
+  const supabase = createClient({ req, res });
 
   // Benutzer-Session überprüfen
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (userError || !user) {
     return res.status(401).json({
       error: 'Nicht autorisiert',
       message: 'Sie müssen angemeldet sein, um auf diese Ressource zuzugreifen.'
     });
   }
 
-  // Benutzer-ID aus der Session abrufen
-  const userId = session.user.id;
+  const userId = user.id;
 
   // GET: Benutzerprofil abrufen
   if (req.method === 'GET') {
     try {
-      // Benutzerprofil aus Supabase abrufen
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
+      // PGRST116: no rows found, was in diesem Fall kein Fehler ist.
+      if (error && error.code !== 'PGRST116') {
         console.error('Fehler beim Abrufen des Benutzerprofils:', error);
         return res.status(500).json({
           error: 'Datenbankfehler',
@@ -37,31 +36,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (!profile) {
-        // Wenn kein Profil gefunden wurde, Standardprofil erstellen
-        const { data: userData } = await supabase.auth.getUser();
-        
-        if (!userData || !userData.user) {
-          return res.status(404).json({
-            error: 'Nicht gefunden',
-            message: 'Benutzer nicht gefunden.'
-          });
-        }
-        
-        // Standardprofil erstellen
+        // Fallback: Erstellt ein temporäres Profil aus Auth-Daten, wenn kein DB-Eintrag existiert.
         const defaultProfile = {
           id: userId,
-          email: userData.user.email,
-          name: userData.user.user_metadata?.name || 'Benutzer',
+          email: user.email,
+          name: user.user_metadata?.name || 'Benutzer',
           languageCode: 'de',
-          role: userData.user.user_metadata?.role || 'USER',
+          role: user.user_metadata?.role || 'USER',
           isPaying: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: user.created_at,
+          updatedAt: user.updated_at
         };
-        
         return res.status(200).json({
           data: defaultProfile,
-          message: 'Standardprofil zurückgegeben.'
+          message: 'Standardprofil zurückgegeben, da kein Datenbankeintrag gefunden wurde.'
         });
       }
 
@@ -83,50 +71,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const { name, languageCode } = req.body;
 
-      // Validierung
       if (!name) {
-        return res.status(400).json({
-          error: 'Ungültige Anfrage',
-          message: 'Name ist erforderlich.'
-        });
+        return res.status(400).json({ error: 'Ungültige Anfrage', message: 'Name ist erforderlich.' });
       }
 
-      // Profil aktualisieren
       const { data: updatedProfile, error } = await supabase
         .from('profiles')
         .upsert({
           id: userId,
           name,
           languageCode: languageCode || 'de',
-          updated_at: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Fehler beim Aktualisieren des Benutzerprofils:', error);
-        return res.status(500).json({
-          error: 'Datenbankfehler',
-          message: 'Fehler beim Aktualisieren des Benutzerprofils.'
-        });
+        console.error('Fehler beim Aktualisieren des Profils:', error);
+        return res.status(500).json({ error: 'Datenbankfehler', message: 'Fehler beim Aktualisieren des Profils.' });
       }
 
-      return res.status(200).json({
-        data: updatedProfile,
-        message: 'Benutzerprofil erfolgreich aktualisiert.'
-      });
+      return res.status(200).json({ data: updatedProfile, message: 'Profil erfolgreich aktualisiert.' });
     } catch (err) {
-      console.error('Unerwarteter Fehler beim Aktualisieren des Benutzerprofils:', err);
-      return res.status(500).json({
-        error: 'Serverfehler',
-        message: 'Ein unerwarteter Fehler ist aufgetreten.'
-      });
+      console.error('Unerwarteter Fehler beim Aktualisieren des Profils:', err);
+      return res.status(500).json({ error: 'Serverfehler', message: 'Ein unerwarteter Fehler ist aufgetreten.' });
     }
   }
 
-  // Methode nicht erlaubt
-  return res.status(405).json({
-    error: 'Methode nicht erlaubt',
-    message: `Die Methode ${req.method} ist für diesen Endpunkt nicht erlaubt.`
-  });
+  res.setHeader('Allow', ['GET', 'PUT']);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
 }
