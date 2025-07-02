@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabase';
+import { createClient } from '../utils/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
 // Typdefinitionen für den Auth-Kontext
@@ -22,6 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Auth-Provider-Komponente
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const supabase = createClient();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null); // Hinzufügen
