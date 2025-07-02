@@ -11,7 +11,7 @@ export default async function handler(
     try {
       const restaurant = await prisma.restaurant.findUnique({
         where: { id: id as string },
-                include: {
+        include: {
           events: {
             where: {
               datetime: {
@@ -21,7 +21,7 @@ export default async function handler(
             include: {
               participants: {
                 include: {
-                  profile: { // Corrected from 'user'
+                  profile: {
                     select: {
                       id: true,
                       name: true,
@@ -29,16 +29,16 @@ export default async function handler(
                   },
                 },
               },
-              ratings: { // Ratings are on events
-                include: {
-                  profile: { // Rating is linked to profile
-                    select: {
-                      id: true,
-                      name: true
-                    }
-                  }
-                }
-              }
+            },
+          },
+          ratings: {
+            include: {
+              profile: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
