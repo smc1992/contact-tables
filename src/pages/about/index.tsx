@@ -7,35 +7,23 @@ import Link from 'next/link';
 // Team-Mitglieder
 const teamMembers = [
   {
-    name: 'Anna Schmidt',
+    name: 'Anette Rapp',
     role: 'Gründerin & CEO',
-    bio: 'Anna hat Contact Tables aus ihrer eigenen Erfahrung mit Einsamkeit in der Großstadt gegründet. Mit Hintergrund in Gastronomie und Technologie verbindet sie beide Welten.',
+    bio: 'Anette gründete contact-tables aus der Vision heraus, Menschen durch gemeinsames Essen zusammenzubringen – inspiriert von ihren Reisen durch Europa, auf denen sie die Bedeutung echter, zwischenmenschlicher Verbindungen entdeckte. Ihre Leidenschaft für das Schaffen von Gemeinschaften und das Fördern von authentischen Begegnungen bildet das Herzstück von contact-tables.',
     image: '/images/team/team-1.jpg'
   },
   {
-    name: 'Markus Weber',
+    name: 'Simon Müller',
     role: 'CTO',
-    bio: 'Markus bringt über 10 Jahre Erfahrung in der Entwicklung sozialer Plattformen mit und leitet die technische Umsetzung unserer Vision.',
+    bio: 'Simon bringt über 10 Jahre Erfahrung in der Entwicklung sozialer Plattformen mit und leitet die technische Umsetzung unserer Vision.',
     image: '/images/team/team-2.jpg'
-  },
-  {
-    name: 'Laura Müller',
-    role: 'Restaurant-Partnerschaften',
-    bio: 'Mit ihrer Erfahrung als Restaurant-Managerin knüpft Laura wertvolle Partnerschaften mit Restaurants in ganz Deutschland.',
-    image: '/images/team/team-3.jpg'
-  },
-  {
-    name: 'Thomas Becker',
-    role: 'Community Manager',
-    bio: 'Thomas sorgt dafür, dass sich alle an unseren Tischen wohlfühlen und moderiert die wachsende Contact Tables-Community.',
-    image: '/images/team/team-4.jpg'
   }
 ];
 
 // Testimonials
 const testimonials = [
   {
-    quote: "Durch Contact Tables habe ich nicht nur fantastische Restaurants entdeckt, sondern auch Freunde fürs Leben gefunden.",
+    quote: "Durch contact-tables habe ich nicht nur fantastische Restaurants entdeckt, sondern auch Freunde fürs Leben gefunden.",
     author: "Michael, 34, Berlin",
     image: "/images/testimonials/testimonial-1.jpg"
   },
@@ -45,7 +33,7 @@ const testimonials = [
     image: "/images/testimonials/testimonial-2.jpg"
   },
   {
-    quote: "Als Restaurant-Partner schätzen wir die zusätzlichen Gäste, aber noch mehr die besondere Atmosphäre, die Contact Tables in unser Lokal bringt.",
+    quote: "Als Restaurant-Partner schätzen wir die zusätzlichen Gäste, aber noch mehr die besondere Atmosphäre, die contact-tables in unser Lokal bringt.",
     author: "Restaurant Olivia, Hamburg",
     image: "/images/testimonials/testimonial-3.jpg"
   }
@@ -56,42 +44,57 @@ const milestones = [
   {
     year: "2024",
     title: "Die Idee entsteht",
-    description: "Aus dem Wunsch, Menschen wieder an einen Tisch zu bringen und Einsamkeit zu überwinden, wird die Vision von Contact Tables geboren."
+    description: "Aus dem Wunsch, Menschen in bereichernden Begegnungen an einen Tisch zu bringen, wird die Vision von contact-tables geboren."
   },
   {
-    year: "2024",
+    year: "Frühjahr/Sommer 2025",
     title: "Entwicklung & Planung",
-    description: "Ein engagiertes Team entwickelt die Plattform und bereitet den Start vor, um die bestmögliche Erfahrung zu schaffen."
+    description: "Ein engagiertes Team entwickelt die Plattform und bereitet den Start vor, um den perfekten Rahmen für unsere Community zu schaffen."
   },
   {
-    year: "2025",
+    year: "Herbst 2025",
     title: "Offizieller Launch",
-    description: "Contact Tables geht online! Wir starten unsere Mission, echte Verbindungen in Restaurants zu schaffen."
+    description: "contact-tables geht online! Wir starten unsere Mission, echte Verbindungen in Restaurants zu schaffen."
   },
   {
     year: "Zukunft",
     title: "Unsere Vision",
-    description: "Wir wachsen weiter, um in ganz Deutschland Menschen zusammenzubringen und die lokale Gastronomie zu beleben."
+    description: "Wir wachsen weiter, um in ganz Deutschland, schließlich auch europaweit und hoffentlich auch weltweit Menschen zusammenzubringen und die Vielfalt der lokalen Gastronomie zu fördern."
   }
 ];
+
+// Glassmorphismus-Stil für Karten
+const glassmorphismStyle = {
+  boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+  background: 'rgba(255, 255, 255, 0.25)',
+  borderRadius: '10px',
+  border: '1px solid rgba(255, 255, 255, 0.18)'
+};
 
 export default function AboutPage() {
   return (
     <PageLayout>
       
       {/* Hero Section mit verbessertem Inhalt */}
-      <div className="bg-primary-900 text-white py-24 -mt-8 rounded-b-3xl relative overflow-hidden">
-        {/* Hintergrund-Elemente für mehr visuelle Tiefe */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-64 h-64 rounded-full bg-primary-400"></div>
-          <div className="absolute bottom-20 right-20 w-80 h-80 rounded-full bg-primary-600"></div>
+      <div className="text-white py-24 -mt-8 rounded-b-3xl relative overflow-hidden">
+        {/* Hintergrundbild */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/images/Über uns/Menschen am Tisch Ansicht oben-Über uns.webp" 
+            alt="Menschen am Tisch von oben" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-primary-900/50"></div>
         </div>
         
         <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto text-center"
+            className="max-w-4xl mx-auto text-center bg-white/30 backdrop-blur-md p-8 rounded-lg shadow-lg border border-white/40"
+            style={glassmorphismStyle}
           >
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
@@ -99,51 +102,56 @@ export default function AboutPage() {
               transition={{ duration: 0.5 }}
               className="inline-block bg-primary-600 text-white text-sm font-semibold px-4 py-2 rounded-full mb-6"
             >
-              Gemeinsam statt einsam
+              Gemeinsam am Tisch
             </motion.div>
             
             <h1 className="text-4xl md:text-6xl font-bold mb-8 leading-tight">
-              Unsere Mission: <span className="text-primary-300">Echte Verbindungen</span> am Restauranttisch schaffen
+              Unsere Vision:<br />
+              <span className="text-primary-300">Echte Verbindungen</span><br />
+              am Tisch
             </h1>
             
             <p className="text-xl text-white/90 leading-relaxed mb-8 max-w-3xl mx-auto">
-              Wir glauben daran, dass gemeinsames Essen Menschen verbindet und Einsamkeit überwindet.
-              Contact Tables schafft authentische Begegnungen am Restauranttisch und baut Brücken zwischen Menschen,
-              die sonst vielleicht nie zusammengekommen wären.
+              Wir glauben daran, dass gemeinsames Essen Menschen auf natürliche Weise verbindet.
+              contact-tables bietet eine Plattform für Begegnungen, die Menschen zusammenbringt - an Tischen, 
+              an denen man sich sonst vielleicht nie begegnet wäre.
             </p>
             
             <div className="flex flex-wrap justify-center gap-4 mt-10">
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-white/10 backdrop-blur-sm p-6 rounded-xl text-center w-64"
+                className="p-6 text-center w-64"
+                style={glassmorphismStyle}
               >
                 <div className="bg-primary-500/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiHeart className="text-3xl text-primary-300" />
+                  <FiUsers className="text-3xl text-gray-800" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Einsamkeit bekämpfen</h3>
-                <p className="text-white/80">Wir schaffen Räume für echte Begegnungen in einer zunehmend isolierten Welt.</p>
+                <h3 className="text-xl font-bold mb-2 text-gray-800">Menschen verbinden</h3>
+                <p className="text-gray-800">Wir schaffen Räume für echte Begegnungen und neue Freundschaften.</p>
               </motion.div>
               
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-white/10 backdrop-blur-sm p-6 rounded-xl text-center w-64"
+                className="p-6 text-center w-64"
+                style={glassmorphismStyle}
               >
                 <div className="bg-primary-500/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiCoffee className="text-3xl text-primary-300" />
+                  <FiCoffee className="text-3xl text-gray-800" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Lokale Gastronomie stärken</h3>
-                <p className="text-white/80">Wir unterstützen Restaurants und fördern eine lebendige lokale Esskultur.</p>
+                <h3 className="text-xl font-bold mb-2 text-gray-800">Lokale Gastronomie stärken</h3>
+                <p className="text-gray-800">Wir unterstützen Restaurants und fördern eine lebendige lokale Esskultur.</p>
               </motion.div>
               
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-white/10 backdrop-blur-sm p-6 rounded-xl text-center w-64"
+                className="p-6 text-center w-64"
+                style={glassmorphismStyle}
               >
                 <div className="bg-primary-500/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiMessageCircle className="text-3xl text-primary-300" />
+                  <FiMessageCircle className="text-3xl text-gray-800" />
                 </div>
-                <h3 className="text-xl font-bold mb-2">Gespräche fördern</h3>
-                <p className="text-white/80">Wir bringen Menschen ins Gespräch und schaffen Raum für Austausch und Verständnis.</p>
+                <h3 className="text-xl font-bold mb-2 text-gray-800">Gespräche fördern</h3>
+                <p className="text-gray-800">Wir bringen Menschen ins Gespräch und schaffen Raum für Austausch und Verständnis.</p>
               </motion.div>
             </div>
           </motion.div>
@@ -164,19 +172,18 @@ export default function AboutPage() {
                 <h2 className="text-3xl font-bold mb-6 text-secondary-800">Unsere Geschichte</h2>
                 <div className="prose prose-lg">
                   <p>
-                    Contact Tables entstand 2024 aus einer einfachen Beobachtung: In einer Zeit, in der wir digital 
-                    so vernetzt sind wie nie zuvor, fühlen sich viele Menschen im echten Leben einsam. 
-                    Besonders beim Essen – einer Aktivität, die traditionell Menschen zusammenbringt.
+                  Contact-tables entstand 2024 aus einer persönlichen Erfahrung, die unsere Gründerin auf ihren Van-Reisen in Griechenland und Portugal machte. 
+                  Inmitten der vielen Begegnungen und Eindrücke auf ihrer Reise, entdeckte sie immer wieder die Kraft echter Verbindungen und die Freude, neue Menschen in entspannter Atmosphäre 
+                  kennenzulernen – besonders bei einem gemeinsamen Mahl.
                   </p>
                   <p>
-                    Unsere Gründerin Anna Schmidt erlebte selbst, wie schwierig es sein kann, in einer neuen Stadt 
-                    Anschluss zu finden. Aus dieser persönlichen Erfahrung entwickelte sie die Idee für eine Plattform, 
-                    die Menschen am Restauranttisch zusammenbringt – für echte Gespräche statt Smartphone-Scrollen.
+                  Diese Erlebnisse führten zu einer Art Eingebung, aus der die Idee für contact-tables entstand: 
+                  eine Plattform, die es Menschen ermöglicht, sich bei einer Mahlzeit zu verbinden und authentische Gespräche zu führen – 
+                  abseits von Bildschirmen und digitalen Ablenkungen.
                   </p>
                   <p>
-                    Mit unserem Launch 2025 wollen wir Menschen in Restaurants in ganz Deutschland verbinden und 
-                    eng mit unseren Partnerrestaurants zusammenarbeiten, um nicht nur soziale Verbindungen zu schaffen, 
-                    sondern auch kulinarische Entdeckungen zu ermöglichen.
+                  Mit dem Start im Jahr 2025 möchten wir Menschen in ganz Deutschland zusammenbringen, in Restaurants, die den Raum für echte Begegnungen bieten. 
+                  Wir arbeiten eng mit unseren Partnerrestaurants zusammen, um nicht nur soziale Verbindungen zu schaffen, sondern auch neue kulinarische Erlebnisse zu teilen und zu genießen.
                   </p>
                 </div>
               </motion.div>
@@ -190,7 +197,7 @@ export default function AboutPage() {
               >
                 <div className="aspect-w-4 aspect-h-3 bg-neutral-200">
                   <img 
-                    src="/images/about/story.jpg" 
+                    src="/images/Über uns/group-of-people-dining-concept-2025-02-10-12-56-16-utc.webp" 
                     alt="Menschen am Restauranttisch" 
                     className="object-cover w-full h-full"
                   />
@@ -255,12 +262,12 @@ export default function AboutPage() {
                 viewport={{ once: true }}
                 className="bg-white rounded-xl shadow-md p-8 text-center transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
               >
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <FiHeart className="w-8 h-8 text-primary-600" />
+                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6" data-component-name="AboutPage">
+                  <FiUsers className="w-8 h-8 text-primary-600" />
                 </div>
-                <h3 className="text-xl font-semibold mb-4">Authentizität</h3>
+                <h3 className="text-xl font-semibold mb-4">Wahrhaftigkeit</h3>
                 <p className="text-gray-600">
-                  Wir fördern echte Verbindungen zwischen Menschen, die ihre Leidenschaft fürs Essen teilen. Bei uns gibt es keine Algorithmen, sondern echte Begegnungen am Tisch.
+                  Wir schaffen Räume für echte Begegnungen und inspirierende Gespräche.
                 </p>
               </motion.div>
 
@@ -275,8 +282,8 @@ export default function AboutPage() {
                   <FiUsers className="w-8 h-8 text-primary-600" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4">Gemeinschaft</h3>
-                <p className="text-gray-600">
-                  Wir schaffen eine inklusive Community, in der sich jeder willkommen und wertgeschätzt fühlt, unabhängig von Alter, Herkunft oder Lebensstil. Vielfalt bereichert unsere Tische.
+                <p className="text-gray-600" data-component-name="AboutPage">
+                  Wir schaffen eine einladende Community, in der sich jeder willkommen und wertgeschätzt fühlt, unabhängig von Alter, Herkunft oder Lebensstil.
                 </p>
               </motion.div>
 
@@ -291,8 +298,8 @@ export default function AboutPage() {
                   <FiSmile className="w-8 h-8 text-primary-600" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4">Freude</h3>
-                <p className="text-gray-600">
-                  Wir glauben, dass gemeinsames Essen eine der schönsten Formen des sozialen Miteinanders ist. Unsere Kontakttische sollen vor allem eines sein: eine freudvolle Erfahrung für alle Beteiligten.
+                <p className="text-gray-600" data-component-name="AboutPage">
+                  Wir glauben, dass gemeinsames Essen eine der schönsten Formen des sozialen Miteinanders ist. Contact-tables sollen vor allem eines sein: eine freudvolle Erfahrung für alle Beteiligten.
                 </p>
               </motion.div>
             </div>
@@ -300,43 +307,7 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* Testimonials */}
-      <div className="py-20 bg-primary-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-16 text-secondary-800">Was unsere Community sagt</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.2 }}
-                className="bg-white rounded-xl shadow-md overflow-hidden"
-              >
-                <div className="h-48 bg-neutral-200 relative">
-                  <img 
-                    src={testimonial.image} 
-                    alt={testimonial.author} 
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                </div>
-                <div className="p-6">
-                  <div className="flex mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <FiStar key={i} className="text-primary-500 w-5 h-5 fill-current" />
-                    ))}
-                  </div>
-                  <p className="italic text-gray-700 mb-4">"{testimonial.quote}"</p>
-                  <p className="font-semibold text-secondary-800">{testimonial.author}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </div>
+
 
       {/* Team Section */}
       <div className="py-20">
@@ -344,9 +315,8 @@ export default function AboutPage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl font-bold mb-6 text-secondary-800">Unser Team</h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Wir sind ein engagiertes Team aus Foodies und Tech-Enthusiasten, vereint durch die Vision,
-                Menschen durch gemeinsames Essen zusammenzubringen.
+              <p className="text-xl text-gray-600 max-w-3xl mx-auto" data-component-name="AboutPage">
+                Wir sind ein motiviertes Team, das die Vision teilt, Menschen durch gemeinsames Essen in echten Begegnungen zusammenzubringen.
               </p>
             </div>
             
@@ -383,7 +353,7 @@ export default function AboutPage() {
                 className="bg-primary-600 text-white px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors"
                 onClick={() => window.location.href = '/careers'}
               >
-                Karriere bei Contact Tables
+                Karriere bei contact-tables
               </motion.button>
             </div>
           </div>
@@ -391,13 +361,13 @@ export default function AboutPage() {
       </div>
       
       {/* CTA Section */}
-      <div className="py-20 bg-secondary-800 text-white">
+      <div className="py-20 bg-gradient-to-br from-neutral-900 to-neutral-800 text-white" data-component-name="AboutPage">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-6">Werde Teil unserer Mission</h2>
-            <p className="text-xl mb-10 text-white/80">
-              Ob als Gast an einem Kontakttisch, als Restaurant-Partner oder als Teil unseres Teams – 
-              hilf uns dabei, Menschen zusammenzubringen und Einsamkeit zu bekämpfen.
+            <p className="text-xl mb-10 text-white/80" data-component-name="AboutPage">
+              Ob als Gast am contact-table, als Restaurant-Partner oder als Teil unseres Teams – hilf uns
+              dabei, Menschen zusammenzubringen und eine starke Gemeinschaft aufzubauen!
             </p>
             <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-6">
               <Link href="/restaurants" className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
@@ -414,4 +384,4 @@ export default function AboutPage() {
       </div>
     </PageLayout>
   );
-} 
+}

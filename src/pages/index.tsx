@@ -219,7 +219,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Warum contact-tables?</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Unsere Plattform verbindet Menschen, um unvergessliche Momente zu haben.</p>
+            <p className="text-gray-600 max-w-2xl mx-auto" data-component-name="Home">Unsere Plattform verbindet Menschen – für echte Begegnungen und inspirierende Gespräche.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -234,7 +234,7 @@ export default function Home() {
                 <FiUsers className="text-primary-600 text-xl" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">Neue Kontakte knüpfen</h3>
-              <p className="text-gray-600">Lernen Sie interessante Menschen in einer entspannten Atmosphäre kennen und erweitern Sie Ihr Netzwerk.</p>
+              <p className="text-gray-600">Lerne interessante Menschen in einer entspannten Atmosphäre kennen und erweitere dein Netzwerk.</p>
             </motion.div>
             
             <motion.div
@@ -247,8 +247,8 @@ export default function Home() {
               <div className="bg-primary-100 w-12 h-12 rounded-full flex items-center justify-center mb-4">
                 <FiCoffee className="text-primary-600 text-xl" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Kulinarische Erlebnisse</h3>
-              <p className="text-gray-600">Entdecken Sie ausgewählte Restaurants und genießen Sie besondere kulinarische Erlebnisse in guter Gesellschaft.</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2" data-component-name="Home">Genussvolle Momente teilen</h3>
+              <p className="text-gray-600" data-component-name="Home">Entdecke gemütliche Restaurants und erlebe gute Gespräche und neue Verbindungen.</p>
             </motion.div>
           </div>
         </div>
@@ -406,13 +406,13 @@ export default function Home() {
             <p className="text-gray-600 max-w-2xl mx-auto">Unsere wachsende Community verbindet dich mit Menschen an Tischen in ganz Deutschland</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="flex flex-wrap justify-center gap-8 max-w-3xl mx-auto" data-component-name="Home">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center"
+              className="bg-white p-8 rounded-xl shadow-md text-center w-full md:w-64"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">1.250+</div>
               <div className="text-gray-600">Aktive Nutzer</div>
@@ -423,7 +423,7 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center"
+              className="bg-white p-8 rounded-xl shadow-md text-center w-full md:w-64"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">320+</div>
               <div className="text-gray-600">Teilnehmende Restaurants</div>
@@ -434,18 +434,7 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center"
-            >
-              <div className="text-4xl font-bold text-primary-600 mb-2">4.800+</div>
-              <div className="text-gray-600">Vermittelte Kontakttische</div>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center"
+              className="bg-white p-8 rounded-xl shadow-md text-center w-full md:w-64"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">15+</div>
               <div className="text-gray-600">Städte in Deutschland</div>

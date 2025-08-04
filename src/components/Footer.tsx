@@ -23,7 +23,7 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-neutral-400 leading-relaxed">
-              Wir verbinden Menschen am Restauranttisch – für echte Gespräche statt einsamkeit.
+              Wir verbinden Menschen am Restauranttisch – für echte Begegnungen und inspirierende Gespräche.
             </p>
 
           </div>
@@ -79,7 +79,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/kontakt" className="text-neutral-400 hover:text-primary-400 transition-colors">
+                <Link href="/contact" className="text-neutral-400 hover:text-primary-400 transition-colors">
                   Kontakt
                 </Link>
               </li>
@@ -96,19 +96,11 @@ export default function Footer() {
             <h4 className="text-xl font-semibold text-white mb-6 border-b border-neutral-700 pb-3">Kontakt</h4>
             <ul className="space-y-4">
               <li className="group">
-                                <a href="mailto:info@contact-tables.org" className="flex items-center space-x-3 text-neutral-400 hover:text-primary-400 transition-colors">
-                  <div className="w-8 h-8 rounded-full bg-neutral-800 group-hover:bg-primary-700 flex items-center justify-center transition-all duration-300">
-                    <FiMail size={16} />
-                  </div>
-                                    <span>info@contact-tables.org</span>
-                </a>
-              </li>
-              <li className="group">
-                                <a href="tel:+4917672495360" className="flex items-center space-x-3 text-neutral-400 hover:text-primary-400 transition-colors">
+                <a href="tel:+4915679640069" className="flex items-center space-x-3 text-neutral-400 hover:text-primary-400 transition-colors">
                   <div className="w-8 h-8 rounded-full bg-neutral-800 group-hover:bg-primary-700 flex items-center justify-center transition-all duration-300">
                     <FiPhone size={16} />
                   </div>
-                                    <span>+49 176 72495360</span>
+                  <span>+49 15679 640069</span>
                 </a>
               </li>
               <li className="mt-6">
@@ -121,7 +113,7 @@ export default function Footer() {
 
         <div className="border-t border-neutral-800 mt-16 pt-8 text-center">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-neutral-500">© {new Date().getFullYear()} Contact Tables. Alle Rechte vorbehalten.</p>
+            <p className="text-neutral-500">© {new Date().getFullYear()} contact-tables. Alle Rechte vorbehalten.</p>
             <p className="flex items-center text-neutral-500">
               <span>Made with</span> <FiHeart className="mx-2 text-primary-500" /> <span>in Germany</span>
             </p>
