@@ -206,7 +206,7 @@ export default function Home() {
                   onClick={() => router.push('/tables/create')}
                   className="bg-gray-200 text-gray-800 font-medium py-4 px-10 rounded-full shadow-lg transition duration-300 flex items-center justify-center text-lg"
                 >
-                  <FiUsers className="mr-3 text-xl" /> Kontakttisch erstellen
+                  <FiUsers className="mr-3 text-xl" /> contact-table erstellen
                 </motion.button>
               </div>
             </motion.div>
@@ -219,7 +219,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Warum contact-tables?</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto" data-component-name="Home">Unsere Plattform verbindet Menschen – für echte Begegnungen und inspirierende Gespräche.</p>
+            <p className="text-gray-600 max-w-2xl mx-auto" data-component-name="Home">Unsere Plattform verbindet Menschen – für echte Begegnungen<br />und inspirierende Gespräche.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -258,7 +258,7 @@ export default function Home() {
       <div className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Wie contact-tables funktioniert</h2>
+            <h2 className="text-3xl font-bold text-center text-secondary-800">Wie contact-tables funktioniert</h2>
             <div className="w-24 h-1 bg-primary-400 mx-auto mb-8"></div>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">In drei einfachen Schritten zu neuen Gesprächen und Bekanntschaften</p>
           </div>
@@ -293,7 +293,7 @@ export default function Home() {
               </div>
               <div className="absolute -top-4 -right-4 w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">2</div>
               <h3 className="text-xl font-bold mb-4">Reservieren</h3>
-              <p className="text-gray-600">Reserviere deinen Platz oder erstelle selbst einen neuen Kontakttisch, um andere einzuladen.</p>
+              <p className="text-gray-600">Reserviere deinen Platz oder erstelle selbst einen neuen contact-table, um andere einzuladen.</p>
             </motion.div>
             
             <motion.div 
@@ -331,7 +331,7 @@ export default function Home() {
                 className="bg-primary-500 text-white font-medium py-3 px-8 rounded-full shadow-md inline-flex items-center"
                 onClick={() => router.push('/faq')}
               >
-                FAQs <FiHelpCircle className="ml-2" />
+                Häufige Fragen <FiHelpCircle className="ml-2" />
               </motion.button>
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Finde deinen nächsten Kontakttisch</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Finde deinen nächsten contact-table</h2>
               <p className="text-gray-600 max-w-2xl mx-auto">Entdecke Restaurants in deiner Nähe, die contact-tables anbieten</p>
             </div>
             
@@ -403,16 +403,16 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">contact-tables in Zahlen</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Unsere wachsende Community verbindet dich mit Menschen an Tischen in ganz Deutschland</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">Unsere wachsende Community verbindet dich mit Menschen an Tischen in ganz<br />Deutschland</p>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-8 max-w-3xl mx-auto" data-component-name="Home">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto" data-component-name="Home">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center w-full md:w-64"
+              className="bg-white p-8 rounded-xl shadow-md text-center"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">1.250+</div>
               <div className="text-gray-600">Aktive Nutzer</div>
@@ -423,7 +423,7 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center w-full md:w-64"
+              className="bg-white p-8 rounded-xl shadow-md text-center"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">320+</div>
               <div className="text-gray-600">Teilnehmende Restaurants</div>
@@ -434,7 +434,7 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center w-full md:w-64"
+              className="bg-white p-8 rounded-xl shadow-md text-center"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">15+</div>
               <div className="text-gray-600">Städte in Deutschland</div>
@@ -467,8 +467,8 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold mb-6">Für Restaurant-Partner</h2>
-              <p className="text-lg opacity-90 mb-6">Sie sind Restaurantbesitzer und möchten Teil von Contact Tables werden? Melden Sie sich an oder erfahren Sie mehr über die Vorteile einer Partnerschaft.</p>
+              <h2 className="text-2xl md:text-3xl font-bold mb-4">Für Restaurant-Partner</h2>
+              <p className="text-base opacity-90 mb-6">Sie sind Restaurantbesitzer und möchten Teil von contact-tables werden? Melden Sie sich an oder erfahren Sie mehr über die Vorteile einer Partnerschaft.</p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/auth/login" className="bg-primary-600 text-white hover:bg-primary-700 font-medium py-3 px-6 rounded-lg transition duration-300 inline-block">
                   Als Restaurant anmelden
@@ -480,8 +480,8 @@ export default function Home() {
             </div>
             <div className="relative">
               <motion.img 
-                src="/images/restaurant-partner.jpg" 
-                alt="Restaurant Partner" 
+                src="/images/portrait-gastronom-contact-tables.webp" 
+                alt="Ein Gastronom, Partner von contact-tables" 
                 className="rounded-lg shadow-xl w-full" 
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}

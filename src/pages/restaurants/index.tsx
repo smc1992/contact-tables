@@ -109,7 +109,8 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaur
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Restaurants entdecken</h1>
-          <p className="text-lg text-gray-500">Finden Sie Ihren nächsten Lieblingsplatz zum Essen.</p>
+          <p className="text-lg text-gray-500" data-component-name="PageLayout">Finde deinen nächsten Lieblingsplatz zum Essen. Alle Küchen und alle Preise wegmachen, da es ja eh erst mal nur 2, 3 oder 5 Restaurants pro Stadt geben wird.</p>
+          <p className="text-lg text-gray-500 mt-2" data-component-name="PageLayout">Wichtig ist, einen Umkreis einzubinden. Wenn man in einer kleinen Stadt sucht, dass dann auch die Restaurants im Umkreis angezeigt werden. Geht das?</p>
         </div>
 
         <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md mb-8 sticky top-20 z-10">

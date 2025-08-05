@@ -82,78 +82,13 @@ export default function ContactPage() {
       <div className="py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-              {/* Kontaktinformationen */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="lg:col-span-1"
-              >
-                <div className="bg-white rounded-xl shadow-md p-8">
-                  <h2 className="text-2xl font-bold mb-6 text-secondary-800">So erreichst du uns</h2>
-                  
-                  <div className="space-y-6">
-                    <div className="flex items-start">
-                      <div className="bg-primary-100 p-3 rounded-full mr-4">
-                        <FiMapPin className="text-primary-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">Adresse</h3>
-                        <p className="text-gray-600">
-                          Contact Tables GmbH<br />
-                          Musterstraße 123<br />
-                          10115 Berlin
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start">
-                      <div className="bg-primary-100 p-3 rounded-full mr-4">
-                        <FiMail className="text-primary-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">E-Mail</h3>
-                        <a href="mailto:info@contact-tables.org" className="text-primary-600 hover:underline">
-                          info@contact-tables.org
-                        </a>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start">
-                      <div className="bg-primary-100 p-3 rounded-full mr-4">
-                        <FiPhone className="text-primary-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">Telefon</h3>
-                        <a href="tel:+4930123456789" className="text-primary-600 hover:underline">
-                          +49 30 123 456 789
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-8 pt-8 border-t border-neutral-200">
-                    <h3 className="font-semibold mb-3">Öffnungszeiten Support</h3>
-                    <p className="text-gray-600 mb-2">Montag - Freitag: 9:00 - 18:00 Uhr</p>
-                    <p className="text-gray-600">Samstag: 10:00 - 14:00 Uhr</p>
-                  </div>
-                  
-                  <div className="mt-8">
-                    <Link href="/faq" className="text-primary-600 hover:underline flex items-center">
-                      <FiInfo className="mr-2" />
-                      Häufig gestellte Fragen ansehen
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
-              
+            <div className="grid grid-cols-1 gap-12">
               {/* Kontaktformular */}
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-                className="lg:col-span-2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="w-full max-w-3xl mx-auto"
               >
                 <div className="bg-white rounded-xl shadow-md p-8">
                   <h2 className="text-2xl font-bold mb-6 text-secondary-800">Schreib uns eine Nachricht</h2>
@@ -181,7 +116,7 @@ export default function ContactPage() {
                   <form onSubmit={handleSubmit}>
                     <div className="mb-6">
                       <label htmlFor="type" className="block text-gray-700 font-medium mb-2">
-                        Art der Anfrage
+                        Art deiner Anfrage
                       </label>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {contactTypes.map((type) => (
@@ -208,7 +143,7 @@ export default function ContactPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div>
                         <label htmlFor="name" className="block text-gray-700 font-medium mb-2">
-                          Name
+                          Dein Name
                         </label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -229,7 +164,7 @@ export default function ContactPage() {
                       
                       <div>
                         <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
-                          E-Mail
+                          Deine E-Mail
                         </label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -251,7 +186,7 @@ export default function ContactPage() {
                     
                     <div className="mb-6">
                       <label htmlFor="subject" className="block text-gray-700 font-medium mb-2">
-                        Betreff
+                        Dein Betreff
                       </label>
                       <input
                         type="text"
@@ -267,7 +202,7 @@ export default function ContactPage() {
                     
                     <div className="mb-6">
                       <label htmlFor="message" className="block text-gray-700 font-medium mb-2">
-                        Nachricht
+                        Deine Nachricht
                       </label>
                       <textarea
                         id="message"
@@ -317,23 +252,7 @@ export default function ContactPage() {
         </div>
       </div>
       
-      {/* Karte */}
-      <div className="py-16 bg-neutral-50">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-bold mb-8 text-center text-secondary-800">Besuche uns</h2>
-            
-            <div className="rounded-xl overflow-hidden shadow-md h-96">
-              {/* Hier würde normalerweise eine echte Karte eingebunden werden */}
-              <div className="w-full h-full bg-neutral-200 flex items-center justify-center">
-                <p className="text-neutral-600 text-lg">
-                  Hier würde eine interaktive Karte angezeigt werden.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
     </PageLayout>
   );
 }

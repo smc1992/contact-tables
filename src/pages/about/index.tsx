@@ -82,11 +82,11 @@ export default function AboutPage() {
         {/* Hintergrundbild */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="/images/Über uns/Menschen am Tisch Ansicht oben-Über uns.webp" 
+            src="/images/about/ueber-uns-hero.webp" 
             alt="Menschen am Tisch von oben" 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-primary-900/50"></div>
+          <div className="absolute inset-0 bg-white opacity-70"></div>
         </div>
         
         <div className="container mx-auto px-4 relative z-10">
@@ -105,16 +105,14 @@ export default function AboutPage() {
               Gemeinsam am Tisch
             </motion.div>
             
-            <h1 className="text-4xl md:text-6xl font-bold mb-8 leading-tight">
+            <h1 className="text-4xl md:text-6xl font-bold mb-8 leading-tight text-gray-800">
               Unsere Vision:<br />
-              <span className="text-primary-300">Echte Verbindungen</span><br />
+              <span className="text-gray-800">Echte Verbindungen</span><br />
               am Tisch
             </h1>
             
-            <p className="text-xl text-white/90 leading-relaxed mb-8 max-w-3xl mx-auto">
-              Wir glauben daran, dass gemeinsames Essen Menschen auf natürliche Weise verbindet.
-              contact-tables bietet eine Plattform für Begegnungen, die Menschen zusammenbringt - an Tischen, 
-              an denen man sich sonst vielleicht nie begegnet wäre.
+            <p className="text-xl text-gray-800 leading-relaxed mb-8 max-w-3xl mx-auto">
+              Wir glauben daran, dass gemeinsames Essen Menschen auf natürliche Weise verbindet. contact-tables bietet eine Plattform für Begegnungen, die Menschen zusammenbringt – an Tischen, an denen man sich sonst vielleicht nie begegnet&nbsp;wäre.
             </p>
             
             <div className="flex flex-wrap justify-center gap-4 mt-10">
@@ -189,21 +187,22 @@ export default function AboutPage() {
               </motion.div>
               
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="relative rounded-xl overflow-hidden shadow-xl"
+                className="shadow-xl"
               >
-                <div className="aspect-w-4 aspect-h-3 bg-neutral-200">
+                <div className="relative h-64 w-full rounded-xl overflow-hidden">
                   <img 
-                    src="/images/Über uns/group-of-people-dining-concept-2025-02-10-12-56-16-utc.webp" 
-                    alt="Menschen am Restauranttisch" 
-                    className="object-cover w-full h-full"
+                    src="/images/about/ueber-uns-geschichte.webp" 
+                    alt="Menschen, die an einem Tisch sitzen und gemeinsam essen" 
+                    className="w-full h-full object-cover"
                   />
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                  <p className="text-white font-medium">Gemeinsam am Tisch – unsere Vision für die Zukunft.</p>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <p className="text-white font-medium">Gemeinsam am Tisch – unsere Vision für die Zukunft.</p>
+                  </div>
                 </div>
               </motion.div>
             </div>

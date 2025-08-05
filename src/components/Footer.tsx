@@ -14,7 +14,7 @@ export default function Footer() {
               <div className="flex items-center space-x-3 group">
                 <div className="h-12 bg-white p-2 rounded-lg overflow-hidden">
                   <img 
-                    src="/images/logo-fixed/Logo CT quer 4c.webp" 
+                    src="/images/logo-footer.webp" 
                     alt="Contact Tables Logo" 
                     className="h-full w-auto transition-all group-hover:scale-105"
                     style={{ display: 'block', maxHeight: '100%' }}
@@ -79,8 +79,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-neutral-400 hover:text-primary-400 transition-colors">
-                  Kontakt
+                <Link href="/barrierefreiheit" className="text-neutral-400 hover:text-primary-400 transition-colors">
+                  Barrierefreiheit
                 </Link>
               </li>
               <li>
@@ -103,9 +103,13 @@ export default function Footer() {
                   <span>+49 15679 640069</span>
                 </a>
               </li>
-              <li className="mt-6">
-                <p className="text-neutral-500 text-sm">Geschäftszeiten:</p>
-                <p className="text-neutral-400">Mo-Fr: 9:00 - 18:00 Uhr</p>
+              <li className="group">
+                <Link href="/contact" className="flex items-center space-x-3 text-neutral-400 hover:text-primary-400 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-neutral-800 group-hover:bg-primary-700 flex items-center justify-center transition-all duration-300">
+                    <FiMail size={16} />
+                  </div>
+                  <span>Nachricht absenden</span>
+                </Link>
               </li>
             </ul>
           </div>
