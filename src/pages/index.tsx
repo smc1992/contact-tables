@@ -195,7 +195,7 @@ export default function Home() {
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => router.push('/search')}
+                  onClick={() => router.push('/restaurants')}
                   className="bg-primary-600 text-white font-medium py-4 px-10 rounded-full shadow-lg transition duration-300 flex items-center justify-center text-lg"
                 >
                   <FiSearch className="mr-3 text-xl" /> Restaurant finden
@@ -203,10 +203,10 @@ export default function Home() {
                 <motion.button
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => router.push('/tables/create')}
+                  onClick={() => router.push('/contact-tables')}
                   className="bg-gray-200 text-gray-800 font-medium py-4 px-10 rounded-full shadow-lg transition duration-300 flex items-center justify-center text-lg"
                 >
-                  <FiUsers className="mr-3 text-xl" /> contact-table erstellen
+                  <FiUsers className="mr-3 text-xl" /> contact-table finden
                 </motion.button>
               </div>
             </motion.div>
@@ -329,7 +329,7 @@ export default function Home() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-primary-500 text-white font-medium py-3 px-8 rounded-full shadow-md inline-flex items-center"
-                onClick={() => router.push('/faq')}
+                onClick={() => router.push('/restaurants')}
               >
                 Häufige Fragen <FiHelpCircle className="ml-2" />
               </motion.button>
@@ -419,7 +419,7 @@ export default function Home() {
               className="bg-white p-8 rounded-xl shadow-md text-center"
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">1.200+</div>
-              <div className="text-gray-600">Vermittelte Gespräche</div>
+              <div className="text-gray-600">Aktive Mitglieder</div>
             </motion.div>
             
             <motion.div 
@@ -482,7 +482,7 @@ export default function Home() {
                 transition={{ duration: 0.5 }}
               />
               <div className="absolute -bottom-4 -right-4 bg-primary-600 text-white p-4 rounded-lg shadow-lg">
-                <p className="font-bold">Über 320+ Partner-Restaurants</p>
+                <p className="font-bold">Platz für Ihren Tisch</p>
               </div>
             </div>
           </div>

@@ -202,11 +202,11 @@ export default function AboutPage() {
                     className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 group"
                   >
                     <div className="relative overflow-hidden">
-                      <div className="h-96 bg-gradient-to-br from-gray-100 to-gray-200 relative">
+                      <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative">
                         <img 
                           src={member.image} 
                           alt={member.name} 
-                          className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                          className="w-full h-full object-cover object-top"
                         />
                       </div>
                     </div>
