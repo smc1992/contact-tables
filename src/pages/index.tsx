@@ -260,7 +260,7 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-center text-secondary-800">Wie contact-tables funktioniert</h2>
             <div className="w-24 h-1 bg-primary-400 mx-auto mb-8"></div>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">In drei einfachen Schritten zu neuen Gesprächen und Bekanntschaften</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">In drei einfachen Schritten zu neuen Gesprächen und Bekanntschaften</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto">
@@ -339,12 +339,18 @@ export default function Home() {
       </div>
       
       {/* Verbesserte Suchsektion */}
-      <div className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
+      <div className="py-16 bg-gray-50 relative" style={{
+        backgroundImage: 'url(/images/rustic-light-bulb-garden-lights-contact-tables.webp)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}>
+        <div className="absolute inset-0 bg-black/40"></div>
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">Finde deinen nächsten contact-table</h2>
-              <p className="text-gray-600 max-w-2xl mx-auto">Entdecke Restaurants in deiner Nähe, die contact-tables anbieten</p>
+              <h2 className="text-3xl font-bold text-white mb-3 drop-shadow-lg">Finde deinen nächsten contact-table</h2>
+              <p className="text-white max-w-2xl mx-auto drop-shadow-lg">Entdecke Restaurants in deiner Nähe, die contact-tables anbieten</p>
             </div>
             
             <div className="bg-white rounded-xl shadow-lg p-8">
@@ -390,9 +396,7 @@ export default function Home() {
 
             </div>
             
-            <div className="mt-6 text-center text-gray-500 text-sm">
-              <p>Bereits über 320 Restaurants in 15+ Städten verfügbar</p>
-            </div>
+
           </div>
         </div>
       </div>
@@ -403,19 +407,19 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">contact-tables in Zahlen</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Unsere wachsende Community verbindet dich mit Menschen an Tischen in ganz<br />Deutschland</p>
+            <p className="text-gray-600 max-w-2xl mx-auto">Unsere wachsende Community verbindet dich mit Menschen an Tischen<br />in&nbsp;ganz&nbsp;Deutschland</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto" data-component-name="Home">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 justify-center">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.5, delay: 0.0 }}
               className="bg-white p-8 rounded-xl shadow-md text-center"
             >
-              <div className="text-4xl font-bold text-primary-600 mb-2">1.250+</div>
-              <div className="text-gray-600">Aktive Nutzer</div>
+              <div className="text-4xl font-bold text-primary-600 mb-2">1.200+</div>
+              <div className="text-gray-600">Vermittelte Gespräche</div>
             </motion.div>
             
             <motion.div 
@@ -427,17 +431,6 @@ export default function Home() {
             >
               <div className="text-4xl font-bold text-primary-600 mb-2">320+</div>
               <div className="text-gray-600">Teilnehmende Restaurants</div>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="bg-white p-8 rounded-xl shadow-md text-center"
-            >
-              <div className="text-4xl font-bold text-primary-600 mb-2">15+</div>
-              <div className="text-gray-600">Städte in Deutschland</div>
             </motion.div>
           </div>
         </div>

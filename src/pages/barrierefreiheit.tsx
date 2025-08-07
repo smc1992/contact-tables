@@ -1,7 +1,4 @@
-import Footer from '@/components/Footer';
-import Header from '@/components/Header';
-import Hero from '@/components/Hero';
-import { NextSeo } from 'next-seo';
+import PageLayout from '../components/PageLayout';
 
 const barrierefreiheitHtml = `
 <h1>Erklärung zur Barrierefreiheit für Dienstleistungen</h1> <p>Im Rahmen unserer Barrierefreiheitserklärung möchten wir Ihnen einen Überblick über den Stand der Vereinbarkeit der unten beschriebenen Dienstleistung(en) mit den Anforderungen der Barrierefreiheit nach gesetzlichen Vorschriften (insbesondere mit dem Barrierefreiheitsstärkungsgesetz – BFSG) geben.</p>
@@ -29,23 +26,11 @@ Hessen</p>
 
 export default function Barrierefreiheit() {
   return (
-    <>
-      <NextSeo
-        title="Barrierefreiheit - Contact Tables"
-        description="Erklärung zur Barrierefreiheit für die Dienstleistungen von Contact Tables."
-      />
-      <Header />
-      <Hero
-        title="Barrierefreiheit"
-        subtitle="Erklärung zur Barrierefreiheit für unsere Dienstleistungen."
-      />
-      <div className="bg-white px-4 py-12 sm:px-6 lg:px-8">
+    <PageLayout title="Barrierefreiheit">
         <div
           className="prose prose-lg lg:prose-xl mx-auto text-gray-500"
           dangerouslySetInnerHTML={{ __html: barrierefreiheitHtml }}
         />
-      </div>
-      <Footer />
-    </>
+    </PageLayout>
   );
 }

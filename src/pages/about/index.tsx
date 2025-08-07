@@ -10,13 +10,13 @@ const teamMembers = [
     name: 'Anette Rapp',
     role: 'Gründerin & CEO',
     bio: 'Anette gründete contact-tables aus der Vision heraus, Menschen durch gemeinsames Essen zusammenzubringen – inspiriert von ihren Reisen durch Europa, auf denen sie die Bedeutung echter, zwischenmenschlicher Verbindungen entdeckte. Ihre Leidenschaft für das Schaffen von Gemeinschaften und das Fördern von authentischen Begegnungen bildet das Herzstück von contact-tables.',
-    image: '/images/team/team-1.jpg'
+    image: '/images/about/anette-rapp-portrait.jpg'
   },
   {
     name: 'Simon Müller',
     role: 'CTO',
     bio: 'Simon bringt über 10 Jahre Erfahrung in der Entwicklung sozialer Plattformen mit und leitet die technische Umsetzung unserer Vision.',
-    image: '/images/team/team-2.jpg'
+    image: '/images/about/simon mueller portrait.png'
   }
 ];
 
@@ -156,6 +156,78 @@ export default function AboutPage() {
         </div>
       </div>
 
+      {/* Team Section - Verbessert und zentriert */}
+      <div className="py-20 bg-gradient-to-br from-gray-50 to-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="inline-block bg-primary-600 text-white text-sm font-semibold px-4 py-2 rounded-full mb-6"
+              >
+                Unser Team
+              </motion.div>
+              <motion.h2 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="text-4xl md:text-5xl font-bold mb-6 text-gray-900"
+              >
+                Die Menschen hinter contact-tables
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed"
+              >
+                Wir sind ein motiviertes Team, das die Vision teilt, Menschen durch gemeinsames Essen in echten Begegnungen zusammenzubringen.
+              </motion.p>
+            </div>
+            
+            {/* Zentrierte Team-Mitglieder */}
+            <div className="flex justify-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl">
+                {teamMembers.map((member, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.2, duration: 0.6 }}
+                    className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 group"
+                  >
+                    <div className="relative overflow-hidden">
+                      <div className="h-96 bg-gradient-to-br from-gray-100 to-gray-200 relative">
+                        <img 
+                          src={member.image} 
+                          alt={member.name} 
+                          className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-8">
+                      <div className="text-center">
+                        <h3 className="text-2xl font-bold mb-2 text-gray-900">{member.name}</h3>
+                        <div className="inline-block bg-primary-100 text-primary-700 px-4 py-1 rounded-full text-sm font-semibold mb-4">
+                          {member.role}
+                        </div>
+                        <p className="text-gray-600 leading-relaxed text-base">{member.bio}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       {/* Unsere Geschichte */}
       <div className="py-20">
         <div className="container mx-auto px-4">
@@ -193,7 +265,7 @@ export default function AboutPage() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="shadow-xl"
               >
-                <div className="relative h-64 w-full rounded-xl overflow-hidden">
+                <div className="relative aspect-square w-full max-w-md max-h-96 mx-auto rounded-xl overflow-hidden">
                   <img 
                     src="/images/about/ueber-uns-geschichte.webp" 
                     alt="Menschen, die an einem Tisch sitzen und gemeinsam essen" 
@@ -308,56 +380,7 @@ export default function AboutPage() {
 
 
 
-      {/* Team Section */}
-      <div className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold mb-6 text-secondary-800">Unser Team</h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto" data-component-name="AboutPage">
-                Wir sind ein motiviertes Team, das die Vision teilt, Menschen durch gemeinsames Essen in echten Begegnungen zusammenzubringen.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {teamMembers.map((member, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white rounded-xl shadow-md overflow-hidden transform transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-                >
-                  <div className="h-64 bg-neutral-200 relative">
-                    <img 
-                      src={member.image} 
-                      alt={member.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold mb-1">{member.name}</h3>
-                    <p className="text-primary-600 font-medium mb-3">{member.role}</p>
-                    <p className="text-gray-600 text-sm">{member.bio}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-            
-            <div className="mt-16 text-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-primary-600 text-white px-8 py-3 rounded-lg hover:bg-primary-700 transition-colors"
-                onClick={() => window.location.href = '/careers'}
-              >
-                Karriere bei contact-tables
-              </motion.button>
-            </div>
-          </div>
-        </div>
-      </div>
+
       
       {/* CTA Section */}
       <div className="py-20 bg-gradient-to-br from-neutral-900 to-neutral-800 text-white" data-component-name="AboutPage">

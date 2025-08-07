@@ -83,11 +83,6 @@ export default function Footer() {
                   Barrierefreiheit
                 </Link>
               </li>
-              <li>
-                <Link href="/cookies" className="text-neutral-400 hover:text-primary-400 transition-colors">
-                  Cookie-Einstellungen
-                </Link>
-              </li>
             </ul>
           </div>
 

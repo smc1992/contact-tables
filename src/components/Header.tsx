@@ -26,7 +26,7 @@ export default function Header() {
     { href: '/contact-tables', label: 'contact-tables', icon: FiUsers },
     ...(isRestaurantOwner ? [{ href: '/restaurant/dashboard', label: 'Mein Restaurant', icon: FiCoffee }] : []),
     { href: '/about', label: 'Über uns', icon: FiInfo },
-    { href: '/faq', label: 'FAQ', icon: FiHelpCircle },
+    { href: '/faq', label: 'Häufige Fragen', icon: FiHelpCircle },
   ];
 
   const mobileMenuVariants = {
