@@ -2,7 +2,7 @@ import { useState, useMemo, FC } from 'react';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { FiMap, FiGrid, FiSearch, FiStar, FiChevronDown } from 'react-icons/fi';
+import { FiMap, FiGrid, FiSearch, FiStar, FiChevronDown, FiMapPin } from 'react-icons/fi';
 import PageLayout from '@/components/PageLayout';
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
@@ -76,14 +76,9 @@ const priceCategories = [
 const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaurants, initialFilters }) => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
-  const [cuisineFilter, setCuisineFilter] = useState('all');
-  const [priceFilter, setPriceFilter] = useState('all');
+  const [locationTerm, setLocationTerm] = useState(''); // Neuer State für Ortssuche
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
-  const cuisines = useMemo(() => {
-    const allCuisines = initialRestaurants.map(r => r.cuisine).filter(Boolean) as string[];
-    return Array.from(new Set(allCuisines)).sort();
-  }, [initialRestaurants]);
 
   const filteredRestaurants = useMemo(() => {
     return initialRestaurants
@@ -91,17 +86,15 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaur
         restaurant.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .filter(restaurant =>
-        cuisineFilter === 'all' || restaurant.cuisine === cuisineFilter
-      )
-      .filter(restaurant =>
-        priceFilter === 'all' || restaurant.priceRange === priceFilter
+        // Filter für Stadt oder PLZ
+        restaurant.city.toLowerCase().includes(locationTerm.toLowerCase()) ||
+        restaurant.postalCode.toLowerCase().includes(locationTerm.toLowerCase())
       );
-  }, [initialRestaurants, searchTerm, cuisineFilter, priceFilter]);
+  }, [initialRestaurants, searchTerm, locationTerm]);
 
   const resetFilters = () => {
     setSearchTerm('');
-    setCuisineFilter('all');
-    setPriceFilter('all');
+    setLocationTerm('');
   };
 
   return (
@@ -114,8 +107,8 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaur
         </div>
 
         <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md mb-8 sticky top-20 z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
-            <div className="relative lg:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <div className="relative">
               <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
@@ -127,30 +120,14 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaur
             </div>
 
             <div className="relative">
-              <select
-                value={cuisineFilter}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCuisineFilter(e.target.value)}
-                className="appearance-none w-full bg-white border border-gray-200 rounded-lg py-3 pl-4 pr-10 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="all">Alle Küchen</option>
-                {cuisines.map(cuisine => (
-                  <option key={cuisine} value={cuisine}>{cuisine}</option>
-                ))}
-              </select>
-              <FiChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
-            </div>
-
-            <div className="relative">
-              <select
-                value={priceFilter}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPriceFilter(e.target.value)}
-                className="appearance-none w-full bg-white border border-gray-200 rounded-lg py-3 pl-4 pr-10 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                {priceCategories.map(category => (
-                  <option key={category.value} value={category.value}>{category.label}</option>
-                ))}
-              </select>
-              <FiChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+               <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Ort oder PLZ eingeben..."
+                value={locationTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocationTerm(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg py-3 pl-12 pr-4 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
             </div>
           </div>
         </div>
@@ -160,7 +137,7 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants: initialRestaur
             <span>
               {filteredRestaurants.length} {filteredRestaurants.length === 1 ? 'Restaurant' : 'Restaurants'} gefunden
             </span>
-            {(searchTerm || cuisineFilter !== 'all' || priceFilter !== 'all') && (
+            {(searchTerm || locationTerm) && (
               <button
                 onClick={resetFilters}
                 className="ml-4 text-primary-500 hover:text-primary-700 text-sm font-medium"

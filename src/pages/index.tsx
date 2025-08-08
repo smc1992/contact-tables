@@ -42,9 +42,9 @@ const LanguageSlider = () => {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="bg-primary-500 p-3 rounded-full inline-flex shadow-lg relative"
+          className="bg-white p-3 rounded-full inline-flex items-center justify-center shadow-lg relative w-16 h-16"
         >
-          <FiGlobe className="text-white text-2xl" />
+          <img src="/images/Favicon Contact Tables.png" alt="contact-tables Favicon" className="w-8 h-8" />
         </motion.div>
       </div>
       
