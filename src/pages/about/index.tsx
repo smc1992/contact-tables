@@ -76,7 +76,7 @@ const glassmorphismStyle = {
 };
 
 export default function AboutPage() {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  
   return (
     <PageLayout>
       
@@ -202,45 +202,20 @@ export default function AboutPage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: index * 0.2, duration: 0.6 }}
-                    className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 cursor-pointer"
-                    onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
+                    className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
                   >
-                                        <div className="relative overflow-hidden">
-                      <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative">
-                        <img 
-                          src={member.image} 
-                          alt={member.name} 
-                          className="w-full h-full object-cover object-top"
-                        />
-                      </div>
+                    <div className="relative w-full h-80">
+                      <img 
+                        src={member.image} 
+                        alt={member.name} 
+                        className="w-full h-full object-cover object-top"
+                      />
                     </div>
-                    <div className="p-8">
-                      <div className="text-center">
-                        <h3 className="text-2xl font-bold mb-2 text-gray-900">{member.name}</h3>
-                        <div className="inline-block bg-primary-100 text-primary-700 px-4 py-1 rounded-full text-sm font-semibold mb-4">
-                          {member.role}
-                        </div>
-                        <div className="mt-4">
-                          <div className="flex items-center justify-center text-sm text-primary-600 font-semibold">
-                            <span>{expandedIndex === index ? 'Weniger anzeigen' : 'Mehr erfahren'}</span>
-                            <motion.div animate={{ rotate: expandedIndex === index ? 180 : 0 }} className="ml-1">
-                              <FiChevronDown />
-                            </motion.div>
-                          </div>
-                          <AnimatePresence>
-                            {expandedIndex === index && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
-                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                transition={{ duration: 0.4, ease: 'easeInOut' }}
-                                className="overflow-hidden"
-                              >
-                                <p className="text-gray-600 leading-relaxed text-base text-left">{member.bio}</p>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
+                    <div className="p-6 text-center flex flex-col flex-grow">
+                      <h3 className="text-2xl font-bold text-gray-900">{member.name}</h3>
+                      <p className="text-primary-600 font-semibold mb-4">{member.role}</p>
+                      <div className="text-gray-600 text-left text-sm space-y-3">
+                        <p>{member.bio}</p>
                       </div>
                     </div>
                   </motion.div>
