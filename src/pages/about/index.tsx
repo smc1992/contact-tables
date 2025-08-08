@@ -194,7 +194,7 @@ export default function AboutPage() {
             
             {/* Zentrierte Team-Mitglieder */}
             <div className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-2xl">
                 {teamMembers.map((member, index) => (
                   <motion.div
                     key={index}
@@ -205,7 +205,7 @@ export default function AboutPage() {
                     className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 cursor-pointer"
                     onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
                   >
-                    <div className="relative overflow-hidden">
+                                        <div className="relative overflow-hidden">
                       <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 relative">
                         <img 
                           src={member.image} 
@@ -313,7 +313,7 @@ export default function AboutPage() {
           
           <div className="max-w-4xl mx-auto relative">
             {/* Verbindungslinie */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-primary-200 -translate-x-1/2 z-0"></div>
+                        <div className="absolute left-5 md:left-1/2 top-0 bottom-0 w-0.5 bg-primary-200 md:-translate-x-1/2 z-0"></div>
             
             {/* Meilensteine */}
             {milestones.map((milestone, index) => (
@@ -323,21 +323,21 @@ export default function AboutPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.2 }}
-                className={`relative z-10 flex items-start mb-12 ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
+                                className={`relative z-10 flex items-start mb-12 flex-row md:${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
               >
-                <div className={`w-1/2 ${index % 2 === 0 ? 'pr-12 text-right' : 'pl-12'}`}>
-                  <div className={`bg-white p-6 rounded-xl shadow-md ${index % 2 === 0 ? 'ml-auto' : 'mr-auto'} max-w-xs`}>
+                                <div className={`w-full md:w-1/2 pl-12 md:${index % 2 === 0 ? 'pr-12 text-right' : 'pl-12'}`}>
+                  <div className={`bg-white p-6 rounded-xl shadow-md md:${index % 2 === 0 ? 'ml-auto' : 'mr-auto'} max-w-xs`}>
                     <span className="text-primary-600 font-bold">{milestone.year}</span>
                     <h3 className="text-xl font-semibold mb-2">{milestone.title}</h3>
                     <p className="text-gray-600">{milestone.description}</p>
                   </div>
                 </div>
                 
-                <div className="absolute left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-primary-500 border-4 border-white flex items-center justify-center">
+                                <div className="absolute left-5 md:left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-primary-500 border-4 border-white flex items-center justify-center">
                   <FiCalendar className="text-white" />
                 </div>
                 
-                <div className="w-1/2"></div>
+                                <div className="hidden md:block w-1/2"></div>
               </motion.div>
             ))}
           </div>
