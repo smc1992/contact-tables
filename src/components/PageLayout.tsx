@@ -9,9 +9,10 @@ interface PageLayoutProps {
   children: ReactNode;
   title?: string;
   description?: string;
+  className?: string;
 }
 
-export default function PageLayout({ children, title = 'contact-tables', description }: PageLayoutProps) {
+export default function PageLayout({ children, title = 'contact-tables', description, className }: PageLayoutProps) {
   const router = useRouter();
   const noFooterPaths = ['/auth/login', '/auth/register', '/auth/update-password'];
   const showFooter = !noFooterPaths.includes(router.pathname);
@@ -25,7 +26,7 @@ export default function PageLayout({ children, title = 'contact-tables', descrip
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <Header />
-        <main className="flex-grow">
+        <main className={`flex-grow ${className || ''}`}>
           <div className="w-full">
             {children}
           </div>
