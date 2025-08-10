@@ -106,18 +106,24 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       // API-Aufruf zum Erstellen oder Aktualisieren des Contact Tables
       const url = isEditing 
         ? '/api/restaurant/update-contact-table' 
-        : '/api/restaurant/create-contact-table';
+        : '/api/contact-tables/create';
       
+      const dataToSend = {
+        title: formData.title,
+        description: formData.description,
+        datetime: `${formData.date}T${formData.time}:00`,
+        maxParticipants: formData.maxParticipants, // Korrekter Feldname
+        price: 0, // Standardwert, da im Formular nicht vorhanden
+        isPublic: true, // Standardwert, da im Formular nicht vorhanden
+        ...(isEditing && { id: currentTableId }),
+      };
+
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          tableId: currentTableId,
-          restaurantId: restaurant.id,
-          ...formData
-        })
+        body: JSON.stringify(dataToSend),
       });
       
       if (!response.ok) {
@@ -127,15 +133,22 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       
       const data = await response.json();
       
+      const newTableData = {
+        ...data,
+        date: new Date(data.datetime).toISOString().split('T')[0],
+        time: new Date(data.datetime).toTimeString().split(' ')[0].substring(0, 5),
+        currentParticipants: 0, // Neu erstellte Tische haben 0 Teilnehmer
+      };
+
       if (isEditing) {
         // Aktualisiere den bestehenden Tisch in der lokalen Liste
         setTables(prev => prev.map(table => 
-          table.id === currentTableId ? data.contactTable : table
+          table.id === currentTableId ? newTableData : table
         ));
         setSuccess('Contact Table erfolgreich aktualisiert');
       } else {
         // Füge den neuen Tisch zur lokalen Liste hinzu
-        setTables(prev => [...prev, data.contactTable]);
+        setTables(prev => [...prev, newTableData]);
         setSuccess('Contact Table erfolgreich erstellt');
       }
       

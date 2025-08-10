@@ -16,7 +16,7 @@ export default function RestaurantSidebar({ activeItem = 'dashboard' }: Restaura
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const menuItems = [
-    { icon: FiHome, label: 'Dashboard', id: 'dashboard', path: '/restaurant/dashboard/simple' },
+    { icon: FiHome, label: 'Dashboard', id: 'dashboard', path: '/restaurant/dashboard' },
     { icon: FiEdit, label: 'Profil bearbeiten', id: 'profile', path: '/restaurant/dashboard/profile' },
     { icon: FiImage, label: 'Bilder verwalten', id: 'images', path: '/restaurant/dashboard/images' },
     { icon: FiCalendar, label: 'Contact Tables', id: 'tables', path: '/restaurant/dashboard/tables' },

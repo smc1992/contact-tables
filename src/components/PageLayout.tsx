@@ -1,39 +1,38 @@
 import React, { ReactNode } from 'react';
+import Head from 'next/head';
+import { useRouter } from 'next/router';
 import Header from './Header';
 import Footer from './Footer';
+import LaunchPopup from './LaunchPopup';
 
 interface PageLayoutProps {
   children: ReactNode;
   title?: string;
-  showHeader?: boolean;
-  showFooter?: boolean;
-  className?: string;
-  noContainerPadding?: boolean;
+  description?: string;
 }
 
-export default function PageLayout({
-  children,
-  title,
-  showHeader = true,
-  showFooter = true,
-  className = '',
-  noContainerPadding = false,
-}: PageLayoutProps) {
+export default function PageLayout({ children, title = 'contact-tables', description }: PageLayoutProps) {
+  const router = useRouter();
+  const noFooterPaths = ['/auth/login', '/auth/register', '/auth/update-password'];
+  const showFooter = !noFooterPaths.includes(router.pathname);
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      {showHeader && <Header />}
-      
-      <main className={`flex-grow ${!noContainerPadding ? 'pt-20' : ''}`}>
-        {/* Container mit ausreichendem Abstand zum Header */}
-        <div className={`container mx-auto px-4 ${!noContainerPadding ? 'py-8' : ''} ${className}`}>
-          {title && (
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">{title}</h1>
-          )}
-          {children}
-        </div>
-      </main>
-      
-      {showFooter && <Footer />}
-    </div>
+    <>
+      <div className="flex flex-col min-h-screen bg-neutral-50 font-sans text-secondary-800">
+        <Head>
+          <title>{title}</title>
+          {description && <meta name="description" content={description} />}
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+        <Header />
+        <main className="flex-grow">
+          <div className="w-full">
+            {children}
+          </div>
+        </main>
+        {showFooter && <Footer />}
+      </div>
+      <LaunchPopup />
+    </>
   );
 }

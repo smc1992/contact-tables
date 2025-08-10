@@ -1,0 +1,814 @@
+  ▲ Next.js 14.2.29
+  - Local:        http://localhost:3000
+  - Environments: .env.local, .env
+
+ ✓ Starting...
+(node:72242) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ Ready in 1275ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ○ Compiling /restaurants ...
+ ✓ Compiled /restaurants in 4.9s (933 modules)
+[DEBUG] Searching with query: { search: 'smc', location: '73252', radius: '5' }
+[DEBUG] Geocoding URL: https://api.opencagedata.com/geocode/v1/json?q=73252&key=REDACTED
+[DEBUG] Searching with query: { search: 'smc', location: '73252', radius: '5' }
+[DEBUG] Geocoding URL: https://api.opencagedata.com/geocode/v1/json?q=73252&key=REDACTED
+[DEBUG] Geocoding Response: {
+  "documentation": "https://opencagedata.com/api",
+  "licenses": [
+    {
+      "name": "see attribution guide",
+      "url": "https://opencagedata.com/credits"
+    }
+  ],
+  "rate": {
+    "limit": 2500,
+    "remaining": 2467,
+    "reset": 1754784000
+  },
+  "results": [
+    {
+      "annotations": {
+        "DMS": {
+          "lat": "48° 32' 55.79592'' N",
+          "lng": "9° 30' 32.92524'' E"
+        },
+        "MGRS": "32UNU3757577428",
+        "Maidenhead": "JN48sn11cr",
+        "Mercator": {
+          "x": 1058553.275,
+          "y": 6166608.547
+        },
+        "NUTS": {
+          "NUTS0": {
+            "code": "DE"
+          },
+          "NUTS1": {
+            "code": "DE1"
+          },
+          "NUTS2": {
+            "code": "DE11"
+          },
+          "NUTS3": {
+            "code": "DE113"
+          }
+        },
+        "OSM": {
+          "edit_url": "https://www.openstreetmap.org/edit?relation=3373328#map=17/48.54883/9.50915",
+          "note_url": "https://www.openstreetmap.org/note/new#map=17/48.54883/9.50915&layers=N",
+          "url": "https://www.openstreetmap.org/?mlat=48.54883&mlon=9.50915#map=17/48.54883/9.50915"
+        },
+        "UN_M49": {
+          "regions": {
+            "DE": "276",
+            "EUROPE": "150",
+            "WESTERN_EUROPE": "155",
+            "WORLD": "001"
+          },
+          "statistical_groupings": [
+            "MEDC"
+          ]
+        },
+        "callingcode": 49,
+        "currency": {
+          "alternate_symbols": [],
+          "decimal_mark": ",",
+          "html_entity": "€",
+          "iso_code": "EUR",
+          "iso_numeric": "978",
+          "name": "Euro",
+          "smallest_denomination": 1,
+          "subunit": "Cent",
+          "subunit_to_unit": 100,
+          "symbol": "€",
+          "symbol_first": 0,
+          "thousands_separator": "."
+        },
+        "flag": "🇩🇪",
+        "geohash": "u0wu0qh37nm0dm0pz9yj",
+        "qibla": 127.5,
+        "roadinfo": {
+          "drive_on": "right",
+          "speed_in": "km/h"
+        },
+        "sun": {
+          "rise": {
+            "apparent": 1754712480,
+            "astronomical": 1754704440,
+            "civil": 1754710380,
+            "nautical": 1754707680
+          },
+          "set": {
+            "apparent": 1754765160,
+            "astronomical": 1754773140,
+            "civil": 1754767260,
+            "nautical": 1754769960
+          }
+        },
+        "timezone": {
+          "name": "Europe/Berlin",
+          "now_in_dst": 1,
+          "offset_sec": 7200,
+          "offset_string": "+0200",
+          "short_name": "CEST"
+        },
+        "what3words": {
+          "words": "reframed.fogging.interacted"
+        }
+      },
+      "bounds": {
+        "northeast": {
+          "lat": 48.5853898,
+          "lng": 9.5825117
+        },
+        "southwest": {
+          "lat": 48.5124324,
+          "lng": 9.4362571
+        }
+      },
+      "components": {
+        "ISO_3166-1_alpha-2": "DE",
+        "ISO_3166-1_alpha-3": "DEU",
+        "ISO_3166-2": [
+          "DE-BW"
+        ],
+        "_category": "place",
+        "_normalized_city": "Gutenberg",
+        "_type": "village",
+        "continent": "Europe",
+        "country": "Deutschland",
+        "country_code": "de",
+        "county": "Landkreis Esslingen",
+        "municipality": "Lenningen",
+        "political_union": "European Union",
+        "postcode": "73252",
+        "state": "Baden-Württemberg",
+        "state_code": "BW",
+        "village": "Gutenberg"
+      },
+      "confidence": 7,
+      "formatted": "73252 Gutenberg, Deutschland",
+      "geometry": {
+        "lat": 48.5488322,
+        "lng": 9.5091459
+      }
+    },
+    {
+      "annotations": {
+        "DMS": {
+          "lat": "48° 33' 29.16000'' N",
+          "lng": "9° 27' 58.68000'' E"
+        },
+        "MGRS": "32UNU3440778438",
+        "Maidenhead": "JN48rn53ww",
+        "Mercator": {
+          "x": 1053783.696,
+          "y": 6168162.584
+        },
+        "NUTS": {
+          "NUTS0": {
+            "code": "DE"
+          },
+          "NUTS1": {
+            "code": "DE1"
+          },
+          "NUTS2": {
+            "code": "DE11"
+          },
+          "NUTS3": {
+            "code": "DE113"
+          }
+        },
+        "OSM": {
+          "note_url": "https://www.openstreetmap.org/note/new#map=17/48.55810/9.46630&layers=N",
+          "url": "https://www.openstreetmap.org/?mlat=48.55810&mlon=9.46630#map=17/48.55810/9.46630"
+        },
+        "UN_M49": {
+          "regions": {
+            "DE": "276",
+            "EUROPE": "150",
+            "WESTERN_EUROPE": "155",
+            "WORLD": "001"
+          },
+          "statistical_groupings": [
+            "MEDC"
+          ]
+        },
+        "callingcode": 49,
+        "currency": {
+          "alternate_symbols": [],
+          "decimal_mark": ",",
+          "html_entity": "€",
+          "iso_code": "EUR",
+          "iso_numeric": "978",
+          "name": "Euro",
+          "smallest_denomination": 1,
+          "subunit": "Cent",
+          "subunit_to_unit": 100,
+          "symbol": "€",
+          "symbol_first": 0,
+          "thousands_separator": "."
+        },
+        "flag": "🇩🇪",
+        "geohash": "u0wsprtpkvbvhpy44jk1",
+        "qibla": 127.45,
+        "roadinfo": {
+          "drive_on": "right",
+          "speed_in": "km/h"
+        },
+        "sun": {
+          "rise": {
+            "apparent": 1754712540,
+            "astronomical": 1754704440,
+            "civil": 1754710380,
+            "nautical": 1754707680
+          },
+          "set": {
+            "apparent": 1754765160,
+            "astronomical": 1754773140,
+            "civil": 1754767260,
+            "nautical": 1754769960
+          }
+        },
+        "timezone": {
+          "name": "Europe/Berlin",
+          "now_in_dst": 1,
+          "offset_sec": 7200,
+          "offset_string": "+0200",
+          "short_name": "CEST"
+        },
+        "what3words": {
+          "words": "constituent.apart.oats"
+        }
+      },
+      "components": {
+        "ISO_3166-1_alpha-2": "DE",
+        "ISO_3166-1_alpha-3": "DEU",
+        "_category": "postcode",
+        "_type": "postcode",
+        "continent": "Europe",
+        "country": "Germany",
+        "country_code": "de",
+        "political_union": "European Union",
+        "postcode": "73252"
+      },
+      "confidence": 7,
+      "formatted": "73252, Germany",
+      "geometry": {
+        "lat": 48.5581,
+        "lng": 9.4663
+      }
+    }
+  ],
+  "status": {
+    "code": 200,
+    "message": "OK"
+  },
+  "stay_informed": {
+    "blog": "https://blog.opencagedata.com",
+    "mastodon": "https://en.osm.town/@opencage"
+  },
+  "thanks": "For using an OpenCage API",
+  "timestamp": {
+    "created_http": "Sat, 09 Aug 2025 12:36:46 GMT",
+    "created_unix": 1754743006
+  },
+  "total_results": 2
+}
+[DEBUG] Coordinates found: lat=48.5488322, lng=9.5091459
+[DEBUG] Calling nearby_restaurants with params: { query_lat: 48.5488322, query_lon: 9.5091459, radius_km: 5 }
+[DEBUG] Geocoding Response: {
+  "documentation": "https://opencagedata.com/api",
+  "licenses": [
+    {
+      "name": "see attribution guide",
+      "url": "https://opencagedata.com/credits"
+    }
+  ],
+  "rate": {
+    "limit": 2500,
+    "remaining": 2466,
+    "reset": 1754784000
+  },
+  "results": [
+    {
+      "annotations": {
+        "DMS": {
+          "lat": "48° 32' 55.79592'' N",
+          "lng": "9° 30' 32.92524'' E"
+        },
+        "MGRS": "32UNU3757577428",
+        "Maidenhead": "JN48sn11cr",
+        "Mercator": {
+          "x": 1058553.275,
+          "y": 6166608.547
+        },
+        "NUTS": {
+          "NUTS0": {
+            "code": "DE"
+          },
+          "NUTS1": {
+            "code": "DE1"
+          },
+          "NUTS2": {
+            "code": "DE11"
+          },
+          "NUTS3": {
+            "code": "DE113"
+          }
+        },
+        "OSM": {
+          "edit_url": "https://www.openstreetmap.org/edit?relation=3373328#map=16/48.54883/9.50915",
+          "note_url": "https://www.openstreetmap.org/note/new#map=16/48.54883/9.50915&layers=N",
+          "url": "https://www.openstreetmap.org/?mlat=48.54883&mlon=9.50915#map=16/48.54883/9.50915"
+        },
+        "UN_M49": {
+          "regions": {
+            "DE": "276",
+            "EUROPE": "150",
+            "WESTERN_EUROPE": "155",
+            "WORLD": "001"
+          },
+          "statistical_groupings": [
+            "MEDC"
+          ]
+        },
+        "callingcode": 49,
+        "currency": {
+          "alternate_symbols": [],
+          "decimal_mark": ",",
+          "html_entity": "€",
+          "iso_code": "EUR",
+          "iso_numeric": "978",
+          "name": "Euro",
+          "smallest_denomination": 1,
+          "subunit": "Cent",
+          "subunit_to_unit": 100,
+          "symbol": "€",
+          "symbol_first": 0,
+          "thousands_separator": "."
+        },
+        "flag": "🇩🇪",
+        "geohash": "u0wu0qh37nm0dm0pz9yj",
+        "qibla": 127.5,
+        "roadinfo": {
+          "drive_on": "right",
+          "speed_in": "km/h"
+        },
+        "sun": {
+          "rise": {
+            "apparent": 1754712480,
+            "astronomical": 1754704440,
+            "civil": 1754710380,
+            "nautical": 1754707680
+          },
+          "set": {
+            "apparent": 1754765160,
+            "astronomical": 1754773140,
+            "civil": 1754767260,
+            "nautical": 1754769960
+          }
+        },
+        "timezone": {
+          "name": "Europe/Berlin",
+          "now_in_dst": 1,
+          "offset_sec": 7200,
+          "offset_string": "+0200",
+          "short_name": "CEST"
+        },
+        "what3words": {
+          "words": "reframed.fogging.interacted"
+        }
+      },
+      "bounds": {
+        "northeast": {
+          "lat": 48.5853898,
+          "lng": 9.5825117
+        },
+        "southwest": {
+          "lat": 48.5124324,
+          "lng": 9.4362571
+        }
+      },
+      "components": {
+        "ISO_3166-1_alpha-2": "DE",
+        "ISO_3166-1_alpha-3": "DEU",
+        "ISO_3166-2": [
+          "DE-BW"
+        ],
+        "_category": "place",
+        "_normalized_city": "Gutenberg",
+        "_type": "village",
+        "continent": "Europe",
+        "country": "Deutschland",
+        "country_code": "de",
+        "county": "Landkreis Esslingen",
+        "municipality": "Lenningen",
+        "political_union": "European Union",
+        "postcode": "73252",
+        "state": "Baden-Württemberg",
+        "state_code": "BW",
+        "village": "Gutenberg"
+      },
+      "confidence": 7,
+      "formatted": "73252 Gutenberg, Deutschland",
+      "geometry": {
+        "lat": 48.5488322,
+        "lng": 9.5091459
+      }
+    },
+    {
+      "annotations": {
+        "DMS": {
+          "lat": "48° 33' 29.16000'' N",
+          "lng": "9° 27' 58.68000'' E"
+        },
+        "MGRS": "32UNU3440778438",
+        "Maidenhead": "JN48rn53ww",
+        "Mercator": {
+          "x": 1053783.696,
+          "y": 6168162.584
+        },
+        "NUTS": {
+          "NUTS0": {
+            "code": "DE"
+          },
+          "NUTS1": {
+            "code": "DE1"
+          },
+          "NUTS2": {
+            "code": "DE11"
+          },
+          "NUTS3": {
+            "code": "DE113"
+          }
+        },
+        "OSM": {
+          "note_url": "https://www.openstreetmap.org/note/new#map=16/48.55810/9.46630&layers=N",
+          "url": "https://www.openstreetmap.org/?mlat=48.55810&mlon=9.46630#map=16/48.55810/9.46630"
+        },
+        "UN_M49": {
+          "regions": {
+            "DE": "276",
+            "EUROPE": "150",
+            "WESTERN_EUROPE": "155",
+            "WORLD": "001"
+          },
+          "statistical_groupings": [
+            "MEDC"
+          ]
+        },
+        "callingcode": 49,
+        "currency": {
+          "alternate_symbols": [],
+          "decimal_mark": ",",
+          "html_entity": "€",
+          "iso_code": "EUR",
+          "iso_numeric": "978",
+          "name": "Euro",
+          "smallest_denomination": 1,
+          "subunit": "Cent",
+          "subunit_to_unit": 100,
+          "symbol": "€",
+          "symbol_first": 0,
+          "thousands_separator": "."
+        },
+        "flag": "🇩🇪",
+        "geohash": "u0wsprtpkvbvhpy44jk1",
+        "qibla": 127.45,
+        "roadinfo": {
+          "drive_on": "right",
+          "speed_in": "km/h"
+        },
+        "sun": {
+          "rise": {
+            "apparent": 1754712540,
+            "astronomical": 1754704440,
+            "civil": 1754710380,
+            "nautical": 1754707680
+          },
+          "set": {
+            "apparent": 1754765160,
+            "astronomical": 1754773140,
+            "civil": 1754767260,
+            "nautical": 1754769960
+          }
+        },
+        "timezone": {
+          "name": "Europe/Berlin",
+          "now_in_dst": 1,
+          "offset_sec": 7200,
+          "offset_string": "+0200",
+          "short_name": "CEST"
+        },
+        "what3words": {
+          "words": "constituent.apart.oats"
+        }
+      },
+      "components": {
+        "ISO_3166-1_alpha-2": "DE",
+        "ISO_3166-1_alpha-3": "DEU",
+        "_category": "postcode",
+        "_type": "postcode",
+        "continent": "Europe",
+        "country": "Germany",
+        "country_code": "de",
+        "political_union": "European Union",
+        "postcode": "73252"
+      },
+      "confidence": 7,
+      "formatted": "73252, Germany",
+      "geometry": {
+        "lat": 48.5581,
+        "lng": 9.4663
+      }
+    }
+  ],
+  "status": {
+    "code": 200,
+    "message": "OK"
+  },
+  "stay_informed": {
+    "blog": "https://blog.opencagedata.com",
+    "mastodon": "https://en.osm.town/@opencage"
+  },
+  "thanks": "For using an OpenCage API",
+  "timestamp": {
+    "created_http": "Sat, 09 Aug 2025 12:36:46 GMT",
+    "created_unix": 1754743006
+  },
+  "total_results": 2
+}
+[DEBUG] Coordinates found: lat=48.5488322, lng=9.5091459
+[DEBUG] Calling nearby_restaurants with params: { query_lat: 48.5488322, query_lon: 9.5091459, radius_km: 5 }
+[DEBUG] Data from nearby_restaurants: []
+[DEBUG] Data from nearby_restaurants: []
+ GET /restaurants?search=smc&location=73252&radius=5 200 in 5635ms
+[DEBUG] Searching with query: { search: 'smc', location: '73252', radius: '5' }
+[DEBUG] Geocoding URL: https://api.opencagedata.com/geocode/v1/json?q=73252&key=REDACTED
+[DEBUG] Geocoding Response: {
+  "documentation": "https://opencagedata.com/api",
+  "licenses": [
+    {
+      "name": "see attribution guide",
+      "url": "https://opencagedata.com/credits"
+    }
+  ],
+  "rate": {
+    "limit": 2500,
+    "remaining": 2465,
+    "reset": 1754784000
+  },
+  "results": [
+    {
+      "annotations": {
+        "DMS": {
+          "lat": "48° 32' 55.79592'' N",
+          "lng": "9° 30' 32.92524'' E"
+        },
+        "MGRS": "32UNU3757577428",
+        "Maidenhead": "JN48sn11cr",
+        "Mercator": {
+          "x": 1058553.275,
+          "y": 6166608.547
+        },
+        "NUTS": {
+          "NUTS0": {
+            "code": "DE"
+          },
+          "NUTS1": {
+            "code": "DE1"
+          },
+          "NUTS2": {
+            "code": "DE11"
+          },
+          "NUTS3": {
+            "code": "DE113"
+          }
+        },
+        "OSM": {
+          "edit_url": "https://www.openstreetmap.org/edit?relation=3373328#map=17/48.54883/9.50915",
+          "note_url": "https://www.openstreetmap.org/note/new#map=17/48.54883/9.50915&layers=N",
+          "url": "https://www.openstreetmap.org/?mlat=48.54883&mlon=9.50915#map=17/48.54883/9.50915"
+        },
+        "UN_M49": {
+          "regions": {
+            "DE": "276",
+            "EUROPE": "150",
+            "WESTERN_EUROPE": "155",
+            "WORLD": "001"
+          },
+          "statistical_groupings": [
+            "MEDC"
+          ]
+        },
+        "callingcode": 49,
+        "currency": {
+          "alternate_symbols": [],
+          "decimal_mark": ",",
+          "html_entity": "€",
+          "iso_code": "EUR",
+          "iso_numeric": "978",
+          "name": "Euro",
+          "smallest_denomination": 1,
+          "subunit": "Cent",
+          "subunit_to_unit": 100,
+          "symbol": "€",
+          "symbol_first": 0,
+          "thousands_separator": "."
+        },
+        "flag": "🇩🇪",
+        "geohash": "u0wu0qh37nm0dm0pz9yj",
+        "qibla": 127.5,
+        "roadinfo": {
+          "drive_on": "right",
+          "speed_in": "km/h"
+        },
+        "sun": {
+          "rise": {
+            "apparent": 1754712480,
+            "astronomical": 1754704440,
+            "civil": 1754710380,
+            "nautical": 1754707680
+          },
+          "set": {
+            "apparent": 1754765160,
+            "astronomical": 1754773140,
+            "civil": 1754767260,
+            "nautical": 1754769960
+          }
+        },
+        "timezone": {
+          "name": "Europe/Berlin",
+          "now_in_dst": 1,
+          "offset_sec": 7200,
+          "offset_string": "+0200",
+          "short_name": "CEST"
+        },
+        "what3words": {
+          "words": "reframed.fogging.interacted"
+        }
+      },
+      "bounds": {
+        "northeast": {
+          "lat": 48.5853898,
+          "lng": 9.5825117
+        },
+        "southwest": {
+          "lat": 48.5124324,
+          "lng": 9.4362571
+        }
+      },
+      "components": {
+        "ISO_3166-1_alpha-2": "DE",
+        "ISO_3166-1_alpha-3": "DEU",
+        "ISO_3166-2": [
+          "DE-BW"
+        ],
+        "_category": "place",
+        "_normalized_city": "Gutenberg",
+        "_type": "village",
+        "continent": "Europe",
+        "country": "Deutschland",
+        "country_code": "de",
+        "county": "Landkreis Esslingen",
+        "municipality": "Lenningen",
+        "political_union": "European Union",
+        "postcode": "73252",
+        "state": "Baden-Württemberg",
+        "state_code": "BW",
+        "village": "Gutenberg"
+      },
+      "confidence": 7,
+      "formatted": "73252 Gutenberg, Deutschland",
+      "geometry": {
+        "lat": 48.5488322,
+        "lng": 9.5091459
+      }
+    },
+    {
+      "annotations": {
+        "DMS": {
+          "lat": "48° 33' 29.16000'' N",
+          "lng": "9° 27' 58.68000'' E"
+        },
+        "MGRS": "32UNU3440778438",
+        "Maidenhead": "JN48rn53ww",
+        "Mercator": {
+          "x": 1053783.696,
+          "y": 6168162.584
+        },
+        "NUTS": {
+          "NUTS0": {
+            "code": "DE"
+          },
+          "NUTS1": {
+            "code": "DE1"
+          },
+          "NUTS2": {
+            "code": "DE11"
+          },
+          "NUTS3": {
+            "code": "DE113"
+          }
+        },
+        "OSM": {
+          "note_url": "https://www.openstreetmap.org/note/new#map=17/48.55810/9.46630&layers=N",
+          "url": "https://www.openstreetmap.org/?mlat=48.55810&mlon=9.46630#map=17/48.55810/9.46630"
+        },
+        "UN_M49": {
+          "regions": {
+            "DE": "276",
+            "EUROPE": "150",
+            "WESTERN_EUROPE": "155",
+            "WORLD": "001"
+          },
+          "statistical_groupings": [
+            "MEDC"
+          ]
+        },
+        "callingcode": 49,
+        "currency": {
+          "alternate_symbols": [],
+          "decimal_mark": ",",
+          "html_entity": "€",
+          "iso_code": "EUR",
+          "iso_numeric": "978",
+          "name": "Euro",
+          "smallest_denomination": 1,
+          "subunit": "Cent",
+          "subunit_to_unit": 100,
+          "symbol": "€",
+          "symbol_first": 0,
+          "thousands_separator": "."
+        },
+        "flag": "🇩🇪",
+        "geohash": "u0wsprtpkvbvhpy44jk1",
+        "qibla": 127.45,
+        "roadinfo": {
+          "drive_on": "right",
+          "speed_in": "km/h"
+        },
+        "sun": {
+          "rise": {
+            "apparent": 1754712540,
+            "astronomical": 1754704440,
+            "civil": 1754710380,
+            "nautical": 1754707680
+          },
+          "set": {
+            "apparent": 1754765160,
+            "astronomical": 1754773140,
+            "civil": 1754767260,
+            "nautical": 1754769960
+          }
+        },
+        "timezone": {
+          "name": "Europe/Berlin",
+          "now_in_dst": 1,
+          "offset_sec": 7200,
+          "offset_string": "+0200",
+          "short_name": "CEST"
+        },
+        "what3words": {
+          "words": "constituent.apart.oats"
+        }
+      },
+      "components": {
+        "ISO_3166-1_alpha-2": "DE",
+        "ISO_3166-1_alpha-3": "DEU",
+        "_category": "postcode",
+        "_type": "postcode",
+        "continent": "Europe",
+        "country": "Germany",
+        "country_code": "de",
+        "political_union": "European Union",
+        "postcode": "73252"
+      },
+      "confidence": 7,
+      "formatted": "73252, Germany",
+      "geometry": {
+        "lat": 48.5581,
+        "lng": 9.4663
+      }
+    }
+  ],
+  "status": {
+    "code": 200,
+    "message": "OK"
+  },
+  "stay_informed": {
+    "blog": "https://blog.opencagedata.com",
+    "mastodon": "https://en.osm.town/@opencage"
+  },
+  "thanks": "For using an OpenCage API",
+  "timestamp": {
+    "created_http": "Sat, 09 Aug 2025 12:36:55 GMT",
+    "created_unix": 1754743015
+  },
+  "total_results": 2
+}
+[DEBUG] Coordinates found: lat=48.5488322, lng=9.5091459
+[DEBUG] Calling nearby_restaurants with params: { query_lat: 48.5488322, query_lon: 9.5091459, radius_km: 5 }
+[DEBUG] Data from nearby_restaurants: []
+ GET /_next/data/development/restaurants.json?search=smc&location=73252&radius=5 200 in 360ms

@@ -1,264 +1,165 @@
 import { useState, useEffect } from 'react';
-import { GetServerSideProps } from 'next';
 import { motion } from 'framer-motion';
-import { FiFilter } from 'react-icons/fi';
 import PageLayout from '../../components/PageLayout';
 import ContactTablesList from '../../components/ContactTablesList';
-import { createClient } from '../../utils/supabase/server';
+import { createClient } from '@/utils/supabase/server';
+import type { GetServerSidePropsContext } from 'next';
+import type { User } from '@supabase/supabase-js';
 import { type Database } from '../../types/supabase';
 
 type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
 type Restaurant = Database['public']['Tables']['restaurants']['Row'];
 
-// Erweiterte Typdefinition für Kontakttische mit Restaurant-Informationen
 type ContactTableWithRestaurant = ContactTable & {
-  restaurant: Restaurant;
-  participants: { count: number }[];
+  restaurant: Restaurant | null;
 };
 
-interface ContactTablesProps {
+interface ContactTablesPageProps {
   initialContactTables: ContactTableWithRestaurant[];
-  userRole?: string;
+  user: User;
+  userRole: string;
   error?: string;
 }
 
-export default function ContactTables({ initialContactTables, userRole, error: serverError }: ContactTablesProps) {
+export default function ContactTablesPage({ initialContactTables, userRole, error: serverError }: ContactTablesPageProps) {
   const [filters, setFilters] = useState({
     date: '',
     city: '',
-    minSeats: '1',
+    interests: '', // This will now search in title and description
   });
-  const [showFilters, setShowFilters] = useState(false);
-  const [filteredTables, setFilteredTables] = useState<ContactTableWithRestaurant[]>(initialContactTables);
+  const [filteredTables, setFilteredTables] = useState(initialContactTables || []);
 
-  // Filterfunktionen
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFilters(prev => {
-      const newFilters = { ...prev, [name]: value };
-      applyFilters(newFilters);
-      return newFilters;
-    });
-  };
+  useEffect(() => {
+    let tables = initialContactTables || [];
 
-  const toggleFilters = () => {
-    setShowFilters(!showFilters);
-  };
-  
-  // Funktion zum Anwenden der Filter
-  const applyFilters = (currentFilters = filters) => {
-    let result = [...initialContactTables];
-    
-    // Datum filtern
-    if (currentFilters.date) {
-      const filterDate = new Date(currentFilters.date);
-      filterDate.setHours(0, 0, 0, 0); // Setze Uhrzeit auf 00:00:00
-      
-      result = result.filter(table => {
-        const tableDate = new Date(table.datetime);
-        tableDate.setHours(0, 0, 0, 0);
-        return tableDate.getTime() === filterDate.getTime();
-      });
-    }
-    
-    // Stadt filtern
-    if (currentFilters.city.trim()) {
-      const cityLower = currentFilters.city.trim().toLowerCase();
-      result = result.filter(table => 
-        table.restaurant?.city?.toLowerCase().includes(cityLower)
+    if (filters.date) {
+      tables = tables.filter(table => 
+        new Date(table.datetime).toLocaleDateString('de-DE') === new Date(filters.date).toLocaleDateString('de-DE')
       );
     }
-    
-    // Mindestanzahl freier Plätze filtern
-    if (currentFilters.minSeats) {
-      const minSeats = parseInt(currentFilters.minSeats, 10);
-      result = result.filter(table => {
-        const participantCount = table.participants[0]?.count ?? 0;
-        const availableSeats = table.max_participants - participantCount;
-        return availableSeats >= minSeats;
-      });
+
+    if (filters.city) {
+      tables = tables.filter(table => 
+        table.restaurant?.city?.toLowerCase().includes(filters.city.toLowerCase())
+      );
     }
-    
-    setFilteredTables(result);
+
+    if (filters.interests) {
+      const searchKeywords = filters.interests.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      if (searchKeywords.length > 0) {
+        tables = tables.filter(table => 
+          searchKeywords.some(keyword => 
+            table.title.toLowerCase().includes(keyword) ||
+            (table.description && table.description.toLowerCase().includes(keyword))
+          )
+        );
+      }
+    }
+
+    setFilteredTables(tables);
+  }, [filters, initialContactTables]);
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
   };
-  
-  // Filter beim ersten Laden anwenden
-  useEffect(() => {
-    applyFilters();
-  }, [initialContactTables]);
+
+  const resetFilters = () => {
+    setFilters({ date: '', city: '', interests: '' });
+  };
 
   return (
-    <PageLayout>
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white">
-        <div className="container mx-auto px-4 py-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="max-w-3xl mx-auto text-center"
-          >
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Entdecke Kontakttische in deiner Nähe
-            </h1>
-            <p className="text-xl mb-8 text-white/90">
-              Finde offene Tische in deiner Nähe und lerne neue Menschen bei gutem Essen kennen. 
-              Gemeinsam statt einsam - für echte Gespräche und neue Freundschaften.
-            </p>
-            {userRole && (
-              <div className="inline-block bg-white/20 px-4 py-2 rounded-full text-sm font-medium">
-                Angemeldet als: {userRole}
-              </div>
-            )}
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Filter-Bereich */}
+    <PageLayout title="Offene Kontakttische">
       <div className="container mx-auto px-4 py-8">
-        {/* Fehleranzeige */}
         {serverError && (
           <motion.div 
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-6"
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6"
+            role="alert"
           >
-            <p className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              {serverError}
-            </p>
+            <strong className="font-bold">Fehler:</strong>
+            <span className="block sm:inline ml-2">{serverError}</span>
           </motion.div>
         )}
         
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold text-secondary-800">Verfügbare Kontakttische</h2>
-            <button
-              onClick={toggleFilters}
-              className="flex items-center gap-2 text-primary-600 hover:text-primary-700 transition-colors"
-            >
-              <FiFilter />
-              {showFilters ? 'Filter ausblenden' : 'Filter anzeigen'}
-            </button>
+            <h2 className="text-2xl font-bold text-neutral-800">Finde deinen Tisch</h2>
+            <button onClick={resetFilters} className="text-sm text-primary-600 hover:underline">Filter zurücksetzen</button>
           </div>
-
-          {showFilters && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white p-4 rounded-lg shadow-md mb-6 overflow-hidden"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label htmlFor="date" className="block text-sm font-medium text-secondary-700 mb-1">Datum</label>
-                  <input
-                    type="date"
-                    id="date"
-                    name="date"
-                    value={filters.date}
-                    onChange={handleFilterChange}
-                    className="w-full p-2 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="city" className="block text-sm font-medium text-secondary-700 mb-1">Stadt</label>
-                  <input
-                    type="text"
-                    id="city"
-                    name="city"
-                    value={filters.city}
-                    onChange={handleFilterChange}
-                    placeholder="z.B. München"
-                    className="w-full p-2 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="minSeats" className="block text-sm font-medium text-secondary-700 mb-1">Min. freie Plätze</label>
-                  <select
-                    id="minSeats"
-                    name="minSeats"
-                    value={filters.minSeats}
-                    onChange={handleFilterChange}
-                    className="w-full p-2 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="1">Mindestens 1</option>
-                    <option value="2">Mindestens 2</option>
-                    <option value="3">Mindestens 3</option>
-                    <option value="4">Mindestens 4</option>
-                  </select>
-                </div>
-              </div>
-            </motion.div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-6 rounded-lg shadow-md mb-8">
+            <input
+              type="date"
+              name="date"
+              value={filters.date}
+              onChange={handleFilterChange}
+              className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+            />
+            <input
+              type="text"
+              name="city"
+              placeholder="Stadt (z.B. Berlin)"
+              value={filters.city}
+              onChange={handleFilterChange}
+              className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+            />
+            <input
+              type="text"
+              name="interests"
+              placeholder="Stichwort (z.B. Kunst, Jazz)"
+              value={filters.interests}
+              onChange={handleFilterChange}
+              className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
         </div>
 
-        {/* Kontakttische Liste */}
-        <ContactTablesList initialContactTables={filteredTables} />
+        <div className="mt-8">
+          <ContactTablesList initialContactTables={filteredTables} userRole={userRole} />
+        </div>
       </div>
     </PageLayout>
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const supabase = createClient(context);
-  
-  // Überprüfen, ob der Benutzer eingeloggt ist
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  if (!session) {
-    // Zur Login-Seite weiterleiten mit Rückgabe-URL
+export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
+  const supabase = createClient(ctx);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
     return {
       redirect: {
-        destination: `/auth/login?redirect=${encodeURIComponent('/contact-tables')}`,
+        destination: '/auth/login',
         permanent: false,
       },
     };
   }
-  
-  // Benutzerrolle überprüfen
-  const userRole = session.user?.user_metadata?.role || 'CUSTOMER';
-  const userRoleUpper = userRole.toUpperCase();
-  
-  // Prüfen, ob der Benutzer Zugriff auf diese Seite haben sollte
-  // Alle Benutzerrollen (CUSTOMER, RESTAURANT, ADMIN) dürfen die Kontakttische sehen
-  
-  // Kontakttische aus der Datenbank laden
-  // Nur Kontakttische von aktiven Restaurants anzeigen
-  const { data: contactTables, error } = await supabase
+
+  const userRole = user.user_metadata?.role || 'CUSTOMER';
+
+  // Corrected query, ordering by datetime
+  const { data: tables, error } = await supabase
     .from('contact_tables')
-    .select(`
-      *,
-      restaurant:restaurants(*),
-      participants:participations(count)
-    `)
-    .eq('status', 'OPEN') // Korrekter Status für neue, offene Tische
-    .gte('datetime', new Date().toISOString()) // Nur zukünftige Kontakttische
+    .select('*, restaurant:restaurants(*)')
+    
     .order('datetime', { ascending: true });
 
-  // Filtern, um nur Kontakttische von aktiven Restaurants anzuzeigen
-  const filteredTables = contactTables?.filter(table => 
-    table.restaurant && table.restaurant.isActive === true
-  ) || [];
-  
   if (error) {
-    console.error('Fehler beim Laden der Kontakttische:', error);
-    return {
-      props: {
-        initialContactTables: [],
-        error: 'Fehler beim Laden der Kontakttische. Bitte versuchen Sie es später erneut.',
-        userRole: userRoleUpper,
-      },
-    };
+    console.error('Error fetching contact tables:', error);
+    return { props: { initialContactTables: [], user, userRole, error: 'Fehler beim Laden der Tische.' } };
   }
-  
+
+  const tablesWithRestaurants: ContactTableWithRestaurant[] = tables?.map(table => ({
+    ...table,
+    restaurant: Array.isArray(table.restaurant) ? table.restaurant[0] : table.restaurant,
+  })) || [];
+
   return {
     props: {
-      initialContactTables: filteredTables,
-      userRole: userRoleUpper,
+      initialContactTables: tablesWithRestaurants,
+      user,
+      userRole,
     },
   };
 };

@@ -1,13 +1,15 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { buffer } from 'micro';
 import Stripe from 'stripe';
+import { buffer } from 'micro';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-05-28.basil' as any
+  apiVersion: '2025-05-28.basil' as any,
 });
+
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 // Initialize Supabase Admin client
@@ -21,8 +23,8 @@ const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
 export const config = {
   api: {
-    bodyParser: false
-  }
+    bodyParser: false,
+  },
 };
 
 export default async function handler(
@@ -57,13 +59,14 @@ export default async function handler(
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        
-        if (!session.metadata?.userId || !session.metadata?.plan) {
-          console.error('Fehlende Metadaten in der Checkout-Session');
+
+        const { userId, plan, name, address, phone } = session.metadata || {};
+
+        if (!userId || !plan) {
+          console.error('Fehlende userId oder plan in der Checkout-Session Metadaten');
           return res.status(400).json({ message: 'Fehlende Metadaten' });
         }
 
-        const { userId, plan } = session.metadata;
         const isPaying = true;
 
         if (plan === 'user') {
@@ -72,13 +75,13 @@ export default async function handler(
             data: {
               isPaying,
               stripeCustomerId: session.customer as string,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           });
         } else if (plan === 'restaurant') {
           const user = await prisma.profile.findUnique({
             where: { id: userId },
-            include: { restaurant: true }
+            include: { restaurant: true },
           });
 
           if (!user) {
@@ -86,45 +89,60 @@ export default async function handler(
             return res.status(404).json({ message: 'Benutzer nicht gefunden' });
           }
 
-          // Update user profile in public schema
           await prisma.profile.update({
             where: { id: userId },
             data: {
               isPaying,
               stripeCustomerId: session.customer as string,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           });
-          
-          // Update user role in Supabase Auth
-          const { error: adminUserError } = await supabaseAdmin.auth.admin.updateUserById(
-            userId,
-            { user_metadata: { role: 'RESTAURANT' } }
-          );
+
+          const { error: adminUserError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+            user_metadata: { role: 'RESTAURANT' },
+          });
 
           if (adminUserError) {
             console.error(`Fehler beim Aktualisieren der Supabase Benutzerrolle für Benutzer ${userId}:`, adminUserError);
           }
 
           if (!user.restaurant) {
+            // --- Automatic Geocoding Step ---
+            let latitude: number | null = null;
+            let longitude: number | null = null;
+            
+            if (address) {
+              try {
+                const geocodingUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${process.env.OPENCAGE_API_KEY}`;
+                const geoResponse = await fetch(geocodingUrl);
+                const geoData = await geoResponse.json();
+
+                if (geoData.results && geoData.results.length > 0) {
+                  latitude = geoData.results[0].geometry.lat;
+                  longitude = geoData.results[0].geometry.lng;
+                } else {
+                  console.warn(`⚠️ Geocoding failed for address: ${address}.`);
+                }
+              } catch (geoError) {
+                console.error('Geocoding API error during webhook:', geoError);
+              }
+            } else {
+              console.warn(`⚠️ No address in metadata for user ${userId}. Cannot geocode.`);
+            }
+
             await prisma.restaurant.create({
               data: {
-                name: `Restaurant von ${user.name || 'Benutzer'}`,
-                description: 'Keine Beschreibung vorhanden',
-                address: '',
-                city: '',
-                postal_code: '',
-                country: 'DE',
-                phone: '',
+                name: name || `Restaurant von ${user.name || 'Benutzer'}`,
+                description: 'Bitte vervollständigen Sie Ihr Profil.',
+                address: address || '',
+                phone: phone || '',
                 email: session.customer_details?.email || '',
-                isVisible: false,
+                isVisible: true, // Set to visible by default
                 contractStatus: 'ACTIVE',
-                profile: {
-                  connect: { id: userId }
-                },
-                createdAt: new Date(),
-                updatedAt: new Date()
-              }
+                profile: { connect: { id: userId } },
+                latitude,
+                longitude,
+              },
             });
           }
         }
@@ -136,21 +154,15 @@ export default async function handler(
         const status = subscription.status;
         const customerId = subscription.customer as string;
 
-        const user = await prisma.profile.findFirst({
-          where: { stripeCustomerId: customerId }
-        });
+        const user = await prisma.profile.findFirst({ where: { stripeCustomerId: customerId } });
 
         if (!user) {
-          console.error('Benutzer mit dieser Kunden-ID nicht gefunden');
           return res.status(404).json({ message: 'Benutzer nicht gefunden' });
         }
 
         await prisma.profile.update({
           where: { id: user.id },
-          data: {
-            isPaying: status === 'active',
-            updatedAt: new Date()
-          }
+          data: { isPaying: status === 'active', updatedAt: new Date() },
         });
         break;
       }
@@ -159,24 +171,17 @@ export default async function handler(
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        const user = await prisma.profile.findFirst({
-          where: { stripeCustomerId: customerId }
-        });
+        const user = await prisma.profile.findFirst({ where: { stripeCustomerId: customerId } });
 
         if (!user) {
-          console.error('Benutzer mit dieser Kunden-ID nicht gefunden');
           return res.status(404).json({ message: 'Benutzer nicht gefunden' });
         }
 
         await prisma.profile.update({
           where: { id: user.id },
-          data: {
-            isPaying: false,
-            updatedAt: new Date()
-          }
+          data: { isPaying: false, updatedAt: new Date() },
         });
 
-        // Get user role from Supabase Auth
         const { data: authUser, error: authUserError } = await supabaseAdmin.auth.admin.getUserById(user.id);
 
         if (authUserError) {
@@ -186,10 +191,7 @@ export default async function handler(
         if (authUser?.user?.user_metadata?.role === 'RESTAURANT') {
           await prisma.restaurant.updateMany({
             where: { userId: user.id },
-            data: {
-              contractStatus: 'CANCELLED',
-              updatedAt: new Date()
-            }
+            data: { contractStatus: 'CANCELLED', updatedAt: new Date() },
           });
         }
         break;
@@ -201,6 +203,6 @@ export default async function handler(
     console.error('Fehler bei der Verarbeitung des Webhooks:', error);
     return res.status(500).json({ message: 'Interner Serverfehler' });
   } finally {
-      await prisma.$disconnect();
+    await prisma.$disconnect();
   }
 }

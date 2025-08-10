@@ -39,6 +39,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(409).json({ message: 'A restaurant with this email already exists.' });
     }
 
+    // --- Automatic Geocoding Step ---
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+
+    try {
+      const geocodingUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${process.env.OPENCAGE_API_KEY}`;
+      const geoResponse = await fetch(geocodingUrl);
+      const geoData = await geoResponse.json();
+
+      if (geoData.results && geoData.results.length > 0) {
+        latitude = geoData.results[0].geometry.lat;
+        longitude = geoData.results[0].geometry.lng;
+      } else {
+        // If geocoding fails, we can either stop or allow creation without coordinates.
+        // For now, we'll stop and return an error.
+        return res.status(400).json({ message: 'Could not verify the address. Please provide a valid address.' });
+      }
+    } catch (geoError) {
+      console.error('Geocoding API error during registration:', geoError);
+      return res.status(500).json({ message: 'An error occurred during address verification.' });
+    }
+
     const restaurant = await prisma.restaurant.create({
       data: {
         userId: user.id,
@@ -49,6 +71,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         description,
         cuisine,
         openingHours,
+        latitude,
+        longitude,
+        isVisible: true, // Set restaurant to visible by default
       },
     });
 
