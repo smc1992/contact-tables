@@ -9,6 +9,7 @@ import { restaurantApi } from '../utils/api';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
+import LaunchPopup from '../components/LaunchPopup';
 
 // Sprachvariationen für das Banner
 const languageVariations = [
@@ -125,7 +126,8 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <>
+      <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
       <main className="flex-grow">
       
@@ -492,5 +494,7 @@ export default function Home() {
       </main>
       <Footer />
     </div>
+    <LaunchPopup />
+    </>
   );
 }

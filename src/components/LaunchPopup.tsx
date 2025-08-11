@@ -51,7 +51,7 @@ const LaunchPopup = () => {
             </p>
             <div className="mt-6">
               <a 
-                href="/register" 
+                href="/auth/register" 
                 className="bg-primary-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-primary-700 transition-colors w-full sm:w-auto inline-block"
                 onClick={handleClose}
               >
