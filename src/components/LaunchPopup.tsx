@@ -49,6 +49,9 @@ const LaunchPopup = () => {
               <br />
               Du kannst dich aber schon jetzt registrieren und Teil unserer Community werden.
             </p>
+            <p className="text-gray-500 leading-relaxed mt-4 text-sm">
+              Dein Tipp zählt! Verrate uns gerne deine Lieblingsrestaurants in deiner Stadt, die du gerne dabei hättest oder die perfekt zu contact-tables passen könnten. Vielen Dank!
+            </p>
             <div className="mt-6">
               <a 
                 href="/auth/register" 

@@ -1,115 +1,55 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L, { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { LatLngExpression } from 'leaflet';
-
-// Typdefinitionen für die Komponente
-interface Restaurant {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  postalCode: string;
-  latitude: number | null;
-  longitude: number | null;
-  cuisine?: string | null;
-  priceRange?: string | null;
-  imageUrl?: string | null;
-}
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
+import 'leaflet-defaulticon-compatibility';
+import { RestaurantPageItem } from '@/types/restaurants';
 
 interface RestaurantMapProps {
-  restaurants: Restaurant[];
-  height?: string;
-  center?: LatLngExpression; // [latitude, longitude]
-  zoom?: number;
+  restaurants: RestaurantPageItem[];
+  height: string;
+  center?: { lat: number; lng: number } | null;
 }
 
-const RestaurantMap: React.FC<RestaurantMapProps> = ({ 
-  restaurants, 
-  height = '500px',
-  center = [52.5200, 13.4050], // Berlin als Standardzentrum
-  zoom = 12
-}) => {
-  // Leaflet-Marker-Icons für die Karte korrigieren
-  // (Dies ist ein bekanntes Problem mit Leaflet in React)
+// A helper component to programmatically change the map's view when props change
+const ChangeView: React.FC<{ center: LatLngExpression; zoom: number }> = ({ center, zoom }) => {
+  const map = useMap();
   useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-    });
-  }, []);
-  // Wenn keine Restaurants vorhanden sind oder keine gültigen Koordinaten haben, zeige eine Nachricht an
-  if (!restaurants || restaurants.length === 0 || !restaurants.some(r => r.latitude && r.longitude)) {
-    return (
-      <div 
-        className="bg-gray-100 rounded-lg flex items-center justify-center"
-        style={{ height }}
-      >
-        <p className="text-gray-500">Keine Restaurants mit gültigen Standorten gefunden.</p>
-      </div>
-    );
-  }
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
+  return null;
+};
 
-  // Berechne das Zentrum der Karte basierend auf den Restaurantstandorten, wenn kein Zentrum angegeben wurde
-  const calculateCenter = (): LatLngExpression => {
-    const validRestaurants = restaurants.filter(r => r.latitude && r.longitude);
-    if (validRestaurants.length === 0) return center;
-    
-    const sumLat = validRestaurants.reduce((sum, r) => sum + r.latitude!, 0);
-    const sumLng = validRestaurants.reduce((sum, r) => sum + r.longitude!, 0);
-    
-    return [sumLat / validRestaurants.length, sumLng / validRestaurants.length] as LatLngExpression;
-  };
-
-  const mapCenter = center || calculateCenter();
+const RestaurantMap: React.FC<RestaurantMapProps> = ({ restaurants, height, center }) => {
+  // Default center is set to a central point in Germany if no specific center is provided
+  const mapCenter: LatLngExpression = center ? [center.lat, center.lng] : [51.1657, 10.4515];
+  const zoomLevel = center ? 13 : 6; // Zoom in if a specific location is searched
 
   return (
-    <div style={{ height, width: '100%' }}>
-      <MapContainer 
-        center={mapCenter} 
-        zoom={zoom} 
-        style={{ height: '100%', width: '100%', borderRadius: '0.5rem' }}
-        scrollWheelZoom={false}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {restaurants.map((restaurant) => (
-          restaurant.latitude && restaurant.longitude ? (
-            <Marker 
-              key={restaurant.id} 
-              position={[restaurant.latitude, restaurant.longitude] as LatLngExpression}
-            >
+    <MapContainer center={mapCenter} zoom={zoomLevel} style={{ height, width: '100%' }} scrollWheelZoom={true}>
+      <ChangeView center={mapCenter} zoom={zoomLevel} />
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      />
+      {restaurants.map(restaurant => {
+        if (restaurant.latitude && restaurant.longitude) {
+          return (
+            <Marker key={restaurant.id} position={[restaurant.latitude, restaurant.longitude]}>
               <Popup>
-                <div className="p-2">
-                  <h3 className="font-semibold">{restaurant.name}</h3>
-                  <p className="text-sm text-gray-600">{restaurant.address}, {restaurant.postalCode} {restaurant.city}</p>
-                  {restaurant.cuisine && (
-                    <p className="text-sm text-gray-500 mt-1">Küche: {restaurant.cuisine}</p>
-                  )}
-                  {restaurant.priceRange && (
-                    <p className="text-sm text-gray-500">Preisklasse: {restaurant.priceRange}</p>
-                  )}
-                  {restaurant.imageUrl && (
-                    <img 
-                      src={restaurant.imageUrl} 
-                      alt={restaurant.name} 
-                      className="mt-2 w-full h-24 object-cover rounded"
-                    />
-                  )}
+                <div className="font-sans">
+                  <h3 className="font-bold text-lg mb-1">{restaurant.name}</h3>
+                  <p className="text-gray-600">{restaurant.address}, {restaurant.city}</p>
+                  <a href={`/restaurants/${restaurant.id}`} className="text-primary-500 hover:underline mt-2 inline-block">Details anzeigen</a>
                 </div>
               </Popup>
             </Marker>
-          ) : null
-        ))}
-      </MapContainer>
-    </div>
+          );
+        }
+        return null;
+      })}
+    </MapContainer>
   );
 };
 

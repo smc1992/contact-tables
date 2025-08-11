@@ -4,6 +4,15 @@ import { FiMapPin, FiPhone, FiClock, FiGlobe, FiStar, FiCalendar, FiUsers } from
 import PageLayout from '../../components/PageLayout';
 import { createClient } from '../../utils/supabase/server';
 import { Database } from '../../types/supabase';
+import dynamic from 'next/dynamic';
+
+const RestaurantMap = dynamic(
+  () => import('../../components/RestaurantMap'),
+  { 
+    ssr: false,
+    loading: () => <div className="h-64 w-full bg-gray-200 flex items-center justify-center rounded-lg"><p>Kartenansicht wird geladen...</p></div>
+  }
+);
 
 type Restaurant = Database['public']['Tables']['restaurants']['Row'];
 type Rating = Database['public']['Tables']['ratings']['Row'];
@@ -139,7 +148,19 @@ export default function RestaurantDetail({ restaurant, error }: RestaurantDetail
             
             <div className="bg-white p-6 rounded-lg shadow-sm sticky top-60">
                <h3 className="text-xl font-semibold mb-4">Standort</h3>
-               <div className="h-64 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500">Kartenansicht</div>
+               {restaurant.latitude && restaurant.longitude ? (
+                  <div className="h-64 rounded-lg overflow-hidden">
+                    <RestaurantMap 
+                      restaurants={[restaurant]} 
+                      height="100%" 
+                      center={{ lat: restaurant.latitude, lng: restaurant.longitude }}
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-gray-200 h-64 w-full rounded-lg flex items-center justify-center">
+                    <p className="text-gray-500">Keine Standortdaten verfügbar</p>
+                  </div>
+                )}
                 <a href={`https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`} target="_blank" rel="noopener noreferrer" className="mt-4 block w-full text-center bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">Route planen</a>
             </div>
           </div>

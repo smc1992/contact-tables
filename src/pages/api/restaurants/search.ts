@@ -1,30 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '../../../utils/supabase/server';
 
-// Hilfsfunktion zur Distanzberechnung (Haversine-Formel)
-function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Erdradius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Entfernung in km
-  return distance;
-}
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Nur GET-Anfragen erlauben
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Methode nicht erlaubt' });
   }
 
   console.log('[API /api/restaurants/search] Received query params:', JSON.stringify(req.query, null, 2));
+
   try {
     const supabase = createClient({ req, res });
 
@@ -36,182 +22,116 @@ export default async function handler(
     const longitude = safeQueryParam(req.query.longitude);
     const radius = Number(safeQueryParam(req.query.radius) ?? '5000');
     const searchTerm = safeQueryParam(req.query.searchTerm) ?? '';
-    const date = safeQueryParam(req.query.date);
-    const time = safeQueryParam(req.query.time);
-    const guests = safeQueryParam(req.query.guests);
     const cuisine = safeQueryParam(req.query.cuisine);
     const priceRange = safeQueryParam(req.query.priceRange);
     const offerTableToday = safeQueryParam(req.query.offerTableToday);
     const sortBy = safeQueryParam(req.query.sortBy) ?? 'distance';
 
-    const hasLocation = latitude !== undefined && longitude !== undefined &&
-                      latitude !== '' && longitude !== '' &&
-                      !isNaN(Number(latitude)) && !isNaN(Number(longitude));
-    const hasSearchTerm = searchTerm !== undefined && searchTerm !== '';
+    const hasLocation = latitude && longitude && !isNaN(Number(latitude)) && !isNaN(Number(longitude));
 
-    if (!hasLocation && !hasSearchTerm) {
-      return res.status(400).json({
-        message: 'Entweder Standort (Breitengrad und Längengrad) oder Suchbegriff ist erforderlich'
+    let restaurants = [];
+
+    if (hasLocation) {
+      // --- LOCATION-BASED SEARCH (FAST) ---
+      const { data: rpcData, error: rpcError } = await supabase.rpc('nearby_restaurants', {
+        lat: Number(latitude),
+        long: Number(longitude),
+        radius_meters: radius,
       });
-    }
 
-    let query = supabase
-      .from('restaurants')
-      .select(`
-        *,
-        ratings(value),
-        favorites(user_id)
-      `)
-      .eq('is_active', true)
-      .eq('contract_status', 'ACTIVE');
+      if (rpcError) {
+        console.error('Fehler bei RPC nearby_restaurants:', JSON.stringify(rpcError, null, 2));
+        throw rpcError;
+      }
+      restaurants = rpcData || [];
 
-    if (searchTerm) {
-      query = query.ilike('name', `%${searchTerm}%`);
-    }
-    if (cuisine) {
-      query = query.ilike('cuisine', `%${cuisine}%`);
-    }
-    if (priceRange) {
-      query = query.eq('price_range', priceRange);
-    }
-    if (offerTableToday === 'true') {
-      query = query.eq('offer_table_today', true);
-    }
-
-    const { data: restaurantsData, error } = await query;
-
-    if (error) {
-      console.error('Fehler bei der Suche nach Restaurants (Supabase error object):', JSON.stringify(error, null, 2));
-      return res.status(500).json({
-        message: 'Datenbankfehler',
-        errorDetails: process.env.NODE_ENV === 'development' ? error : { message: error.message, code: error.code, details: error.details, hint: error.hint }
-      });
-    }
-
-    if (!restaurantsData || restaurantsData.length === 0) {
-      // Demo-Daten bleiben unverändert, da sie nicht Teil des Problems sind.
-      const demoRestaurants = [
-        {
-          id: 'demo1',
-          name: 'Restaurant Bella Italia',
-          description: 'Authentische italienische Küche in gemütlicher Atmosphäre.',
-          address: 'Hauptstraße 123',
-          city: 'Berlin',
-          postal_code: '10115',
-          latitude: 52.5200,
-          longitude: 13.4050,
-          cuisine: 'Italienisch',
-          price_range: '€€',
-          image_url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8cmVzdGF1cmFudHxlbnwwfHwwfHw%3D&w=1000&q=80',
-          contact_email: 'info@bella-italia.de',
-          contact_phone: '+49 30 12345678',
-          website: 'https://www.bella-italia.de',
-          opening_hours: 'Mo-Fr: 11:00-23:00, Sa-So: 12:00-00:00',
-          offer_table_today: true,
-          avgRating: 4.3,
-          distance: hasLocation ? calculateDistance(Number(latitude), Number(longitude), 52.5200, 13.4050) : null,
-          user: null
-        },
-        {
-          id: 'demo2',
-          name: 'Sushi Palace',
-          description: 'Frisches Sushi und japanische Spezialitäten.',
-          address: 'Friedrichstraße 45',
-          city: 'Berlin',
-          postal_code: '10117',
-          latitude: 52.5180,
-          longitude: 13.3880,
-          cuisine: 'Japanisch',
-          price_range: '€€€',
-          image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8c3VzaGl8ZW58MHx8MHx8&w=1000&q=80',
-          contact_email: 'info@sushi-palace.de',
-          contact_phone: '+49 30 87654321',
-          website: 'https://www.sushi-palace.de',
-          opening_hours: 'Mo-So: 12:00-22:00',
-          offer_table_today: true,
-          avgRating: 4.8,
-          distance: hasLocation ? calculateDistance(Number(latitude), Number(longitude), 52.5180, 13.3880) : null,
-          user: null
-        }
-      ];
-      return res.status(200).json({
-        restaurants: demoRestaurants,
-        pagination: { totalResults: demoRestaurants.length, totalPages: 1, currentPage: 1, resultsPerPage: demoRestaurants.length },
-        filters: { searchTerm: searchTerm || null, date: date || null, time: time || null, guests: guests || null, cuisine: cuisine || null, priceRange: priceRange || null, offerTableToday: offerTableToday === 'true' || false, sortBy },
-        message: 'Demo-Restaurants zurückgegeben.'
-      });
-    }
-
-    const processedRestaurants = restaurantsData.map(restaurant => {
-      let distance = null;
-      if (hasLocation && restaurant.latitude && restaurant.longitude) {
-        distance = calculateDistance(
-          Number(latitude),
-          Number(longitude),
-          restaurant.latitude,
-          restaurant.longitude
-        );
+      // Additional filtering in backend if needed (less performant but necessary if not in RPC)
+      if (cuisine) {
+        restaurants = restaurants.filter(r => r.cuisine && r.cuisine.toLowerCase().includes(cuisine.toLowerCase()));
+      }
+      if (priceRange) {
+        restaurants = restaurants.filter(r => r.price_range === priceRange);
+      }
+      if (offerTableToday === 'true') {
+        restaurants = restaurants.filter(r => r.offer_table_today === true);
       }
 
-      const ratings = (restaurant.ratings as unknown as { value: number }[]) || [];
-      const avgRating =
-        ratings.length > 0
-          ? ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length
-          : null;
+    } else if (searchTerm) {
+      // --- TEXT-BASED SEARCH (FALLBACK) ---
+      let query = supabase
+        .from('restaurants')
+        .select('*, ratings(value), favorites(user_id)')
+        .eq('is_active', true)
+        .eq('contract_status', 'ACTIVE')
+        .ilike('name', `%${searchTerm}%`);
 
-      const popularity = ((restaurant.favorites as unknown as any[]) || []).length;
+      if (cuisine) {
+        query = query.ilike('cuisine', `%${cuisine}%`);
+      }
+      if (priceRange) {
+        query = query.eq('price_range', priceRange);
+      }
+      if (offerTableToday === 'true') {
+        query = query.eq('offer_table_today', true);
+      }
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { ratings: _ratings, favorites: _favorites, ...rest } = restaurant;
+      const { data: textSearchData, error: textSearchError } = await query;
 
-      return {
-        ...rest,
-        avgRating,
-        popularity,
-        distance,
-        user: null,
-      };
-    });
+      if (textSearchError) {
+        console.error('Fehler bei Text-basierter Restaurantsuche:', JSON.stringify(textSearchError, null, 2));
+        throw textSearchError;
+      }
+      
+      // Process data to match the structure of the RPC call for consistency
+      restaurants = (textSearchData || []).map(restaurant => {
+          const ratings = (restaurant.ratings as unknown as { value: number }[]) || [];
+          const avgRating = ratings.length > 0 ? ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length : null;
+          const popularity = ((restaurant.favorites as unknown as any[]) || []).length;
+          const { ratings: _ratings, favorites: _favorites, ...rest } = restaurant;
+          return {
+              ...rest,
+              avg_rating: avgRating,
+              popularity,
+              distance_meters: null, // No distance for text search
+          };
+      });
 
-    let sortedRestaurants = [...processedRestaurants];
-    
-    if (sortBy === 'distance' && hasLocation) {
-      sortedRestaurants.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
-    } else if (sortBy === 'popularity') {
-      sortedRestaurants.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
-    } else if (sortBy === 'rating') {
-      sortedRestaurants.sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0));
+    } else {
+      return res.status(400).json({ message: 'Ein Suchbegriff oder ein Standort ist erforderlich.' });
     }
 
+    // --- SORTING ---
+    if (sortBy === 'distance' && hasLocation) {
+      restaurants.sort((a, b) => (a.distance_meters ?? Infinity) - (b.distance_meters ?? Infinity));
+    } else if (sortBy === 'popularity') {
+      restaurants.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+    } else if (sortBy === 'rating') {
+      restaurants.sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
+    }
+
+    // --- PAGINATION ---
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    const paginatedRestaurants = sortedRestaurants.slice(startIndex, endIndex);
+    const paginatedRestaurants = restaurants.slice(startIndex, endIndex);
 
     res.status(200).json({
       restaurants: paginatedRestaurants,
       pagination: {
-        totalResults: sortedRestaurants.length,
-        totalPages: Math.ceil(sortedRestaurants.length / limit),
+        totalResults: restaurants.length,
+        totalPages: Math.ceil(restaurants.length / limit),
         currentPage: page,
         resultsPerPage: limit
       },
-      filters: {
-        searchTerm: searchTerm || null, date: date || null, time: time || null, guests: guests || null, cuisine: cuisine || null, priceRange: priceRange || null, offerTableToday: offerTableToday === 'true' || false, sortBy
-      }
+      filters: { ...req.query }
     });
 
   } catch (e: any) {
     console.error('Unerwarteter Fehler in /api/restaurants/search:', e);
     res.status(500).json({
-      message: 'Interner Serverfehler',
-      error: {
-        message: e.message,
-        stack: e.stack,
-        details: e.details,
-        code: e.code
-      }
+      message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
+      error: process.env.NODE_ENV === 'development' ? { message: e.message, stack: e.stack } : {}
     });
   }
 }

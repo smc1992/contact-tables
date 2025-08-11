@@ -116,8 +116,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             <div className="flex items-center">
               <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md">
                 <FiStar className="text-yellow-500 mr-1" size={16} />
-                <span className="font-bold">{restaurant.avgRating.toFixed(1).replace('.', ',')}</span>
-                <span className="text-xs text-secondary-600 ml-1">({restaurant.totalRatings})</span>
+                {restaurant.avgRating && restaurant.avgRating > 0 ? (
+                  <>
+                    <span className="font-bold">{restaurant.avgRating.toFixed(1).replace('.', ',')}</span>
+                    <span className="text-xs text-secondary-600 ml-1">({restaurant.totalRatings})</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-secondary-600">Neu</span>
+                )}
               </div>
               
               {showDistance && restaurant.distance && (
