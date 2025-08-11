@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '../../../utils/supabase/server';
+import { RestaurantPageItem } from '../../../types/restaurants';
 
 export default async function handler(
   req: NextApiRequest,
@@ -47,13 +48,13 @@ export default async function handler(
 
       // Additional filtering in backend if needed (less performant but necessary if not in RPC)
       if (cuisine) {
-        restaurants = restaurants.filter(r => r.cuisine && r.cuisine.toLowerCase().includes(cuisine.toLowerCase()));
+        restaurants = restaurants.filter((r: RestaurantPageItem) => r.cuisine?.toLowerCase().includes((cuisine as string).toLowerCase()));
       }
       if (priceRange) {
-        restaurants = restaurants.filter(r => r.price_range === priceRange);
+                restaurants = restaurants.filter((r: RestaurantPageItem) => r.priceRange == priceRange);
       }
       if (offerTableToday === 'true') {
-        restaurants = restaurants.filter(r => r.offer_table_today === true);
+                restaurants = restaurants.filter((r: RestaurantPageItem) => r.offerTableToday === true);
       }
 
     } else if (searchTerm) {
