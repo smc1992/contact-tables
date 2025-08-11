@@ -51,10 +51,10 @@ export default async function handler(
         restaurants = restaurants.filter((r: RestaurantPageItem) => r.cuisine?.toLowerCase().includes((cuisine as string).toLowerCase()));
       }
       if (priceRange) {
-                restaurants = restaurants.filter((r: RestaurantPageItem) => r.priceRange == priceRange);
+                        restaurants = restaurants.filter((r: RestaurantPageItem) => r.price_range == priceRange);
       }
       if (offerTableToday === 'true') {
-                restaurants = restaurants.filter((r: RestaurantPageItem) => r.offerTableToday === true);
+                        restaurants = restaurants.filter((r: RestaurantPageItem) => r.offer_table_today === true);
       }
 
     } else if (searchTerm) {
@@ -103,11 +103,11 @@ export default async function handler(
 
     // --- SORTING ---
     if (sortBy === 'distance' && hasLocation) {
-      restaurants.sort((a, b) => (a.distance_meters ?? Infinity) - (b.distance_meters ?? Infinity));
+                  restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (a.distance_in_meters ?? Infinity) - (b.distance_in_meters ?? Infinity));
     } else if (sortBy === 'popularity') {
-      restaurants.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+                  restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (b.popularity ?? 0) - (a.popularity ?? 0));
     } else if (sortBy === 'rating') {
-      restaurants.sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
+            restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
     }
 
     // --- PAGINATION ---

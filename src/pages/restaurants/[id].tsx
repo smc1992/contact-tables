@@ -26,8 +26,8 @@ type RatingWithProfile = Rating & {
 interface RestaurantWithDetails extends Restaurant {
   ratings: RatingWithProfile[];
   events: Event[];
-  average_rating: number;
-  rating_count: number;
+  avg_rating: number;
+  total_ratings: number;
 }
 
 interface RestaurantDetailProps {
@@ -79,16 +79,16 @@ export default function RestaurantDetail({ restaurant, error }: RestaurantDetail
               <h2 className="text-2xl font-semibold mb-4">Bewertungen</h2>
               <div className="flex items-center mb-6">
                 <div className="bg-primary-100 text-primary-800 px-4 py-3 rounded-lg text-center mr-4">
-                  <div className="text-3xl font-bold">{restaurant.average_rating.toFixed(1)}</div>
+                                    <div className="text-3xl font-bold">{restaurant.avg_rating.toFixed(1)}</div>
                   <div className="text-sm">von 5</div>
                 </div>
                 <div>
                   <div className="text-yellow-500 flex mb-1">
                     {[...Array(5)].map((_, i) => (
-                      <FiStar key={i} className={`w-5 h-5 ${i < Math.round(restaurant.average_rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                                            <FiStar key={i} className={`w-5 h-5 ${i < Math.round(restaurant.avg_rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
                     ))}
                   </div>
-                  <p className="text-sm text-gray-600">Basierend auf {restaurant.rating_count} Bewertungen</p>
+                                    <p className="text-sm text-gray-600">Basierend auf {restaurant.total_ratings} Bewertungen</p>
                 </div>
               </div>
               
@@ -203,21 +203,25 @@ export const getServerSideProps: GetServerSideProps<RestaurantDetailProps> = asy
       .eq('restaurant_id', id);
     const ratings = (fetchedRatings as RatingWithProfile[]) || [];
     if (ratingsError) {
-        console.error(`Error fetching ratings for restaurant ${id}:`, ratingsError);
+      console.error(`Error fetching ratings for restaurant ${id}:`, ratingsError);
     }
 
-    const rating_count = ratings.length;
-    const average_rating = rating_count > 0 ? ratings.reduce((acc, r) => acc + r.rating, 0) / rating_count : 0;
+    const total_ratings = ratings.length;
+    const avg_rating = total_ratings > 0 ? ratings.reduce((acc, r) => acc + r.rating, 0) / total_ratings : 0;
 
-    const restaurantWithDetails: RestaurantWithDetails = {
+    const finalRestaurant: RestaurantWithDetails = {
       ...restaurant,
       ratings,
       events,
-      rating_count,
-      average_rating,
+      avg_rating,
+      total_ratings,
     };
 
-    return { props: { restaurant: restaurantWithDetails } };
+    return {
+      props: {
+        restaurant: finalRestaurant,
+      },
+    };
   } catch (error) {
     console.error(`Error fetching restaurant details for id: ${id}`, error);
     return { props: { restaurant: null, error: 'Ein unerwarteter Fehler ist aufgetreten.' } };

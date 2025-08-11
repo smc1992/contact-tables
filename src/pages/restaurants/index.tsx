@@ -217,18 +217,18 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
       }
 
     } else if (searchQuery) {
-      const { data, error } = await supabase
+            const { data, error } = await supabase
         .from('restaurants')
-        .select('*, ratings(value)')
+        .select('*')
         .textSearch('name', `'${searchQuery}'`);
       
       if (error) throw error;
       restaurantsData = data || [];
 
     } else {
-      const { data, error } = await supabase
+            const { data, error } = await supabase
         .from('restaurants')
-        .select('*, ratings(value)')
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -236,23 +236,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
       restaurantsData = data || [];
     }
 
-    const restaurants: RestaurantPageItem[] = restaurantsData.map((r: any) => ({
-      id: r.id,
-      name: r.name ?? 'Unbekanntes Restaurant',
-      description: r.description ?? 'Keine Beschreibung verfügbar.',
-      address: r.address ?? 'Keine Adresse',
-      city: r.city ?? 'Unbekannte Stadt',
-      postalCode: r.postal_code ?? r.postalCode ?? '',
-      cuisine: r.cuisine ?? 'Unbekannt',
-      imageUrl: r.image_url ?? r.imageUrl ?? '/images/placeholder-restaurant.webp',
-      capacity: r.capacity ?? 0,
-      offerTableToday: r.offer_table_today ?? r.offerTableToday ?? false,
-      priceRange: r.price_range ?? r.priceRange ?? 'N/A',
-      latitude: r.latitude ?? null,
-      longitude: r.longitude ?? null,
-      avgRating: r.avg_rating ?? (r.ratings ? r.ratings.reduce((acc: number, rating: { value: number }) => acc + rating.value, 0) / r.ratings.length : 0),
-      totalRatings: r.popularity ?? (r.ratings ? r.ratings.length : 0),
-    }));
+    const restaurants = restaurantsData;
 
     return { 
       props: { 

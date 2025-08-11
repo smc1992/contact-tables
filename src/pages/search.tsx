@@ -12,22 +12,7 @@ import { GetServerSideProps } from 'next';
 import { createClient as createServerClient } from '../utils/supabase/server';
 import prisma from '@/lib/prisma';
 
-interface Restaurant {
-  id: string;
-  name: string;
-  description: string;
-  address: string;
-  city: string;
-  imageUrl: string;
-  cuisine: string;
-  capacity: number;
-  avgRating: number;
-  totalRatings: number;
-  distance?: number;
-  offerTableToday?: boolean;
-  latitude?: number;
-  longitude?: number;
-}
+import { RestaurantPageItem } from '../types/restaurants';
 
 interface SearchPageProps {
   initialFavorites: string[];
@@ -38,7 +23,7 @@ export default function SearchPage({ initialFavorites }: SearchPageProps) {
   const supabase = createClient();
   const { q: searchQuery, date, time, guests, lat, lng } = router.query;
   
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+    const [restaurants, setRestaurants] = useState<RestaurantPageItem[]>([]);
   const [searchTerm, setSearchTerm] = useState(searchQuery as string || '');
   const [selectedDate, setSelectedDate] = useState(date as string || new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState(time as string || '19:00');

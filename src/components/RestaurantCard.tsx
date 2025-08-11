@@ -1,25 +1,13 @@
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
+import { RestaurantPageItem } from '../types/restaurants';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { FiStar, FiMapPin, FiUsers, FiClock, FiHeart } from 'react-icons/fi';
 import { userApi } from '../utils/api';
 
 export interface RestaurantCardProps {
-  restaurant: {
-    id: string;
-    name: string;
-    description: string;
-    address: string;
-    city: string;
-    imageUrl: string;
-    cuisine: string;
-    capacity: number;
-    avgRating: number;
-    totalRatings: number;
-    distance?: number;
-    offerTableToday?: boolean;
-  };
+  restaurant: RestaurantPageItem;
   isFavorite?: boolean;
   onFavoriteToggle?: (id: string, isFavorite: boolean) => void;
   showDistance?: boolean;
@@ -29,7 +17,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   restaurant,
   isFavorite = false,
   onFavoriteToggle,
-  showDistance = false
+  showDistance = false,
 }) => {
   const [favorite, setFavorite] = React.useState(isFavorite);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -42,15 +30,15 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
     try {
       setIsLoading(true);
-      
+
       if (favorite) {
         await userApi.removeFavorite(restaurant.id);
       } else {
         await userApi.addFavorite(restaurant.id);
       }
-      
+
       setFavorite(!favorite);
-      
+
       if (onFavoriteToggle) {
         onFavoriteToggle(restaurant.id, !favorite);
       }
@@ -64,12 +52,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   // Formatiere die Entfernung
   const formatDistance = (distance?: number) => {
     if (!distance) return null;
-    
+
     if (distance < 1) {
       return `${Math.round(distance * 1000)} m`;
     }
     return `${distance.toFixed(1).replace('.', ',')} km`;
   };
+
+  const { id, name, cuisine, city, avg_rating, total_ratings, image_url, distance_in_meters } = restaurant;
 
   return (
     <motion.div
@@ -79,18 +69,18 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       transition={{ duration: 0.3 }}
       className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-neutral-200 h-full flex flex-col"
     >
-      <Link href={`/restaurants/${restaurant.id}`} className="block h-full">
+      <Link href={`/restaurants/${id}`} className="block h-full">
         <div className="relative">
           <div className="h-48 w-full relative">
             <Image
-              src={restaurant.imageUrl || '/images/logo.svg'}
-              alt={restaurant.name}
+              src={image_url || '/images/logo.svg'}
+                            alt={name || 'Restaurant'}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover"
             />
           </div>
-          
+
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
@@ -100,55 +90,52 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             } shadow-md z-10`}
             disabled={isLoading}
           >
-            <FiHeart 
-              size={20} 
-              className={favorite ? 'fill-white' : ''} 
-            />
+            <FiHeart size={20} className={favorite ? 'fill-white' : ''} />
           </motion.button>
-          
-          {restaurant.offerTableToday && (
+
+                    {restaurant.offer_table_today && (
             <div className="absolute top-3 left-3 bg-primary-500 text-secondary-900 px-3 py-1 rounded-full text-sm font-bold shadow-md">
               Heute verfügbar
             </div>
           )}
-          
+
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
             <div className="flex items-center">
               <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md">
                 <FiStar className="text-yellow-500 mr-1" size={16} />
-                {restaurant.avgRating && restaurant.avgRating > 0 ? (
+                {avg_rating && avg_rating > 0 ? (
                   <>
-                    <span className="font-bold">{restaurant.avgRating.toFixed(1).replace('.', ',')}</span>
-                    <span className="text-xs text-secondary-600 ml-1">({restaurant.totalRatings})</span>
+                    <span className="font-bold">{avg_rating.toFixed(1).replace('.', ',')}</span>
+                    <span className="text-xs text-secondary-600 ml-1">({total_ratings})</span>
                   </>
                 ) : (
                   <span className="text-sm text-secondary-600">Neu</span>
                 )}
               </div>
-              
-              {showDistance && restaurant.distance && (
+
+              {showDistance && distance_in_meters != null && (
                 <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md ml-2">
                   <FiMapPin className="text-primary-500 mr-1" size={16} />
-                  <span className="font-bold text-sm">{formatDistance(restaurant.distance)}</span>
+                  <span className="font-bold text-sm">{formatDistance(distance_in_meters / 1000)}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
-        
+
         <div className="p-4 flex-grow">
           <div className="flex items-start justify-between">
-            <h3 className="text-xl font-bold text-secondary-800 mb-1 line-clamp-1">{restaurant.name}</h3>
+            <h3 className="text-lg font-bold text-gray-800 truncate">{name}</h3>
           </div>
-          
+
           <div className="flex items-center text-secondary-600 mb-2">
             <FiMapPin size={16} className="mr-1 flex-shrink-0" />
-            <span className="text-sm line-clamp-1">{restaurant.address}, {restaurant.city}</span>
+            <p className="text-sm text-gray-500">{cuisine} • {city}</p>
           </div>
-          
+
           <div className="flex flex-wrap gap-2 mb-3">
             <span className="bg-neutral-100 text-secondary-700 px-2 py-1 rounded-md text-xs font-medium">
-              {restaurant.cuisine}
+              {cuisine}
             </span>
             <span className="bg-neutral-100 text-secondary-700 px-2 py-1 rounded-md text-xs font-medium flex items-center">
               <FiUsers size={14} className="mr-1" />
