@@ -59,7 +59,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
     return `${distance.toFixed(1).replace('.', ',')} km`;
   };
 
-  const { id, name, cuisine, city, avg_rating, total_ratings, image_url, distance_in_meters } = restaurant;
+  const { id, slug, name, cuisine, city, avg_rating, total_ratings, image_url, distance_in_meters } = restaurant;
 
   return (
     <motion.div
@@ -69,7 +69,9 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       transition={{ duration: 0.3 }}
       className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-neutral-200 h-full flex flex-col"
     >
-      <Link href={`/restaurants/${id}`} className="block h-full">
+      {slug ? (
+        <Link href={`/restaurants/${slug}`} className="block h-full">
+          <>
         <div className="relative">
           <div className="h-48 w-full relative">
             <Image
@@ -156,7 +158,64 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             Tisch anfragen
           </motion.div>
         </div>
-      </Link>
+          </>
+        </Link>
+      ) : (
+        <div className="block h-full">
+          {/* Render non-clickable card content if no slug */}
+          <div className="relative">
+            <div className="h-48 w-full relative">
+              <Image
+                src={image_url || '/images/logo.svg'}
+                alt={name || 'Restaurant'}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className="object-cover"
+              />
+            </div>
+            {restaurant.offer_table_today && (
+              <div className="absolute top-3 left-3 bg-primary-500 text-secondary-900 px-3 py-1 rounded-full text-sm font-bold shadow-md">
+                Heute verfügbar
+              </div>
+            )}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+              <div className="flex items-center">
+                <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md">
+                  <FiStar className="text-yellow-500 mr-1" size={16} />
+                  {avg_rating && avg_rating > 0 ? (
+                    <>
+                      <span className="font-bold">{avg_rating.toFixed(1).replace('.', ',')}</span>
+                      <span className="text-xs text-secondary-600 ml-1">({total_ratings})</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-secondary-600">Neu</span>
+                  )}
+                </div>
+                {showDistance && distance_in_meters != null && (
+                  <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md ml-2">
+                    <FiMapPin className="text-primary-500 mr-1" size={16} />
+                    <span className="font-bold text-sm">{formatDistance(distance_in_meters / 1000)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="p-4 flex-grow">
+            <h3 className="text-lg font-bold text-gray-800 truncate">{name}</h3>
+            <div className="flex items-center text-secondary-600 mb-2">
+              <FiMapPin size={16} className="mr-1 flex-shrink-0" />
+              <p className="text-sm text-gray-500">{cuisine} • {city}</p>
+            </div>
+            <p className="text-secondary-600 text-sm line-clamp-2 mb-3">{restaurant.description}</p>
+          </div>
+          <div className="p-4 pt-0 mt-auto">
+            <div className="bg-gray-200 text-gray-500 font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+              <FiClock className="mr-2" size={18} />
+              Details nicht verfügbar
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

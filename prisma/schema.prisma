@@ -97,6 +97,7 @@ model Restaurant {
   userId                 String         @unique @db.Uuid // Foreign key to Profile.id (which is auth.users.id)
   profile                Profile        @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                   String
+  slug               String?         @unique
   address                String?
   postal_code            String?
   city                   String?

@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { createUniqueSlug } from '../../../utils/slugify';
 import { createClient } from '@/utils/supabase/server';
 import prisma from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
@@ -61,9 +62,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ message: 'An error occurred during address verification.' });
     }
 
+        const slug = await createUniqueSlug(name);
+
     const restaurant = await prisma.restaurant.create({
       data: {
-        userId: user.id,
+                userId: user.id,
+        slug,
         name,
         email,
         phone,

@@ -32,10 +32,7 @@ export default function RestaurantRegister() {
       const data = await response.json();
 
       if (response.ok) {
-        setStatus({ type: 'success', message: 'Registrierung erfolgreich!' });
-        setTimeout(() => {
-          window.location.href = '/restaurant-login';
-        }, 2000);
+        setStatus({ type: 'success', message: 'Registrierung erfolgreich! Bitte überprüfen Sie Ihr E-Mail-Postfach, um Ihr Konto zu bestätigen.' });
       } else {
         setStatus({ type: 'error', message: data.message || 'Ein Fehler ist aufgetreten' });
       }

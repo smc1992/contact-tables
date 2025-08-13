@@ -82,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Use the user-context client to respect RLS
         const { data: restaurant, error: ownerError } = await supabase
             .from('restaurants')
-            .select('id')
+            .select('id, image_url')
             .eq('id', restaurantId)
             .single();
 
@@ -93,6 +93,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         log('Ownership verified.');
 
         const uploadedImages = [];
+        let primaryImageSetInThisBatch = false;
+        const hasPrimaryImageAlready = !!restaurant.image_url;
         
         for (const file of imageFiles) {
             log(`Processing file: ${file.originalFilename}`);
@@ -120,7 +122,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 .getPublicUrl(filePath);
             log(`Public URL: ${publicUrlData.publicUrl}`);
 
-            log('Inserting DB record...');
+            const isPrimary = !hasPrimaryImageAlready && !primaryImageSetInThisBatch;
+
+            log(`Inserting DB record for ${file.originalFilename}. Is primary: ${isPrimary}`);
             const { data: newImage, error: dbError } = await supabaseAdmin
                 .from('restaurant_images')
                 .insert({
@@ -128,7 +132,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     public_id: fileId,
                     restaurant_id: restaurantId,
                     url: publicUrlData.publicUrl,
-                    is_primary: false,
+                    is_primary: isPrimary,
                 })
                 .select()
                 .single();
@@ -139,6 +143,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 throw new Error(`Database insert failed for file ${file.originalFilename}: ${dbError.message}`);
             }
             log('DB insert successful.');
+
+            // If this is the primary image, update the main restaurant record
+            if (isPrimary) {
+                log(`This is the primary image. Updating restaurant table for ID: ${restaurantId}`);
+                const { error: updateError } = await supabaseAdmin
+                    .from('restaurants')
+                    .update({
+                        image_url: publicUrlData.publicUrl,
+                        is_visible: true,
+                    })
+                    .eq('id', restaurantId);
+
+                if (updateError) {
+                    log(`CRITICAL ERROR: Failed to update restaurant's primary image URL. Error: ${updateError.message}`);
+                    // We will not throw an error here to allow other images to process, but this is a serious issue.
+                } else {
+                    primaryImageSetInThisBatch = true;
+                    log('Restaurant table updated with new primary image URL and visibility.');
+                }
+            }
+
             uploadedImages.push(newImage);
         }
 

@@ -103,17 +103,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const isFirstImage: boolean = restaurant.images.length === 0 && uploadedImages.length === 0;
+        const shouldSetAsPrimary = isFirstImage || !restaurant.imageUrl;
 
         const image = await prisma.restaurantImage.create({
           data: {
             url: uploadResult.secure_url,
             publicId: uploadResult.public_id,
             restaurantId,
-            isPrimary: isFirstImage,
+            isPrimary: shouldSetAsPrimary,
           },
         });
 
-        if (isFirstImage) {
+        if (shouldSetAsPrimary) {
           await prisma.restaurant.update({
             where: { id: restaurantId },
             data: { imageUrl: uploadResult.secure_url },

@@ -1,5 +1,6 @@
 export interface RestaurantPageItem {
   id: string;
+  slug: string | null;
   name: string | null;
   description: string | null;
   address: string | null;

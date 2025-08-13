@@ -77,7 +77,7 @@ export default function RegisterPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user.user_metadata.role === 'CUSTOMER') {
         // Leitet zur Startseite weiter, die Middleware kümmert sich um den Rest
-        router.push('/'); 
+        router.push('/customer/dashboard'); 
       }
     });
 

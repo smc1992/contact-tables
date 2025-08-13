@@ -1,6 +1,8 @@
 import { useRouter } from 'next/router';
 import { useState, useEffect, useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
+import { GetServerSideProps } from 'next';
+import { PrismaClient } from '@prisma/client';
 import { FiSearch, FiCoffee, FiUsers, FiCalendar, FiMapPin, FiStar, FiInfo, FiHeart, FiGlobe, FiCheck, FiArrowRight, FiHelpCircle } from 'react-icons/fi';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -65,7 +67,40 @@ const LanguageSlider = () => {
   );
 };
 
-export default function Home() {
+const prisma = new PrismaClient();
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const fallbackValues = { memberCount: 15, restaurantCount: 5 };
+
+  try {
+    const memberCount = await prisma.profile.count({
+      where: {
+        role: 'CUSTOMER',
+      },
+    });
+
+    const restaurantCount = await prisma.restaurant.count({
+      where: {
+        isVisible: true,
+      },
+    });
+
+    return {
+      props: {
+        memberCount: memberCount > 0 ? memberCount : fallbackValues.memberCount,
+        restaurantCount: restaurantCount > 0 ? restaurantCount : fallbackValues.restaurantCount,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching stats for homepage:", error);
+    // Fallback values in case of a database error
+    return {
+      props: fallbackValues,
+    };
+  }
+};
+
+export default function Home({ memberCount, restaurantCount }: { memberCount: number, restaurantCount: number }) {
   const router = useRouter();
   const { session, user, loading } = useAuth();
   const [popularRestaurants, setPopularRestaurants] = useState([]);
@@ -420,7 +455,7 @@ export default function Home() {
               transition={{ duration: 0.5, delay: 0.0 }}
               className="bg-white p-8 rounded-xl shadow-md text-center"
             >
-              <div className="text-4xl font-bold text-primary-600 mb-2">1.200+</div>
+              <div className="text-4xl font-bold text-primary-600 mb-2">{memberCount}+</div>
               <div className="text-gray-600">Aktive Mitglieder</div>
             </motion.div>
             
@@ -431,7 +466,7 @@ export default function Home() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="bg-white p-8 rounded-xl shadow-md text-center"
             >
-              <div className="text-4xl font-bold text-primary-600 mb-2">320+</div>
+              <div className="text-4xl font-bold text-primary-600 mb-2">{restaurantCount}+</div>
               <div className="text-gray-600">Teilnehmende Restaurants</div>
             </motion.div>
           </div>

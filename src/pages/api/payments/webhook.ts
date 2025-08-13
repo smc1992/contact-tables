@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import { createUniqueSlug } from '../../../utils/slugify';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
 import { PrismaClient } from '@prisma/client';
@@ -130,20 +131,32 @@ export default async function handler(
               console.warn(`⚠️ No address in metadata for user ${userId}. Cannot geocode.`);
             }
 
-            await prisma.restaurant.create({
-              data: {
-                name: name || `Restaurant von ${user.name || 'Benutzer'}`,
-                description: 'Bitte vervollständigen Sie Ihr Profil.',
-                address: address || '',
-                phone: phone || '',
-                email: session.customer_details?.email || '',
-                isVisible: true, // Set to visible by default
-                contractStatus: 'ACTIVE',
-                profile: { connect: { id: userId } },
-                latitude,
-                longitude,
-              },
-            });
+            if (session.metadata && session.metadata.userId && session.metadata.restaurantName) {
+              const slug = await createUniqueSlug(session.metadata.restaurantName);
+
+              await prisma.restaurant.create({
+                data: {
+                  userId: session.metadata.userId,
+                  name: session.metadata.restaurantName,
+                  slug,
+                  description: 'Bitte vervollständigen Sie Ihr Profil.',
+                  address: address || '',
+                  phone: phone || '',
+                  email: session.customer_details?.email || '',
+                  isVisible: true,
+                  contractStatus: 'ACTIVE',
+                  latitude: latitude, 
+                  longitude: longitude,
+                },
+              });
+
+              await prisma.profile.update({
+                where: { id: session.metadata.userId },
+                                data: { role: 'RESTAURANT' },
+              });
+            } else {
+              console.error('Stripe session metadata is missing required fields (userId, restaurantName).');
+            }
           }
         }
         break;

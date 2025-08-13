@@ -1,4 +1,3 @@
--- Baseline migration after prisma db push
 -- CreateEnum
 CREATE TYPE "public"."UserRole" AS ENUM ('CUSTOMER', 'RESTAURANT', 'ADMIN');
 
@@ -24,6 +23,8 @@ CREATE TABLE "public"."profiles" (
     "language_code" TEXT DEFAULT 'DE',
     "is_paying" BOOLEAN DEFAULT false,
     "stripe_customer_id" TEXT,
+    "role" "public"."UserRole" NOT NULL DEFAULT 'CUSTOMER',
+    "stripe_subscription_id" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -32,13 +33,14 @@ CREATE TABLE "public"."profiles" (
 
 -- CreateTable
 CREATE TABLE "public"."restaurants" (
-    "id" TEXT NOT NULL,
+    "id" UUID NOT NULL,
     "userId" UUID NOT NULL,
     "name" TEXT NOT NULL,
-    "address" TEXT NOT NULL,
-    "city" TEXT NOT NULL,
+    "slug" TEXT,
+    "address" TEXT,
     "postal_code" TEXT,
-    "country" TEXT NOT NULL,
+    "city" TEXT,
+    "country" TEXT,
     "description" TEXT,
     "booking_url" TEXT,
     "image_url" TEXT,
@@ -62,6 +64,8 @@ CREATE TABLE "public"."restaurants" (
     "contract_token" TEXT,
     "contract_token_expires_at" TIMESTAMP(3),
     "contract_accepted_at" TIMESTAMP(3),
+    "notification_settings" JSONB,
+    "privacy_settings" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -76,7 +80,9 @@ CREATE TABLE "public"."contact_tables" (
     "datetime" TIMESTAMP(3) NOT NULL,
     "max_participants" INTEGER NOT NULL,
     "price" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "restaurant_id" TEXT NOT NULL,
+    "restaurant_id" UUID NOT NULL,
+    "status" "public"."EventStatus" NOT NULL DEFAULT 'OPEN',
+    "is_public" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -106,7 +112,7 @@ CREATE TABLE "public"."Invoice" (
     "stripe_invoice_id" TEXT NOT NULL,
     "download_url" TEXT NOT NULL,
     "user_id" UUID,
-    "restaurant_id" TEXT,
+    "restaurant_id" UUID,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -114,21 +120,35 @@ CREATE TABLE "public"."Invoice" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."RestaurantImage" (
+CREATE TABLE "public"."restaurant_images" (
     "id" TEXT NOT NULL,
-    "restaurant_id" TEXT NOT NULL,
+    "restaurant_id" UUID NOT NULL,
     "url" TEXT NOT NULL,
+    "public_id" TEXT NOT NULL,
     "is_primary" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "restaurant_images_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."documents" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "storage_path" TEXT NOT NULL,
+    "file_type" TEXT NOT NULL,
+    "file_size" INTEGER NOT NULL,
+    "restaurant_id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "RestaurantImage_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "documents_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "public"."Contract" (
     "id" TEXT NOT NULL,
-    "restaurant_id" TEXT NOT NULL,
+    "restaurant_id" UUID NOT NULL,
     "status" "public"."ContractStatus" NOT NULL,
     "start_date" TIMESTAMP(3) NOT NULL,
     "trial_end_date" TIMESTAMP(3),
@@ -185,7 +205,7 @@ CREATE TABLE "public"."CmsSection" (
 CREATE TABLE "public"."favorites" (
     "id" TEXT NOT NULL,
     "user_id" UUID NOT NULL,
-    "event_id" TEXT NOT NULL,
+    "restaurant_id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -198,7 +218,7 @@ CREATE TABLE "public"."ratings" (
     "value" INTEGER NOT NULL DEFAULT 0,
     "comment" TEXT,
     "user_id" UUID NOT NULL,
-    "event_id" TEXT NOT NULL,
+    "restaurant_id" UUID NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -261,7 +281,13 @@ CREATE TABLE "public"."admins" (
 CREATE UNIQUE INDEX "profiles_stripe_customer_id_key" ON "public"."profiles"("stripe_customer_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "profiles_stripe_subscription_id_key" ON "public"."profiles"("stripe_subscription_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "restaurants_userId_key" ON "public"."restaurants"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "restaurants_slug_key" ON "public"."restaurants"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "restaurants_contract_token_key" ON "public"."restaurants"("contract_token");
@@ -282,10 +308,10 @@ CREATE UNIQUE INDEX "Translation_key_language_code_key" ON "public"."Translation
 CREATE UNIQUE INDEX "CmsSection_key_language_code_key" ON "public"."CmsSection"("key", "language_code");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "favorites_user_id_event_id_key" ON "public"."favorites"("user_id", "event_id");
+CREATE UNIQUE INDEX "favorites_user_id_restaurant_id_key" ON "public"."favorites"("user_id", "restaurant_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ratings_user_id_event_id_key" ON "public"."ratings"("user_id", "event_id");
+CREATE UNIQUE INDEX "ratings_user_id_restaurant_id_key" ON "public"."ratings"("user_id", "restaurant_id");
 
 -- CreateIndex
 CREATE INDEX "notifications_user_id_is_read_idx" ON "public"."notifications"("user_id", "is_read");
@@ -312,7 +338,10 @@ ALTER TABLE "public"."Invoice" ADD CONSTRAINT "Invoice_user_id_fkey" FOREIGN KEY
 ALTER TABLE "public"."Invoice" ADD CONSTRAINT "Invoice_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."RestaurantImage" ADD CONSTRAINT "RestaurantImage_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."restaurant_images" ADD CONSTRAINT "restaurant_images_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."documents" ADD CONSTRAINT "documents_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Contract" ADD CONSTRAINT "Contract_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -321,13 +350,13 @@ ALTER TABLE "public"."Contract" ADD CONSTRAINT "Contract_restaurant_id_fkey" FOR
 ALTER TABLE "public"."favorites" ADD CONSTRAINT "favorites_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."favorites" ADD CONSTRAINT "favorites_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."contact_tables"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."favorites" ADD CONSTRAINT "favorites_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."ratings" ADD CONSTRAINT "ratings_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."ratings" ADD CONSTRAINT "ratings_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "public"."contact_tables"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."ratings" ADD CONSTRAINT "ratings_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "public"."restaurants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;

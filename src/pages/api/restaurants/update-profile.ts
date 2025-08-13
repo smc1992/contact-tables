@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '../../../utils/supabase/server';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
 
@@ -74,6 +75,54 @@ export default async function handler(
       return res.status(400).json({ message: 'Bitte füllen Sie alle Pflichtfelder aus' });
     }
 
+    // Lade das aktuelle Restaurant, um die Adresse zu vergleichen
+    const currentRestaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!currentRestaurant) {
+      return res.status(404).json({ message: 'Restaurant nicht gefunden' });
+    }
+
+    // Prüfen, ob sich die Adresse geändert hat
+    const addressHasChanged = 
+      currentRestaurant.address !== address ||
+      currentRestaurant.city !== city ||
+      currentRestaurant.postal_code !== postalCode ||
+      currentRestaurant.country !== country;
+
+    let newCoords: { latitude: number | null; longitude: number | null } = {
+      latitude: currentRestaurant.latitude,
+      longitude: currentRestaurant.longitude,
+    };
+
+    if (addressHasChanged) {
+      // Adresse hat sich geändert, führe Geocoding durch
+      const fullAddress = `${address}, ${postalCode} ${city}, ${country}`;
+      try {
+        const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+          params: {
+            q: fullAddress,
+            format: 'json',
+            limit: 1,
+          },
+          headers: {
+            'User-Agent': 'Contact-Tables-App/1.0'
+          }
+        });
+
+        if (response.data && response.data.length > 0) {
+          newCoords.latitude = parseFloat(response.data[0].lat);
+          newCoords.longitude = parseFloat(response.data[0].lon);
+        }
+      } catch (geoError) {
+        console.error('Fehler beim Geocoding:', geoError);
+        // Fahre fort, ohne die Koordinaten zu aktualisieren, oder setze sie auf null
+        newCoords.latitude = null;
+        newCoords.longitude = null;
+      }
+    }
+
     // Restaurant-Profil aktualisieren
     const updatedRestaurant = await prisma.restaurant.update({
       where: { id: restaurantId },
@@ -96,7 +145,9 @@ export default async function handler(
         coverImage,
         logoImage,
         menuUrl,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        latitude: newCoords.latitude,
+        longitude: newCoords.longitude
       }
     });
 
