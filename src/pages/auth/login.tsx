@@ -14,7 +14,6 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 // Framer Motion entfernt, um history.replaceState()-Fehler zu beheben
 import { FiLogIn, FiMail } from 'react-icons/fi';
-import { FcGoogle } from 'react-icons/fc';
 // Direkte Verwendung der Supabase-Funktionen
 import { supabase, auth } from '../../utils/supabase';
 import PasswordInput from '../../components/PasswordInput';
@@ -242,43 +241,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsSubmitting(true);
-    try {
-      sessionStorage.setItem('preferredUserType', loginUserTypeSelection);
-      
-      const options: { redirectTo?: string } = {};
-      if (isValidCallbackUrl(callbackUrl)) {
-        // Supabase erwartet eine absolute URL für redirectTo in OAuth
-        options.redirectTo = new URL(callbackUrl as string, window.location.origin).toString();
-      } else {
-        // Fallback: Supabase leitet zur Standard-SITE_URL oder was auch immer konfiguriert ist.
-        // Alternativ könnte man hier eine Standard-Dashboard-URL basierend auf userType konstruieren,
-        // aber die Rolle ist erst nach dem Login bekannt.
-        // Wenn redirectTo nicht gesetzt ist, verwendet Supabase die in den Supabase-Projekteinstellungen
-        // konfigurierte(n) Redirect-URL(s).
-      }
-
-      const { error: googleError } = await auth.signInWithGoogle(options);
-      
-      if (googleError) {
-        console.error('Google Sign-In error:', googleError);
-        setError(`Fehler bei der Google-Anmeldung: ${googleError.message}`);
-        // setIsSubmitting(false) wird hier nicht gesetzt, da bei Erfolg eine Weiterleitung erfolgt
-      }
-    } catch (e: any) {
-      console.error('Google Sign-In error:', e);
-      setError(`Ein Fehler ist aufgetreten: ${e.message || 'Unbekannter Fehler'}`);
-    } finally {
-      // setIsSubmitting wird nur im Fehlerfall oder wenn keine Weiterleitung erfolgt, zurückgesetzt
-      // Da signInWithGoogle bei Erfolg immer weiterleitet, ist es hier knifflig.
-      // Man könnte es weglassen oder eine komplexere Logik einbauen, falls die Weiterleitung fehlschlägt, ohne einen Fehler zu werfen.
-      // Für den Moment lassen wir es so, da der Fehlerfall oben abgedeckt ist.
-      // Wenn kein Fehler auftritt, wird die Seite ohnehin verlassen.
-      // setIsSubmitting(false); // Vorerst auskommentiert, da Weiterleitung erwartet wird
-    }
-  };
-
 
   
   return (
@@ -384,28 +346,6 @@ export default function LoginPage() {
                 </span>
                 {isSubmitting ? 'Anmeldung läuft...' : 'Anmelden'}
               </button>
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">Oder anmelden mit</span>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={isSubmitting}
-                    className="group relative w-full flex justify-center py-3 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FcGoogle className="h-5 w-5 mr-2" />
-                    Mit Google anmelden
-                  </button>
-                </div>
-              </div>
             </div>
           </form>
         </div>
