@@ -126,7 +126,7 @@ Wenn sich jemand unwohl fühlt oder es Probleme gibt, ist es völlig in Ordnung,
   {
     category: 'users',
     question: 'Was, wenn ich dort sitze und niemand kommt?',
-    answer: 'Das kann passieren – gerade in der Startphase der contact-tables, wenn die Idee noch dabei ist, bekannter zu werden. Du triffst natürlich oft jemand vorbei, der schaut. Vielleicht ergibt sich trotzdem ein schöner Austausch mit dem Personal oder Du genießt einfach den Moment mit Dir selbst. Je mehr Menschen von contact-tables erfahren und mitmachen, desto lebendiger und beliebter werden die Tische – also erzähl’s gerne weiter!'
+    answer: 'Das kann passieren – gerade in der Startphase der Contact-tables, wenn die Idee noch dabei ist, richtig bekannt zu werden. Wir hoffen natürlich, dass immer jemand vorbeischaut. Vielleicht ergibt sich trotzdem ein schöner Austausch mit dem Personal oder Du genießt einfach den Moment mit Dir selbst. Je mehr Menschen von Contact-tables erfahren und mitmachen, desto lebendiger und schöner werden die Tische – also erzähl\'s gerne weiter!'
   },
   {
     category: 'users',
@@ -156,7 +156,7 @@ Wenn sich jemand unwohl fühlt oder es Probleme gibt, ist es völlig in Ordnung,
   {
     category: 'restaurants',
     question: 'Welche Vorteile hat mein Restaurant durch Contact Tables?',
-    answer: 'Als teilnehmendes Restaurant profitierst du von zusätzlichen Gästen, besonders zu weniger ausgelasteten Zeiten, erhöhter Sichtbarkeit durch unsere Plattform und einem positiven Image als sozial engagiertes Unternehmen, das gegen Einsamkeit aktiv wird. Viele unserer Partnerrestaurants berichten auch von einer besonderen Atmosphäre, die durch die contact-tables entsteht, und von Stammgästen, die durch diese Initiative gewonnen wurden.'
+    answer: 'Als teilnehmendes Restaurant profitierst du von zusätzlichen Gästen, besonders zu weniger ausgelasteten Zeiten, erhöhter Sichtbarkeit durch unsere Plattform und einem positiven Image als sozial engagiertes Unternehmen, das gegen Einsamkeit aktiv wird. Unsere ersten Partnerrestaurants berichten bereits von einer besonderen Atmosphäre, die durch die contact-tables entsteht, und von neuen Gästen, die durch diese Initiative gewonnen werden können.'
   },
   {
     category: 'restaurants',
@@ -222,11 +222,6 @@ Wenn sich jemand unwohl fühlt oder es Probleme gibt, ist es völlig in Ordnung,
     category: 'community',
     question: 'Wie kann ich mich in die Community einbringen?',
     answer: 'Es gibt verschiedene Möglichkeiten, sich zu engagieren: Du kannst regelmäßig contact-tables hosten, an unseren Community-Events teilnehmen, in unserem Forum aktiv sein oder als Botschafter für contact-tables in deiner Stadt fungieren. Wir freuen uns immer über engagierte Mitglieder, die unsere Vision teilen. Kontaktiere uns einfach, wenn du Ideen oder Vorschläge hast.'
-  },
-  {
-    category: 'community',
-    question: 'Gibt es Erfolgsgeschichten von contact-tables?',
-    answer: 'Ja, wir haben viele schöne Geschichten von Menschen, die durch contact-tables neue Freundschaften geschlossen, Gleichgesinnte gefunden oder sogar ihre Partner kennengelernt haben. Einige dieser Geschichten teilen wir mit Erlaubnis der Beteiligten auf unserer Website. Wenn du selbst eine positive Erfahrung gemacht hast, freuen wir uns, wenn du sie mit uns teilst.'
   },
   {
     category: 'general',

@@ -366,7 +366,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-primary-500 text-white font-medium py-3 px-8 rounded-full shadow-md inline-flex items-center"
-                onClick={() => router.push('/restaurants')}
+                onClick={() => router.push('/faq')}
               >
                 Häufige Fragen <FiHelpCircle className="ml-2" />
               </motion.button>

@@ -106,6 +106,22 @@ export default function Footer() {
                   <span>Nachricht absenden</span>
                 </Link>
               </li>
+              <li className="group">
+                <a href="https://www.facebook.com/contacttables/" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 text-neutral-400 hover:text-primary-400 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-neutral-800 group-hover:bg-primary-700 flex items-center justify-center transition-all duration-300">
+                    <FaFacebookF size={16} />
+                  </div>
+                  <span>Facebook</span>
+                </a>
+              </li>
+              <li className="group">
+                <a href="https://www.instagram.com/contacttables/" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-3 text-neutral-400 hover:text-primary-400 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-neutral-800 group-hover:bg-primary-700 flex items-center justify-center transition-all duration-300">
+                    <FaInstagram size={16} />
+                  </div>
+                  <span>Instagram</span>
+                </a>
+              </li>
             </ul>
           </div>
         </div>

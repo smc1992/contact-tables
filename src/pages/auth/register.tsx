@@ -6,6 +6,7 @@ import Footer from '../../components/Footer';
 import { motion } from 'framer-motion';
 import { FiUserPlus, FiMail, FiLock, FiUser } from 'react-icons/fi';
 import { createBrowserClient } from '@supabase/ssr';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -149,18 +150,18 @@ export default function RegisterPage() {
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FiLock className="h-5 w-5 text-gray-400" />
                   </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                    placeholder="Passwort (mindestens 6 Zeichen)"
-                  />
+                  <div className="pl-10">
+                    <PasswordInput
+                      id="password"
+                      name="password"
+                      autoComplete="new-password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="appearance-none relative block w-full border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                      placeholder="Passwort (mindestens 6 Zeichen)"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

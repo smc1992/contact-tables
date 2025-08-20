@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { FiCheck, FiAlertCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiTag, FiUsers, FiClock } from 'react-icons/fi';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
+import PasswordInput from '../../components/PasswordInput';
 
 interface FormData {
   name: string;
@@ -233,12 +234,10 @@ export default function RestaurantRegister() {
                       <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                         Passwort *
                       </label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         id="password"
                         name="password"
                         required
-                        minLength={8}
                         value={formData.password}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -250,8 +249,7 @@ export default function RestaurantRegister() {
                       <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                         Passwort bestätigen *
                       </label>
-                      <input
-                        type="password"
+                      <PasswordInput
                         id="confirmPassword"
                         name="confirmPassword"
                         required

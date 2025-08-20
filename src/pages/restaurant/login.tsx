@@ -6,6 +6,7 @@ import { FiAlertCircle, FiLogIn, FiMail, FiLock } from 'react-icons/fi';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { supabase, auth } from '../../utils/supabase';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function RestaurantLogin() {
   const [email, setEmail] = useState('');
@@ -120,16 +121,17 @@ export default function RestaurantLogin() {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FiLock className="text-gray-400" />
                 </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                />
+                <div className="pl-10">
+                  <PasswordInput
+                    id="password"
+                    name="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
               </div>
               <div className="text-right mt-2">
                 <Link href="/restaurant/reset-password" className="text-sm text-primary-600 hover:text-primary-500">
