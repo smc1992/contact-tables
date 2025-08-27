@@ -133,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     resetPassword: async (email: string) => {
       try {
         const result = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
+          redirectTo: `https://contact-tables.org/auth/reset-password`,
         });
         return { data: result.data, error: result.error };
       } catch (error) {

@@ -112,7 +112,7 @@ export const auth = {
   },
   resetPassword: async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/reset-password`,
+      redirectTo: `https://contact-tables.org/auth/reset-password`,
     });
     return { data, error };
   },

@@ -52,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         case 'resetPassword':
           // Passwort zurücksetzen
           const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/reset-password`,
+            redirectTo: `https://contact-tables.org/auth/reset-password`,
           });
           if (resetError) throw resetError;
           return res.status(200).json({ message: 'E-Mail zum Zurücksetzen des Passworts gesendet' });
