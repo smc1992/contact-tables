@@ -164,8 +164,8 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
   return (
     <>
       <SEO 
-        title="Contact Tables - Gemeinsam statt einsam essen" 
-        description="Finde Gesellschaft beim Essen in teilnehmenden Restaurants. Verbinde dich mit neuen Menschen und genieße inspirierende Gespräche."
+        title="Contact Tables - Authentische Begegnungen am Restauranttisch" 
+        description="Contact Tables verbindet Menschen anonym am Restauranttisch – für authentische Gespräche und neue Begegnungen in entspannter Atmosphäre."
         image="/images/og-image.jpg"
       />
       <div className="flex flex-col min-h-screen bg-gray-50">
