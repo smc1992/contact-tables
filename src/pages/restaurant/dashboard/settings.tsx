@@ -9,6 +9,7 @@ import Footer from '../../../components/Footer';
 import RestaurantSidebar from '../../../components/restaurant/RestaurantSidebar';
 import { NotificationSettings, PrivacySettings } from '@/types/settings';
 import toast from 'react-hot-toast';
+import PasswordInput from '../../../components/PasswordInput';
 
 interface RestaurantData {
   id: string;
@@ -431,13 +432,12 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                     <label htmlFor="current" className="block text-sm font-medium text-gray-700 mb-1">
                       Aktuelles Passwort
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       id="current"
                       name="current"
                       value={password.current}
                       onChange={handlePasswordChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full rounded-lg"
                       required
                     />
                   </div>
@@ -446,13 +446,12 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                     <label htmlFor="new" className="block text-sm font-medium text-gray-700 mb-1">
                       Neues Passwort
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       id="new"
                       name="new"
                       value={password.new}
                       onChange={handlePasswordChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full rounded-lg"
                       required
                       minLength={8}
                     />
@@ -465,13 +464,12 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                     <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 mb-1">
                       Neues Passwort bestätigen
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
                       id="confirm"
                       name="confirm"
                       value={password.confirm}
                       onChange={handlePasswordChange}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full rounded-lg"
                       required
                     />
                   </div>

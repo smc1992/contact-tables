@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { FiHome, FiUsers, FiMapPin, FiSettings, FiList, FiPackage, 
-         FiMail, FiFileText, FiGrid, FiTag, FiMenu, FiX, FiCheckSquare } from 'react-icons/fi';
+         FiMail, FiFileText, FiGrid, FiTag, FiMenu, FiX, FiCheckSquare, 
+         FiShield, FiBarChart2 } from 'react-icons/fi';
 
 interface AdminSidebarProps {
   activeItem?: string;
@@ -14,16 +15,19 @@ export default function AdminSidebar({ activeItem = 'dashboard' }: AdminSidebarP
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const menuItems = [
-    { icon: FiHome, label: 'Dashboard', id: 'dashboard', path: '/admin' },
+    { icon: FiHome, label: 'Dashboard', id: 'dashboard', path: '/admin/dashboard' },
     { icon: FiCheckSquare, label: 'Partneranfragen', id: 'partner-requests', path: '/admin/partner-requests' },
     { icon: FiList, label: 'Restaurants', id: 'restaurants', path: '/admin/restaurants' },
+    { icon: FiBarChart2, label: 'Kontakttisch-Analysen', id: 'contact-tables-analytics', path: '/admin/contact-tables/analytics' },
+    { icon: FiShield, label: 'Moderation', id: 'moderation', path: '/admin/moderation/reviews' },
     { icon: FiPackage, label: 'Abonnements', id: 'subscriptions', path: '/admin/subscriptions' },
     { icon: FiGrid, label: 'Kategorien', id: 'categories', path: '/admin/categories' },
     { icon: FiTag, label: 'Ausstattung', id: 'amenities', path: '/admin/amenities' },
     { icon: FiMapPin, label: 'Städte', id: 'cities', path: '/admin/cities' },
-    { icon: FiUsers, label: 'Benutzer', id: 'users', path: '/admin/users' },
+    { icon: FiUsers, label: 'Benutzer', id: 'users', path: '/admin/users', useRouterPush: true }, // Spezieller Flag für router.push statt Link
     { icon: FiFileText, label: 'Blogs', id: 'blogs', path: '/admin/blogs' },
-    { icon: FiMail, label: 'Newsletter', id: 'newsletter', path: '/admin/newsletter' },
+    { icon: FiMail, label: 'Newsletter', id: 'newsletter', path: '/admin/newsletters' },
+    { icon: FiMail, label: 'E-Mail-Builder', id: 'email-builder', path: '/admin/email-builder' },
     { icon: FiSettings, label: 'Einstellungen', id: 'settings', path: '/admin/settings' },
   ];
 
@@ -72,23 +76,51 @@ export default function AdminSidebar({ activeItem = 'dashboard' }: AdminSidebarP
                 
                 return (
                   <li key={item.id}>
-                    <Link
-                      href={item.path}
-                      className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                      onClick={() => setIsMobileSidebarOpen(false)}
-                    >
-                      <Icon size={20} />
-                      <span>{item.label}</span>
-                      {item.id === 'partner-requests' && (
-                        <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                          Neu
-                        </span>
-                      )}
-                    </Link>
+                    {item.useRouterPush ? (
+                      // Router.push für Benutzerseite (Mobile)
+                      <div 
+                        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
+                          isActive
+                            ? 'bg-primary-50 text-primary-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                        onClick={() => {
+                          console.log(`AdminSidebar (Mobile): Router.push zu ${item.label} (${item.path})`);
+                          router.push(item.path);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                      >
+                        <Icon size={20} />
+                        <span>{item.label}</span>
+                        {item.id === 'partner-requests' && (
+                          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                            Neu
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      // Standard Next.js Link für alle anderen Seiten (Mobile)
+                      <Link
+                        href={item.path}
+                        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                          isActive
+                            ? 'bg-primary-50 text-primary-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                        onClick={() => {
+                          console.log(`AdminSidebar (Mobile): Link zu ${item.label} (${item.path}) geklickt`);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                      >
+                        <Icon size={20} />
+                        <span>{item.label}</span>
+                        {item.id === 'partner-requests' && (
+                          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                            Neu
+                          </span>
+                        )}
+                      </Link>
+                    )}
                   </li>
                 );
               })}
@@ -107,22 +139,49 @@ export default function AdminSidebar({ activeItem = 'dashboard' }: AdminSidebarP
               
               return (
                 <li key={item.id}>
-                  <Link
-                    href={item.path}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-primary-50 text-primary-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon size={20} />
-                    <span>{item.label}</span>
-                    {item.id === 'partner-requests' && (
-                      <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        Neu
-                      </span>
-                    )}
-                  </Link>
+                  {item.useRouterPush ? (
+                    // Router.push für Benutzerseite
+                    <div 
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      onClick={() => {
+                        console.log(`AdminSidebar (Desktop): Router.push zu ${item.label} (${item.path})`);
+                        router.push(item.path);
+                      }}
+                    >
+                      <Icon size={20} />
+                      <span>{item.label}</span>
+                      {item.id === 'partner-requests' && (
+                        <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                          Neu
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    // Standard Next.js Link für alle anderen Seiten
+                    <Link
+                      href={item.path}
+                      className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      onClick={() => {
+                        console.log(`AdminSidebar (Desktop): Link zu ${item.label} (${item.path}) geklickt`);
+                      }}
+                    >
+                      <Icon size={20} />
+                      <span>{item.label}</span>
+                      {item.id === 'partner-requests' && (
+                        <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                          Neu
+                        </span>
+                      )}
+                    </Link>
+                  )}
                 </li>
               );
             })}

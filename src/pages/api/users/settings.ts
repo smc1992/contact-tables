@@ -79,28 +79,63 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PUT') {
     try {
       const settings = req.body;
+      
+      // Debug-Ausgabe der Anfrage
+      console.log('Einstellungen-Update-Anfrage erhalten:', {
+        userId,
+        settings,
+        userMetadata: user.user_metadata
+      });
 
-      // Einstellungen in der Datenbank aktualisieren oder erstellen
-      const { data, error } = await supabase
-        .from('user_settings')
-        .upsert({
-          user_id: userId,
-          ...settings,
-          updated_at: new Date().toISOString()
-        })
-        .select();
+      // Transaktion für konsistente Aktualisierung beider Tabellen
+      const [settingsResult, profileResult] = await Promise.all([
+        // Einstellungen aktualisieren
+        supabase
+          .from('user_settings')
+          .upsert({
+            user_id: userId,
+            ...settings,
+            updated_at: new Date().toISOString()
+          })
+          .select(),
+        
+        // Profil aktualisieren (relevante Felder)
+        supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            name: user.user_metadata?.name || 'Benutzer',
+            language_code: settings.language || 'de',
+            updated_at: new Date().toISOString()
+          })
+          .select()
+      ]);
+      
+      // Debug-Ausgabe des Ergebnisses
+      console.log('Einstellungen-Update-Ergebnis:', {
+        settingsSuccess: !settingsResult.error,
+        settingsData: settingsResult.data,
+        settingsError: settingsResult.error,
+        profileSuccess: !profileResult.error,
+        profileData: profileResult.data,
+        profileError: profileResult.error
+      });
 
-      if (error) {
-        console.error('Fehler beim Aktualisieren der Benutzereinstellungen:', error);
+      if (settingsResult.error || profileResult.error) {
+        console.error('Fehler beim Aktualisieren:', {
+          settingsError: settingsResult.error,
+          profileError: profileResult.error
+        });
         return res.status(500).json({
           error: 'Datenbankfehler',
-          message: 'Fehler beim Aktualisieren der Benutzereinstellungen.'
+          message: 'Fehler beim Aktualisieren der Benutzereinstellungen oder des Profils.'
         });
       }
 
       return res.status(200).json({
-        settings: data[0],
-        message: 'Benutzereinstellungen erfolgreich aktualisiert.'
+        settings: settingsResult.data?.[0],
+        profile: profileResult.data?.[0],
+        message: 'Benutzereinstellungen und Profil erfolgreich aktualisiert.'
       });
     } catch (err) {
       console.error('Unerwarteter Fehler beim Aktualisieren der Benutzereinstellungen:', err);

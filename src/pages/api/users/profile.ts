@@ -75,16 +75,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Ungültige Anfrage', message: 'Name ist erforderlich.' });
       }
 
+      // Debug-Ausgabe der Anfrage
+      console.log('Profil-Update-Anfrage erhalten:', {
+        userId,
+        name,
+        languageCode,
+        userMetadata: user.user_metadata
+      });
+
       const { data: updatedProfile, error } = await supabase
         .from('profiles')
         .upsert({
           id: userId,
           name,
-          languageCode: languageCode || 'de',
-          updatedAt: new Date().toISOString(),
+          language_code: languageCode || 'de', // Snakecase für Supabase
+          updated_at: new Date().toISOString(), // Snakecase für Supabase
         })
         .select()
         .single();
+        
+      // Debug-Ausgabe des Ergebnisses
+      console.log('Profil-Update-Ergebnis:', {
+        success: !error,
+        data: updatedProfile,
+        error: error
+      });
 
       if (error) {
         console.error('Fehler beim Aktualisieren des Profils:', error);

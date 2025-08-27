@@ -1,0 +1,267 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import { createClient, createAdminClient } from '@/utils/supabase/server';
+import { PrismaClient } from '@prisma/client';
+
+interface User {
+  id: string;
+  email: string;
+  role: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  created_at: string;
+  last_sign_in_at?: string;
+  is_active: boolean;
+  banned_until?: string | null;
+  metadata?: Record<string, any>;
+  has_restaurant?: boolean;
+  restaurant?: {
+    id: string;
+    name: string;
+    contractStatus?: string | null;
+    isVisible?: boolean;
+    slug?: string | null;
+  };
+}
+
+interface AuthUser {
+  id: string;
+  email?: string;
+  created_at: string;
+  last_sign_in_at?: string;
+  banned_until?: string | null;
+  user_metadata?: {
+    role?: string;
+    name?: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+  };
+  raw_user_meta_data?: Record<string, any>;
+  raw_app_meta_data?: Record<string, any>;
+}
+
+interface GroupedUsers {
+  admin: User[];
+  restaurant: User[];
+  customer: User[];
+  user: User[];
+  [key: string]: User[];
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('API-Route /api/admin/users aufgerufen');
+  try {
+    // Nur GET-Anfragen erlauben
+    if (req.method !== 'GET') {
+      console.log('Methode nicht erlaubt:', req.method);
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Supabase-Client erstellen
+    const supabase = createClient({ req, res });
+    console.log('Supabase-Client erstellt');
+    
+    // Benutzer-Session prüfen
+    console.log('Prüfe Session...');
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error('Fehler bei Session-Abfrage:', sessionError);
+      return res.status(500).json({ error: 'Fehler bei Authentifizierung' });
+    }
+    
+    if (!session) {
+      console.log('Keine gültige Session gefunden');
+      return res.status(401).json({ error: 'Nicht authentifiziert' });
+    }
+    console.log('Session gefunden für Benutzer:', session.user.id);
+    
+    // Benutzerrolle prüfen
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('Fehler bei Benutzerabfrage:', userError);
+      return res.status(500).json({ error: 'Fehler bei Benutzerabfrage' });
+    }
+    
+    if (!user) {
+      console.log('Kein Benutzer gefunden');
+      return res.status(401).json({ error: 'Kein Benutzer gefunden' });
+    }
+    
+    console.log('Benutzerrolle:', user.user_metadata?.role);
+    if (user.user_metadata?.role !== 'admin' && user.user_metadata?.role !== 'ADMIN') {
+      console.log('Keine Admin-Berechtigung:', user.user_metadata?.role);
+      return res.status(403).json({ error: 'Keine Berechtigung' });
+    }
+    
+    // Benutzer über die Admin-API abrufen
+    console.log('Rufe Benutzer über Admin-API ab...');
+    
+    // Erstelle einen Admin-Client mit Service Role Key
+    const adminSupabase = createAdminClient();
+    
+    const { data: authUsers, error: authError } = await adminSupabase.auth.admin.listUsers({
+      perPage: 1000,
+      page: 1
+    });
+    
+    if (authError) {
+      console.error('Fehler bei Admin-API:', authError);
+      throw authError;
+    }
+    
+    // Wenn mehr als 1000 Benutzer vorhanden sind, weitere Seiten abrufen
+    let allUsers = authUsers?.users || [];
+    console.log('Erste Seite Benutzer geladen:', allUsers.length);
+    
+    let nextPage = 2;
+    while (authUsers?.users?.length === 1000) {
+      console.log(`Lade Benutzerseite ${nextPage}...`);
+      const { data: moreUsers, error: moreError } = await adminSupabase.auth.admin.listUsers({
+        perPage: 1000,
+        page: nextPage
+      });
+      
+      if (moreError) {
+        console.error(`Fehler beim Laden der Seite ${nextPage}:`, moreError);
+        break;
+      }
+      
+      if (!moreUsers?.users?.length) {
+        console.log(`Keine weiteren Benutzer auf Seite ${nextPage}`);
+        break;
+      }
+      
+      console.log(`Seite ${nextPage} geladen: ${moreUsers.users.length} Benutzer`);
+      allUsers = [...allUsers, ...moreUsers.users];
+      nextPage++;
+      
+      // Sicherheitsabbruch nach 10 Seiten (10.000 Benutzer)
+      if (nextPage > 10) {
+        console.log('Maximale Seitenzahl erreicht (10)');
+        break;
+      }
+    }
+    
+    console.log('Gesamtzahl geladener Benutzer:', allUsers.length);
+    
+    // Profile aus profiles Tabelle abrufen
+    console.log('Lade Profile...');
+    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
+    
+    if (profilesError) {
+      console.error('Fehler beim Laden der Profile:', profilesError);
+      throw profilesError;
+    }
+    
+    console.log('Anzahl geladener Profile:', profiles?.length || 0);
+    
+    // Restaurants aus der Datenbank (Prisma) laden
+    console.log('Lade Restaurants...');
+    const prisma = new PrismaClient();
+    const restaurants = await prisma.restaurant.findMany({
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        contractStatus: true,
+        isVisible: true,
+        slug: true,
+      }
+    });
+    const restaurantsByUserId = new Map(restaurants.map(r => [r.userId, r]));
+    console.log('Anzahl geladener Restaurants:', restaurants.length);
+    
+    // Daten zusammenführen und nach Rollen gruppieren
+    console.log('Führe Benutzerdaten zusammen und gruppiere nach Rollen...');
+    const groupedUsers: GroupedUsers = {
+      admin: [],
+      restaurant: [],
+      customer: [],
+      user: []
+    };
+    
+    const mergedUsers = allUsers.map((authUser: AuthUser) => {
+      const profile = profiles?.find(p => p.id === authUser.id) || {};
+      const userMetadata = authUser.user_metadata || {};
+      const rawUserMetadata = authUser.raw_user_meta_data || {};
+      
+      // Rolle aus verschiedenen Quellen bestimmen (Priorität: raw_user_meta_data > user_metadata > profile > default)
+      let role = (rawUserMetadata.role || userMetadata.role || profile.role || 'user').toLowerCase();
+      
+      // Normalisiere Rollen (CUSTOMER -> customer, etc.)
+      if (role.toUpperCase() === 'CUSTOMER') role = 'customer';
+      if (role.toUpperCase() === 'RESTAURANT') role = 'restaurant';
+      if (role.toUpperCase() === 'ADMIN') role = 'admin';
+      
+      const r = restaurantsByUserId.get(authUser.id);
+      
+      const user: User = {
+        id: authUser.id,
+        email: authUser.email || '',
+        role: role,
+        name: profile.name || rawUserMetadata.name || userMetadata.name || '',
+        first_name: profile.first_name || rawUserMetadata.first_name || userMetadata.first_name || '',
+        last_name: profile.last_name || rawUserMetadata.last_name || userMetadata.last_name || '',
+        phone: profile.phone || rawUserMetadata.phone || userMetadata.phone || '',
+        created_at: authUser.created_at,
+        last_sign_in_at: authUser.last_sign_in_at,
+        is_active: !authUser.banned_until,
+        banned_until: authUser.banned_until,
+        metadata: {
+          ...userMetadata,
+          ...rawUserMetadata,
+          ...profile
+        },
+        has_restaurant: !!r,
+        restaurant: r
+          ? {
+              id: r.id,
+              name: r.name,
+              contractStatus: (r as any).contractStatus ?? null,
+              isVisible: (r as any).isVisible ?? false,
+              slug: (r as any).slug ?? null,
+            }
+          : undefined,
+      };
+      
+      // Benutzer nach Rolle gruppieren
+      if (role === 'restaurant') {
+        // Nur echte Restaurants im Restaurant-Tab anzeigen
+        if (r) {
+          groupedUsers.restaurant.push(user);
+        } else {
+          // Fällt zurück in allgemeine Benutzerliste
+          groupedUsers.user.push(user);
+        }
+      } else {
+        if (!groupedUsers[role]) {
+          groupedUsers[role] = [];
+        }
+        groupedUsers[role].push(user);
+      }
+      
+      return user;
+    });
+    
+    console.log('API-Antwort mit', mergedUsers.length, 'Benutzern');
+    console.log('Benutzer nach Rollen:', {
+      admin: groupedUsers.admin?.length || 0,
+      restaurant: groupedUsers.restaurant?.length || 0,
+      customer: groupedUsers.customer?.length || 0,
+      user: groupedUsers.user?.length || 0
+    });
+    
+    return res.status(200).json({ 
+      users: mergedUsers,
+      groupedUsers: groupedUsers
+    });
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Benutzer:', error);
+    return res.status(500).json({ 
+      error: 'Interner Serverfehler', 
+      message: error instanceof Error ? error.message : 'Unbekannter Fehler'
+    });
+  }
+}

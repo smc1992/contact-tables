@@ -43,7 +43,7 @@ export default function CustomerEvents() {
       // Lade Kontakttische, an denen der Benutzer teilnimmt
       const { data: participations, error: participationsError } = await supabase
         .from('participations')
-        .select('contact_table_id')
+        .select('event_id')
         .eq('user_id', user.id);
         
       if (participationsError) {
@@ -61,7 +61,7 @@ export default function CustomerEvents() {
       }
       
       // IDs der Kontakttische extrahieren
-      const contactTableIds = participations.map(p => p.contact_table_id);
+      const contactTableIds = participations.map(p => p.event_id);
       
       // Kontakttische mit Restaurant-Details abrufen
       const { data: tables, error: tablesError } = await supabase
@@ -107,7 +107,7 @@ export default function CustomerEvents() {
         const { error } = await supabase
           .from('participations')
           .delete()
-          .eq('contact_table_id', id)
+          .eq('event_id', id)
           .eq('user_id', user.id);
           
         if (error) throw error;
@@ -200,7 +200,7 @@ export default function CustomerEvents() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col pt-20">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
@@ -214,7 +214,7 @@ export default function CustomerEvents() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col pt-20">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex-grow flex">
         <CustomerSidebar activePage="events" />

@@ -21,14 +21,24 @@ export function withAuth<P extends { [key: string]: any }>(
   getServerSidePropsFunc: AuthenticatedGetServerSideProps<P>
 ): GetServerSideProps<P & { user: User }> {
   return async (context: GetServerSidePropsContext): Promise<GetServerSidePropsResult<P & { user: User }>> => {
+    console.log('withAuth: Ausführung für Pfad', context.resolvedUrl);
+    console.log('withAuth: Cookies', context.req.cookies);
+    
     const supabase = createClient(context);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    console.log('withAuth: Benutzer gefunden?', !!user);
+    if (error) {
+      console.error('withAuth: Fehler beim Abrufen des Benutzers:', error);
+    }
 
     // 1. Check for a valid user session
     if (!user) {
+      console.log('withAuth: Keine Benutzersession gefunden, Weiterleitung zur Login-Seite');
+      console.log('withAuth: Weiterleitungs-URL:', `/auth/login?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`);
       return {
         redirect: {
-          destination: `/login?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`,
+          destination: `/auth/login?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`,
           permanent: false,
         },
       };
@@ -36,9 +46,12 @@ export function withAuth<P extends { [key: string]: any }>(
 
     // 2. Check if the user has the required role
     const userRole = user.user_metadata?.role || 'USER';
+    console.log('withAuth: Benutzerrolle:', userRole);
     const roles = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles];
+    console.log('withAuth: Erforderliche Rollen:', roles);
 
     if (!roles.includes(userRole)) {
+      console.log('withAuth: Benutzer hat nicht die erforderliche Rolle, Weiterleitung zur Startseite');
       // User is logged in but doesn't have the right role. Redirect to home.
       return {
         redirect: {
@@ -49,6 +62,7 @@ export function withAuth<P extends { [key: string]: any }>(
     }
 
     // 3. If authenticated and authorized, execute the original function
+    console.log('withAuth: Benutzer authentifiziert und autorisiert, führe ursprüngliche Funktion aus');
     const result = await getServerSidePropsFunc(context, user);
 
     // 4. Inject the user object into the props

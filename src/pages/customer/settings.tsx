@@ -20,6 +20,8 @@ export default function CustomerSettings() {
     notificationsNewEvents: true,
     notificationsUpdates: true,
     notificationsMarketing: false,
+    // Spracheinstellung hinzugefügt
+    language: 'de',
     // Die folgenden Datenschutzeinstellungen werden nicht mehr verwendet, können aber im State-Objekt bleiben,
     // falls sie später wieder benötigt werden oder um Fehler bei bestehenden Daten zu vermeiden.
     // Alternativ könnten sie komplett entfernt werden, wenn keine Altdatenmigration nötig ist.
@@ -114,20 +116,57 @@ export default function CustomerSettings() {
     setSuccess(false);
     
     try {
-      // Hier würde normalerweise ein API-Aufruf stehen
-      // Beispiel: const response = await fetch('/api/customer/settings', { 
-      //   method: 'POST', 
-      //   body: JSON.stringify(settings) 
-      // });
+      console.log('Speichere Einstellungen:', settings);
       
-      // Simuliere eine erfolgreiche Antwort
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Profil und Einstellungen aktualisieren
+      const profileData = {
+        name: user?.user_metadata?.name || 'Benutzer',
+        languageCode: settings.language || 'DE',
+      };
+      
+      // Profil aktualisieren
+      console.log('Aktualisiere Profil mit:', profileData);
+      const profileResponse = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(profileData)
+      });
+      
+      if (!profileResponse.ok) {
+        const errorData = await profileResponse.json();
+        console.error('Fehler beim Aktualisieren des Profils:', errorData);
+        throw new Error(errorData.message || 'Das Profil konnte nicht gespeichert werden.');
+      }
+      
+      const profileResult = await profileResponse.json();
+      console.log('Profil erfolgreich aktualisiert:', profileResult);
+      
+      // Einstellungen aktualisieren
+      console.log('Aktualisiere Einstellungen mit:', settings);
+      const settingsResponse = await fetch('/api/users/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+      });
+      
+      if (!settingsResponse.ok) {
+        const errorData = await settingsResponse.json();
+        console.error('Fehler beim Aktualisieren der Einstellungen:', errorData);
+        throw new Error(errorData.message || 'Die Einstellungen konnten nicht gespeichert werden.');
+      }
+      
+      const settingsResult = await settingsResponse.json();
+      console.log('Einstellungen erfolgreich aktualisiert:', settingsResult);
       
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch (error) {
-      console.error('Fehler beim Speichern der Einstellungen:', error);
-      setError('Die Einstellungen konnten nicht gespeichert werden. Bitte versuchen Sie es später erneut.');
+    } catch (error: any) {
+      console.error('Fehler beim Speichern:', error);
+      setError(error.message || 'Die Daten konnten nicht gespeichert werden. Bitte versuchen Sie es später erneut.');
     } finally {
       setSaving(false);
     }
@@ -135,7 +174,7 @@ export default function CustomerSettings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col pt-20">
+      <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
@@ -149,7 +188,7 @@ export default function CustomerSettings() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col pt-20">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex-grow flex">
         <CustomerSidebar activePage="settings" />
@@ -179,8 +218,32 @@ export default function CustomerSettings() {
                     </div>
                   )}
                   
-                  {/* Benachrichtigungseinstellungen */}
+                  {/* Spracheinstellungen */}
                   <div className="mb-8">
+                    <h2 className="text-lg font-medium text-gray-900 flex items-center">
+                      <FiSettings className="mr-2 h-5 w-5 text-indigo-500" />
+                      Allgemeine Einstellungen
+                    </h2>
+                    
+                    <div className="mt-4">
+                      <label htmlFor="language" className="block text-sm font-medium text-gray-700">Sprache</label>
+                      <select
+                        id="language"
+                        name="language"
+                        value={settings.language}
+                        onChange={handleInputChange}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      >
+                        <option value="de">Deutsch</option>
+                        <option value="en">English</option>
+                        <option value="fr">Français</option>
+                      </select>
+                      <p className="mt-1 text-sm text-gray-500">Wählen Sie Ihre bevorzugte Sprache für die Benutzeroberfläche</p>
+                    </div>
+                  </div>
+                  
+                  {/* Benachrichtigungseinstellungen */}
+                  <div className="mb-8 pt-8 border-t border-gray-200">
                     <h2 className="text-lg font-medium text-gray-900 flex items-center">
                       <FiBell className="mr-2 h-5 w-5 text-indigo-500" />
                       Benachrichtigungen

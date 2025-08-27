@@ -185,13 +185,16 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
+      console.log('[Login Page] Anmeldung wird versucht für:', email);
       const { data, error: signInError } = await auth.signIn(email, password);
       
       if (signInError) {
-        console.error('Login error:', signInError);
+        console.error('[Login Page] Login error:', signInError);
         setError('Ungültige E-Mail oder Passwort.');
         return;
       } 
+      
+      console.log('[Login Page] Anmeldung erfolgreich, Benutzerdaten:', data?.user ? 'Benutzer vorhanden' : 'Kein Benutzer');
       
       if (data?.user) {
         const userRole = data.user.user_metadata?.data?.role || data.user.user_metadata?.role || 'CUSTOMER';
@@ -209,26 +212,37 @@ export default function LoginPage() {
           return;
         }
         
-        console.log(`Login erfolgreich als ${userRoleUpper}, Weiterleitung...`);
+        console.log(`[Login Page] Login erfolgreich als ${userRoleUpper}, Weiterleitung...`);
         
         // WICHTIG: Server-Zustand (inkl. Cookies) aktualisieren lassen, bevor weitergeleitet wird.
         // Da wir den Pages Router verwenden, nutzen wir router.replace(router.asPath) anstelle von router.refresh().
+        console.log('[Login Page] Aktualisiere Server-Zustand vor der Weiterleitung');
         await router.replace(router.asPath);
+        
+        // Kurze Verzögerung, um sicherzustellen, dass die Session gesetzt wird
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Überprüfe, ob die Session gesetzt wurde
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('[Login Page] Session nach Login:', sessionData?.session ? 'Session vorhanden' : 'Keine Session');
 
         if (isValidCallbackUrl(callbackUrl)) {
-          console.log(`Gültige callbackUrl gefunden: ${callbackUrl}, Weiterleitung dorthin...`);
+          console.log(`[Login Page] Gültige callbackUrl gefunden: ${callbackUrl}, Weiterleitung dorthin...`);
           router.push(callbackUrl as string);
         } else {
           // Fallback-Weiterleitung basierend auf Rolle
-          console.log(`Keine gültige callbackUrl, Fallback-Weiterleitung basierend auf Rolle ${userRoleUpper}`);
+          console.log(`[Login Page] Keine gültige callbackUrl, Fallback-Weiterleitung basierend auf Rolle ${userRoleUpper}`);
           switch (userRoleUpper) {
             case 'ADMIN':
-              router.push('/dashboard/admin');
+              console.log('[Login Page] Weiterleitung zum Admin-Dashboard');
+              router.push('/admin/dashboard');
               break;
             case 'RESTAURANT':
+              console.log('[Login Page] Weiterleitung zum Restaurant-Dashboard');
               router.push('/restaurant/dashboard');
               break;
             default:
+              console.log('[Login Page] Weiterleitung zum Kunden-Dashboard');
               router.push('/customer/dashboard');
           }
         }
@@ -329,7 +343,7 @@ export default function LoginPage() {
               </div>
 
               <div className="text-sm">
-                <Link href="/auth/reset-password" className="font-medium text-primary-600 hover:text-primary-500">
+                <Link href="/auth/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
                   Passwort vergessen?
                 </Link>
               </div>

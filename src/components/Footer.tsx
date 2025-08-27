@@ -12,12 +12,15 @@ export default function Footer() {
           <div className="space-y-6">
             <Link href="/" className="inline-block">
               <div className="flex items-center space-x-3 group">
-                <div className="h-12 bg-white p-2 rounded-lg overflow-hidden">
-                  <img 
+                <div className="h-12 bg-white p-2 rounded-lg overflow-hidden relative">
+                  <Image 
                     src="/images/logo-footer.webp" 
                     alt="Contact Tables Logo" 
-                    className="h-full w-auto transition-all group-hover:scale-105"
-                    style={{ display: 'block', maxHeight: '100%' }}
+                    width={48}
+                    height={32}
+                    className="transition-all group-hover:scale-105"
+                    priority
+                    style={{ objectFit: 'contain', width: 'auto', height: '100%' }}
                   />
                 </div>
               </div>

@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
 import { createClient } from '@/utils/supabase/server';
 
 // Definiere die Struktur der Antwort
@@ -39,86 +38,115 @@ export default async function handler(
     return res.status(403).json({ message: 'Keine Berechtigung' });
   }
   
-  // Prisma-Client erstellen
-  const prisma = new PrismaClient();
-  
   try {
     
-    // Statistiken abrufen
+    // Statistiken mit Supabase abrufen
     const [
-      userCount,
-      restaurantCount,
-      pendingRequestCount,
-      activeRestaurantCount,
-      recentRegistrations,
-      recentContracts
+      userCountResult,
+      restaurantCountResult,
+      pendingRequestCountResult,
+      activeRestaurantCountResult,
+      recentRegistrationsResult,
+      recentContractsResult,
+      recentPaymentsResult
     ] = await Promise.all([
       // Gesamtzahl der Benutzer
-      prisma.profile.count(),
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true }),
       
       // Gesamtzahl der Restaurants
-      prisma.restaurant.count(),
+      supabase
+        .from('restaurants')
+        .select('id', { count: 'exact', head: true }),
       
       // Anzahl der ausstehenden Anfragen (PENDING)
-      prisma.restaurant.count({
-        where: { 
-          // Verwende isActive statt status, basierend auf dem Prisma-Schema
-          isActive: false,
-          contractStatus: 'PENDING'
-        }
-      }),
+      supabase
+        .from('restaurants')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', false)
+        .eq('contract_status', 'PENDING'),
       
       // Anzahl der aktiven Restaurants (ACTIVE)
-      prisma.restaurant.count({
-        where: { 
-          isActive: true,
-          contractStatus: 'ACTIVE'
-        }
-      }),
+      supabase
+        .from('restaurants')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .eq('contract_status', 'ACTIVE'),
       
       // Neueste Registrierungen (letzte 5)
-      prisma.restaurant.findMany({
-        where: { 
-          isActive: false,
-          contractStatus: 'PENDING'
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: {
-          name: true,
-          createdAt: true
-        }
-      }),
+      supabase
+        .from('restaurants')
+        .select('name, created_at')
+        .eq('is_active', false)
+        .eq('contract_status', 'PENDING')
+        .order('created_at', { ascending: false })
+        .limit(5),
       
       // Neueste Vertragsabschlüsse (letzte 5)
-      prisma.contract.findMany({
-        where: { status: 'ACTIVE' },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: {
-          createdAt: true,
-          restaurant: {
-            select: {
-              name: true
-            }
-          }
-        }
-      })
+      supabase
+        .from('restaurant_contracts')
+        .select(`
+          created_at,
+          restaurant:restaurant_id (name)
+        `)
+        .eq('status', 'ACTIVE')
+        .order('created_at', { ascending: false })
+        .limit(5),
+        
+      // Neueste Zahlungen (letzte 5)
+      supabase
+        .from('payments')
+        .select(`
+          created_at,
+          amount,
+          restaurant:restaurant_id (name)
+        `)
+        .eq('status', 'COMPLETED')
+        .order('created_at', { ascending: false })
+        .limit(5)
     ]);
+    
+    // Fehlerbehandlung für die Abfragen
+    if (userCountResult.error || restaurantCountResult.error || 
+        pendingRequestCountResult.error || activeRestaurantCountResult.error ||
+        recentRegistrationsResult.error || recentContractsResult.error ||
+        recentPaymentsResult.error) {
+      console.error('Fehler beim Abrufen der Dashboard-Statistiken:', 
+        userCountResult.error || restaurantCountResult.error || 
+        pendingRequestCountResult.error || activeRestaurantCountResult.error ||
+        recentRegistrationsResult.error || recentContractsResult.error ||
+        recentPaymentsResult.error);
+      return res.status(500).json({ message: 'Fehler beim Abrufen der Dashboard-Statistiken' });
+    }
+    
+    // Daten extrahieren
+    const userCount = userCountResult.count || 0;
+    const restaurantCount = restaurantCountResult.count || 0;
+    const pendingRequestCount = pendingRequestCountResult.count || 0;
+    const activeRestaurantCount = activeRestaurantCountResult.count || 0;
+    const recentRegistrations = recentRegistrationsResult.data || [];
+    const recentContracts = recentContractsResult.data || [];
+    const recentPayments = recentPaymentsResult.data || [];
     
     // Aktivitäten zusammenführen und nach Datum sortieren
     const recentActivity = [
-      ...recentRegistrations.map((reg: { name: string; createdAt: Date }) => ({
+      ...recentRegistrations.map((reg: any) => ({
         type: 'registration' as const,
         restaurant: reg.name,
-        date: reg.createdAt.toISOString()
+        date: reg.created_at
       })),
-      ...recentContracts.map((contract: { createdAt: Date; restaurant: { name: string } }) => ({
+      ...recentContracts.map((contract: any) => ({
         type: 'contract' as const,
-        restaurant: contract.restaurant.name,
-        date: contract.createdAt.toISOString()
+        restaurant: contract.restaurant?.name || 'Unbekanntes Restaurant',
+        date: contract.created_at
+      })),
+      ...recentPayments.map((payment: any) => ({
+        type: 'payment' as const,
+        restaurant: payment.restaurant?.name || 'Unbekanntes Restaurant',
+        date: payment.created_at,
+        amount: payment.amount
       }))
-      // Zahlungen werden derzeit nicht abgefragt, da sie möglicherweise nicht im Prisma-Schema definiert sind
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
      .slice(0, 10); // Nur die 10 neuesten Aktivitäten
     
@@ -137,6 +165,6 @@ export default async function handler(
     console.error('Fehler beim Abrufen der Dashboard-Statistiken:', error);
     return res.status(500).json({ message: 'Interner Serverfehler' });
   } finally {
-    await prisma.$disconnect();
+    // Keine Verbindung zu schließen bei Supabase
   }
 }

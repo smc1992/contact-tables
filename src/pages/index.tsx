@@ -12,6 +12,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import LaunchPopup from '../components/LaunchPopup';
+import SEO from '../components/SEO';
 
 // Sprachvariationen für das Banner
 const languageVariations = [
@@ -162,6 +163,11 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
 
   return (
     <>
+      <SEO 
+        title="Contact Tables - Gemeinsam statt einsam essen" 
+        description="Finde Gesellschaft beim Essen in teilnehmenden Restaurants. Verbinde dich mit neuen Menschen und genieße inspirierende Gespräche."
+        image="/images/og-image.jpg"
+      />
       <div className="flex flex-col min-h-screen bg-gray-50">
       <Header />
       <main className="flex-grow">

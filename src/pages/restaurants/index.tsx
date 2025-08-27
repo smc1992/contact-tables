@@ -62,7 +62,7 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants, searchQuery, l
           <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
             {/* Search by Name */}
             <div className="md:col-span-2">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">Restaurantname</label>
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">Restaurantname <span className="text-gray-500 font-normal">(optional)</span></label>
               <input
                 id="search"
                 type="text"

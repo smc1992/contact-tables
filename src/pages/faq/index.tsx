@@ -151,22 +151,27 @@ Wenn sich jemand unwohl fühlt oder es Probleme gibt, ist es völlig in Ordnung,
   {
     category: 'restaurants',
     question: 'Wie kann mein Restaurant teilnehmen?',
-    answer: 'Restaurants können sich über unser Partnerportal anmelden. Nach einer kurzen Prüfung kannst du festlegen, wann und wie viele contact-tables du anbieten möchtest. Wir unterstützen dich bei der Integration in dein Reservierungssystem und stellen dir Materialien zur Verfügung, um die contact-tables in deinem Restaurant zu kennzeichnen. Der Registrierungsprozess ist einfach und unkompliziert.'
+    answer: 'Restaurants können sich über unser Partnerportal anmelden. Nach einer kurzen Prüfung können Sie festlegen, wann und wie viele contact-tables Sie anbieten möchten. Wir unterstützen Sie bei der Integration in Ihr Reservierungssystem und stellen Ihnen Materialien zur Verfügung, um die contact-tables in Ihrem Restaurant zu kennzeichnen. Der Registrierungsprozess ist einfach und unkompliziert.'
+  },
+  {
+    category: 'restaurants',
+    question: 'Ist die Teilnahme für Restaurants kostenpflichtig?',
+    answer: 'Ja, für Restaurants ist die Teilnahme kostenpflichtig. Die monatliche Gebühr beträgt 39 €. Bei jährlicher Zahlung sind es 399 € pro Jahr - also rund 33,25 € im Monat.'
   },
   {
     category: 'restaurants',
     question: 'Welche Vorteile hat mein Restaurant durch Contact Tables?',
-    answer: 'Als teilnehmendes Restaurant profitierst du von zusätzlichen Gästen, besonders zu weniger ausgelasteten Zeiten, erhöhter Sichtbarkeit durch unsere Plattform und einem positiven Image als sozial engagiertes Unternehmen, das gegen Einsamkeit aktiv wird. Unsere ersten Partnerrestaurants berichten bereits von einer besonderen Atmosphäre, die durch die contact-tables entsteht, und von neuen Gästen, die durch diese Initiative gewonnen werden können.'
+    answer: 'Als teilnehmendes Restaurant profitieren Sie von zusätzlichen Gästen, besonders zu weniger ausgelasteten Zeiten, erhöhter Sichtbarkeit durch unsere Plattform und einem positiven Image als sozial engagiertes Unternehmen, das gegen Einsamkeit aktiv wird. Unsere ersten Partnerrestaurants berichten bereits von einer besonderen Atmosphäre, die durch die contact-tables entsteht, und von neuen Gästen, die durch diese Initiative gewonnen werden können.'
   },
   {
     category: 'restaurants',
     question: 'Gibt es besondere Anforderungen an contact-tables?',
-    answer: 'contact-tables sollten idealerweise in einem ruhigeren Bereich des Restaurants platziert sein, um Gespräche zu erleichtern. Eine kleine Tischkarte oder ein anderes Erkennungszeichen hilft den Teilnehmern, den contact-table zu finden. Wir stellen dir entsprechende Materialien zur Verfügung. Ansonsten gibt es keine besonderen Anforderungen an die Ausstattung oder Größe des Tisches.'
+    answer: 'contact-tables sollten idealerweise in einem ruhigeren Bereich des Restaurants platziert sein, um Gespräche zu erleichtern. Eine kleine Tischkarte oder ein anderes Erkennungszeichen hilft den Teilnehmern, den contact-table zu finden. Wir stellen Ihnen entsprechende Materialien zur Verfügung. Ansonsten gibt es keine besonderen Anforderungen an die Ausstattung oder Größe des Tisches.'
   },
   {
     category: 'restaurants',
     question: 'Wie werden die Kosten für Restaurants berechnet?',
-    answer: 'Wir bieten verschiedene Mitgliedschaftsmodelle an, die sich nach der Größe des Restaurants und der Anzahl der angebotenen contact-tables richten. Es gibt ein Basispaket mit monatlicher Zahlung sowie Premium-Pakete mit zusätzlichen Marketingvorteilen. Detaillierte Informationen findest du in unserem Partnerbereich oder bei einem persönlichen Gespräch mit unserem Team.'
+    answer: 'Die monatliche Gebühr für teilnehmende Restaurants beträgt 39 €. Bei jährlicher Zahlung bieten wir einen vergünstigten Preis von 399 € pro Jahr an, was etwa 33,25 € pro Monat entspricht. Diese Gebühr deckt alle Leistungen ab, einschließlich der Präsenz auf unserer Plattform, Marketingmaterialien und Support bei der Integration.'
   },
   {
     category: 'booking',

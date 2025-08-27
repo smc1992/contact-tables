@@ -47,14 +47,14 @@ export default function CustomerDashboard() {
         // Kontakttische abrufen, an denen der Benutzer teilnimmt
         const { data: participations, error: participationsError } = await supabase
           .from('participations')
-          .select('contact_table_id')
+          .select('event_id')
           .eq('user_id', user.id);
         
         if (participationsError) {
           console.error('Fehler beim Laden der Teilnahmen:', participationsError);
         } else if (participations && participations.length > 0) {
           // IDs der Kontakttische extrahieren
-          const tableIds = participations.map(p => p.contact_table_id);
+          const tableIds = participations.map(p => p.event_id);
           
           // Kontakttische mit Details abrufen
           const { data: tables, error: tablesError } = await supabase
@@ -81,17 +81,17 @@ export default function CustomerDashboard() {
       
       // 2. Dann die favorisierten Kontakttische laden
       try {
-        // Favorisierte Kontakttische abrufen
+        // Favorisierte Restaurants abrufen
         const { data: favorites, error: favoritesError } = await supabase
           .from('favorites')
-          .select('contact_table_id')
+          .select('restaurant_id')
           .eq('user_id', user.id);
         
         if (favoritesError) {
           console.error('Fehler beim Laden der Favoriten:', favoritesError);
         } else if (favorites && favorites.length > 0) {
-          // IDs der favorisierten Kontakttische extrahieren
-          const favoriteIds = favorites.map(f => f.contact_table_id);
+          // IDs der favorisierten Restaurants extrahieren
+          const favoriteIds = favorites.map(f => f.restaurant_id);
           
           // Favorisierte Kontakttische mit Details abrufen
           const { data: favoriteTables, error: favoriteTablesError } = await supabase
@@ -100,8 +100,8 @@ export default function CustomerDashboard() {
               *,
               restaurant:restaurant_id(*)
             `)
-            .in('id', favoriteIds)
-            .order('start_time', { ascending: true });
+            .in('restaurant_id', favoriteIds)
+            .order('datetime', { ascending: true });
           
           if (favoriteTablesError) {
             console.error('Fehler beim Laden der favorisierten Kontakttische:', favoriteTablesError);
@@ -189,7 +189,7 @@ export default function CustomerDashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pt-20">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex-grow flex">
         <CustomerSidebar activePage="dashboard" />

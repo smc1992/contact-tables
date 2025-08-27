@@ -87,6 +87,7 @@ model Profile {
   favorites     Favorite[]
   userSettings  UserSetting? // Added relation
   adminProfile  Admin? // Added relation if Admin links back to Profile via id
+  tagAssignments UserTagAssignment[] // Added relation for user tags
 
   @@map("profiles")
   @@schema("public")
@@ -376,8 +377,152 @@ model Admin {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  emailCampaigns EmailCampaign[] // Added relation to email campaigns
+
   @@map("admins")
   @@schema("public")
 }
 
+enum EmailCampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  PARTIAL
+  FAILED
+  SCHEDULED
 
+  @@schema("public")
+}
+
+enum EmailBatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@schema("public")
+}
+
+enum EmailRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+
+  @@schema("public")
+}
+
+model EmailBatch {
+  id             String          @id @default(uuid()) @db.Uuid
+  campaignId     String          @map("campaign_id") @db.Uuid
+  campaign       EmailCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  scheduledTime  DateTime        @map("scheduled_time")
+  status         EmailBatchStatus @default(PENDING)
+  recipientCount Int             @default(0) @map("recipient_count")
+  sentCount      Int             @default(0) @map("sent_count")
+  failedCount    Int             @default(0) @map("failed_count")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@index([status, scheduledTime], name: "email_batches_status_scheduled_time_idx")
+  @@map("email_batches")
+  @@schema("public")
+}
+
+model EmailCampaign {
+  id             String             @id @default(uuid()) @db.Uuid
+  subject        String
+  content        String             @db.Text
+  status         EmailCampaignStatus @default(DRAFT)
+  recipientCount Int                @default(0) @map("recipient_count")
+  sentCount      Int                @default(0) @map("sent_count")
+  failedCount    Int                @default(0) @map("failed_count")
+  skippedCount   Int                @default(0) @map("skipped_count")
+  processingTime Float?             @map("processing_time")
+  sendRate       Float?             @map("send_rate")
+  campaignMetrics Json?             @map("campaign_metrics")
+  sentBy         String             @map("sent_by") @db.Uuid
+  admin          Admin              @relation(fields: [sentBy], references: [id], onDelete: Cascade)
+  completedAt    DateTime?          @map("completed_at")
+  recipients     EmailRecipient[]
+  batches        EmailBatch[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_campaigns")
+  @@schema("public")
+}
+
+model EmailRecipient {
+  id             String              @id @default(uuid()) @db.Uuid
+  campaignId     String              @map("campaign_id") @db.Uuid
+  campaign       EmailCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipientId    String              @map("recipient_id") @db.Uuid
+  recipientEmail String              @map("recipient_email")
+  status         EmailRecipientStatus @default(PENDING)
+  sentAt         DateTime?           @map("sent_at")
+  openedAt       DateTime?           @map("opened_at")
+  clickedAt      DateTime?           @map("clicked_at")
+  errorMessage   String?             @map("error_message")
+  retryCount     Int                 @default(0) @map("retry_count")
+  deliveryInfo   Json?              @map("delivery_info")
+  unsubscribeToken String             @map("unsubscribe_token")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([campaignId, status], name: "email_recipients_campaign_id_status_idx")
+  @@map("email_recipients")
+  @@schema("public")
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  subject   String
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_templates")
+  @@schema("public")
+}
+
+model UserTag {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  assignments UserTagAssignment[]
+
+  @@map("user_tags")
+  @@schema("public")
+}
+
+model UserTagAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tagId     String   @map("tag_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag       UserTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, tagId])
+  @@map("user_tag_assignments")
+  @@schema("public")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("system_settings")
+  @@schema("public")
+}

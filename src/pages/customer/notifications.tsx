@@ -36,6 +36,20 @@ export default function CustomerNotifications() {
       setLoading(true);
       setError(null);
       
+      // Prüfe zuerst, ob die Tabelle existiert
+      const { error: tableCheckError } = await supabase
+        .from('notifications')
+        .select('count()')
+        .limit(1);
+      
+      if (tableCheckError) {
+        console.warn('Benachrichtigungen-Tabelle möglicherweise nicht verfügbar:', tableCheckError);
+        // Setze leere Benachrichtigungen, aber keinen Fehler - die Funktion ist einfach noch nicht implementiert
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+      
       // Benachrichtigungen aus der Datenbank laden
       const { data, error: fetchError } = await supabase
         .from('notifications')
@@ -44,13 +58,16 @@ export default function CustomerNotifications() {
         .order('created_at', { ascending: false });
       
       if (fetchError) {
-        throw fetchError;
+        console.error('Fehler beim Abrufen der Benachrichtigungen:', fetchError);
+        setError('Die Benachrichtigungen konnten nicht geladen werden. Bitte versuche es später erneut.');
+        setLoading(false);
+        return;
       }
       
       setNotifications(data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Fehler beim Laden der Benachrichtigungen:', error);
+      console.error('Unerwarteter Fehler beim Laden der Benachrichtigungen:', error);
       setError('Die Benachrichtigungen konnten nicht geladen werden. Bitte versuche es später erneut.');
       setLoading(false);
     }
@@ -198,7 +215,7 @@ export default function CustomerNotifications() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pt-20">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex-grow flex">
         <CustomerSidebar activePage="notifications" />

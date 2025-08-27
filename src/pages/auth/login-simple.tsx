@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { FiLogIn } from 'react-icons/fi';
 import { supabase } from '../../utils/supabase';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function SimpleLoginPage() {
   const [email, setEmail] = useState('');
@@ -92,15 +93,15 @@ export default function SimpleLoginPage() {
                 <label htmlFor="password" className="sr-only">
                   Passwort
                 </label>
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   required
                   className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                   placeholder="Passwort"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                 />
               </div>
             </div>

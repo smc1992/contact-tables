@@ -12,15 +12,18 @@ import type { Database } from '../../types/supabase';
 
 type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
 
+interface Restaurant {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  postal_code?: string;
+  contact_tables?: any[];
+}
+
 interface ContactTableWithDetails extends ContactTable {
-  restaurant?: {
-    id: string;
-    name: string;
-    address?: string;
-    city?: string;
-    postal_code?: string;
-  } | null;
-    participants?: any[] | null;
+  restaurant?: Restaurant | null;
+  participants?: any[] | null;
   participant_count?: number;
 }
 
@@ -43,7 +46,7 @@ export default function CustomerFavorites() {
       // Favorisierte Kontakttische abrufen
       const { data: favorites, error: favoritesError } = await supabase
         .from('favorites')
-        .select('contact_table_id')
+        .select('restaurant_id')
         .eq('user_id', user.id);
       
       if (favoritesError) {
@@ -54,46 +57,53 @@ export default function CustomerFavorites() {
       }
       
       if (favorites && favorites.length > 0) {
-        // IDs der favorisierten Kontakttische extrahieren
-        const favoriteIds = favorites.map(f => f.contact_table_id);
+        // IDs der favorisierten Restaurants extrahieren
+        const favoriteRestaurantIds = favorites.map(f => f.restaurant_id);
         
-        // Favorisierte Kontakttische mit Details abrufen
-        const { data: favoriteTables, error: favoriteTablesError } = await supabase
-          .from('contact_tables')
+        // Favorisierte Restaurants mit ihren aktuellen Kontakttischen abrufen
+        const { data: favoriteRestaurants, error: favoriteRestaurantsError } = await supabase
+          .from('restaurants')
           .select(`
             *,
-            restaurant:restaurant_id(*)
+            contact_tables(*)
           `)
-          .in('id', favoriteIds)
-          .order('datetime', { ascending: true });
+          .in('id', favoriteRestaurantIds);
         
-        // Teilnehmerzahlen separat abfragen
-        let tablesWithParticipants: ContactTableWithDetails[] = [];
-        if (favoriteTables && favoriteTables.length > 0) {
-          tablesWithParticipants = await Promise.all(
-            favoriteTables.map(async (table) => {
-              const { count, error: countError } = await supabase
-                .from('participations')
-                .select('*', { count: 'exact', head: true })
-                .eq('contact_table_id', table.id);
-                
-              return {
-                ...table,
-                participant_count: count || 0
-              };
-            })
-          );
-        }
-        
-        if (favoriteTablesError) {
-          console.error('Fehler beim Laden der favorisierten Kontakttische:', favoriteTablesError);
+        if (favoriteRestaurantsError) {
+          console.error('Fehler beim Laden der favorisierten Restaurants:', favoriteRestaurantsError);
           setError('Fehler beim Laden deiner Favoriten. Bitte versuche es später erneut.');
           setLoading(false);
           return;
         }
         
-        // Verwende die Tabellen mit Teilnehmerzahlen, wenn verfügbar
-        setFavorites(tablesWithParticipants.length > 0 ? tablesWithParticipants : (favoriteTables || []));
+        // Verarbeite die Restaurants und ihre Kontakttische
+        if (favoriteRestaurants && favoriteRestaurants.length > 0) {
+          // Extrahiere alle Kontakttische aus den Restaurants und füge Restaurant-Details hinzu
+          const allTables: ContactTableWithDetails[] = [];
+          
+          favoriteRestaurants.forEach((restaurant: Restaurant) => {
+            if (restaurant.contact_tables && restaurant.contact_tables.length > 0) {
+              const tablesWithRestaurant = restaurant.contact_tables.map((table: any) => ({
+                ...table,
+                restaurant: {
+                  id: restaurant.id,
+                  name: restaurant.name,
+                  address: restaurant.address,
+                  city: restaurant.city,
+                  postal_code: restaurant.postal_code
+                }
+              }));
+              allTables.push(...tablesWithRestaurant);
+            }
+          });
+          
+          // Sortiere nach Datum
+          allTables.sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+          
+          setFavorites(allTables);
+        } else {
+          setFavorites([]);
+        }
       } else {
         setFavorites([]);
       }
@@ -115,7 +125,7 @@ export default function CustomerFavorites() {
         .from('favorites')
         .delete()
         .eq('user_id', user.id)
-        .eq('contact_table_id', id);
+        .eq('restaurant_id', id);
       
       if (error) {
         throw error;
@@ -169,7 +179,7 @@ export default function CustomerFavorites() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pt-20">
+    <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex-grow flex">
         <CustomerSidebar activePage="favorites" />

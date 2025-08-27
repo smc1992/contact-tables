@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiUser, FiMail, FiLock } from 'react-icons/fi';
 import Link from 'next/link';
+import PasswordInput from '@/components/PasswordInput';
 
 export default function GuestRegister() {
   const [formData, setFormData] = useState({
@@ -112,14 +113,14 @@ export default function GuestRegister() {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FiLock className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
-                  type="password"
-                  name="password"
+                <PasswordInput
                   id="password"
+                  name="password"
                   required
                   value={formData.password}
                   onChange={handleChange}
                   className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                  autoComplete="new-password"
                 />
               </div>
             </div>

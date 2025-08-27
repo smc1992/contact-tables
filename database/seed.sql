@@ -306,3 +306,36 @@ INSERT INTO public.partner_requests (
   'PENDING',
   'Anfrage wird geprüft. Bitte Unterlagen zur Lebensmittelsicherheit nachreichen.'
 );
+
+-- Initiale System-Einstellungen (SMTP & Defaults)
+INSERT INTO public.system_settings (
+  id,
+  site_name,
+  site_description,
+  contact_email,
+  support_phone,
+  maintenance_mode,
+  registration_enabled,
+  default_subscription_days,
+  max_featured_restaurants,
+  google_maps_api_key,
+  smtp_host,
+  smtp_port,
+  smtp_user,
+  smtp_password
+) VALUES (
+  '1',
+  'Contact Tables',
+  'Default system settings',
+  NULL,
+  NULL,
+  FALSE,
+  TRUE,
+  30,
+  6,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL
+) ON CONFLICT (id) DO NOTHING;

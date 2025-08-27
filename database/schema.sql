@@ -320,3 +320,84 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- System Settings (globale Einstellungen inkl. SMTP)
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  id TEXT PRIMARY KEY DEFAULT '1',
+  site_name TEXT NOT NULL DEFAULT 'Contact Tables',
+  site_description TEXT,
+  contact_email TEXT,
+  support_phone TEXT,
+  maintenance_mode BOOLEAN DEFAULT FALSE,
+  registration_enabled BOOLEAN DEFAULT TRUE,
+  default_subscription_days INTEGER DEFAULT 30,
+  max_featured_restaurants INTEGER DEFAULT 6,
+  google_maps_api_key TEXT,
+  smtp_host TEXT,
+  smtp_port INTEGER,
+  smtp_user TEXT,
+  smtp_password TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Newsletters (Admin-Newsletter-Versand)
+CREATE TABLE IF NOT EXISTS public.newsletters (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  subject TEXT NOT NULL,
+  content TEXT,
+  status TEXT NOT NULL DEFAULT 'draft', -- draft, scheduled, sending, sent, failed
+  sent_at TIMESTAMP WITH TIME ZONE,
+  recipient_count INTEGER NOT NULL DEFAULT 0,
+  open_count INTEGER NOT NULL DEFAULT 0,
+  click_count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS für System Settings – nur Admins (aus JWT user_metadata.role) dürfen lesen/schreiben
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins können Einstellungen lesen" ON public.system_settings
+  FOR SELECT USING (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+CREATE POLICY "Admins können Einstellungen schreiben" ON public.system_settings
+  FOR INSERT WITH CHECK (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+CREATE POLICY "Admins können Einstellungen aktualisieren" ON public.system_settings
+  FOR UPDATE USING (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  ) WITH CHECK (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+
+-- RLS für Newsletters – nur Admins
+ALTER TABLE public.newsletters ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins können Newsletter lesen" ON public.newsletters
+  FOR SELECT USING (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+CREATE POLICY "Admins können Newsletter erstellen" ON public.newsletters
+  FOR INSERT WITH CHECK (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+CREATE POLICY "Admins können Newsletter aktualisieren" ON public.newsletters
+  FOR UPDATE USING (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  ) WITH CHECK (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+CREATE POLICY "Admins können Newsletter löschen" ON public.newsletters
+  FOR DELETE USING (
+    coalesce((auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin','ADMIN'), false)
+  );
+
+-- updated_at Trigger für neue Tabellen
+CREATE TRIGGER update_system_settings_updated_at
+  BEFORE UPDATE ON public.system_settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_newsletters_updated_at
+  BEFORE UPDATE ON public.newsletters
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();

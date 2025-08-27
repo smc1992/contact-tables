@@ -179,7 +179,7 @@ export default function CustomerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col pt-20"> {/* Added pt-20 for fixed header */}
+      <div className="min-h-screen flex flex-col"> {/* Removed pt-20 for consistent header position */}
         <Header />
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
@@ -193,7 +193,7 @@ export default function CustomerProfile() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col pt-20"> {/* Added pt-20 for fixed header */}
+    <div className="min-h-screen flex flex-col"> {/* Removed pt-20 for consistent header position */}
       <Header />
       <div className="flex-grow flex">
         <CustomerSidebar activePage="profile" />
