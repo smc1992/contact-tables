@@ -23,12 +23,37 @@ export default function ResetPassword() {
   // Überprüfen, ob wir uns auf der richtigen Seite befinden (nach Klick auf den Link in der E-Mail)
   useEffect(() => {
     // Supabase leitet automatisch zu dieser Seite weiter und fügt die notwendigen Parameter hinzu
-    const { access_token, type } = router.query;
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const type = params.get('type');
     
-    if (!access_token || type !== 'recovery') {
+    if (!accessToken || type !== 'recovery') {
       setStatus({
         type: 'error',
         message: 'Ungültiger oder abgelaufener Link zum Zurücksetzen des Passworts.',
+      });
+    } else {
+      // Session mit dem Token setzen
+      auth.getSession().then(({ data }) => {
+        if (!data.session) {
+          console.log('Setze Session mit Token aus URL');
+          // Wenn keine Session existiert, versuchen wir, eine mit dem Token zu erstellen
+          const { supabase } = require('../../utils/supabase');
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          }).then(({ error }: { error: any }) => {
+            if (error) {
+              console.error('Fehler beim Setzen der Session:', error);
+              setStatus({
+                type: 'error',
+                message: 'Fehler bei der Authentifizierung. Bitte versuchen Sie es erneut.',
+              });
+            }
+          });
+        }
       });
     }
   }, [router.query]);
@@ -49,7 +74,36 @@ export default function ResetPassword() {
       }
 
       // Passwort aktualisieren
-      const { error } = await auth.updatePassword(password);
+      const { supabase } = require('../../utils/supabase');
+      
+      // Prüfen, ob eine Session existiert
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        // Wenn keine Session existiert, versuchen wir es mit dem Token aus der URL
+        const hash = window.location.hash;
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        
+        if (!accessToken) {
+          throw new Error('Keine gültige Authentifizierung gefunden. Bitte fordern Sie einen neuen Link zum Zurücksetzen des Passworts an.');
+        }
+        
+        // Session mit dem Token setzen
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: params.get('refresh_token') || ''
+        });
+        
+        if (sessionError) {
+          throw sessionError;
+        }
+      }
+      
+      // Jetzt sollte eine gültige Session existieren
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
       
       if (error) {
         throw error;
@@ -62,7 +116,16 @@ export default function ResetPassword() {
 
       // Nach erfolgreicher Aktualisierung zur Login-Seite weiterleiten
       setTimeout(() => {
-        router.push('/restaurant/login');
+        // Prüfen, ob es sich um einen Restaurant-Benutzer handelt
+        const { supabase } = require('../../utils/supabase');
+        supabase.auth.getUser().then(({ data }: { data: any }) => {
+          const role = data?.user?.user_metadata?.role;
+          if (role === 'RESTAURANT') {
+            router.push('/restaurant/login');
+          } else {
+            router.push('/auth/login');
+          }
+        });
       }, 2000);
     } catch (error: any) {
       console.error('Fehler beim Aktualisieren des Passworts:', error);
