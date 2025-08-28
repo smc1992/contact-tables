@@ -7,8 +7,8 @@ type SupabaseServerContext =
   | { req: NextApiRequest; res: NextApiResponse };
 
 export function createAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   console.log('Admin Client: URL vorhanden?', !!supabaseUrl);
   console.log('Admin Client: Service Key vorhanden?', !!supabaseServiceKey);
@@ -18,20 +18,25 @@ export function createAdminClient() {
       url: !!supabaseUrl,
       serviceKey: !!supabaseServiceKey
     });
-    throw new Error('Admin Supabase configuration is missing.');
+    throw new Error('Admin Supabase configuration is missing. SUPABASE_SERVICE_ROLE_KEY muss in den Umgebungsvariablen gesetzt sein.');
   }
 
-  return createServerClient<Database>(
-    supabaseUrl,
-    supabaseServiceKey,
-    {
-      cookies: {
-        get() { return undefined; },
-        set() {},
-        remove() {},
-      },
-    }
-  );
+  try {
+    return createServerClient<Database>(
+      supabaseUrl,
+      supabaseServiceKey,
+      {
+        cookies: {
+          get() { return undefined; },
+          set() {},
+          remove() {},
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Fehler beim Erstellen des Admin-Clients:', error);
+    throw new Error('Fehler beim Erstellen des Admin-Clients: ' + (error instanceof Error ? error.message : String(error)));
+  }
 }
 
 export function createClient(context: SupabaseServerContext) {
