@@ -14,13 +14,14 @@ export default function Footer() {
               <div className="flex items-center space-x-3 group">
                 <div className="h-12 bg-white p-2 rounded-lg overflow-hidden relative">
                   <Image 
-                    src="/images/logo-footer.webp" 
+                    src="/images/logo-fixed/Logo CT quer 4c.webp" 
                     alt="Contact Tables Logo" 
-                    width={48}
-                    height={32}
+                    width={120}
+                    height={40}
                     className="transition-all group-hover:scale-105"
                     priority
                     style={{ objectFit: 'contain', width: 'auto', height: '100%' }}
+                    quality={100}
                   />
                 </div>
               </div>
