@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../contexts/AuthContext';
+import { Alert } from 'antd';
+import Link from 'next/link';
 import { FiAlertCircle, FiLock, FiCheck } from 'react-icons/fi';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
@@ -22,40 +25,67 @@ export default function ResetPassword() {
 
   // Überprüfen, ob wir uns auf der richtigen Seite befinden (nach Klick auf den Link in der E-Mail)
   useEffect(() => {
-    // Supabase leitet automatisch zu dieser Seite weiter und fügt die notwendigen Parameter hinzu
-    const hash = window.location.hash;
-    const params = new URLSearchParams(hash.substring(1));
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const type = params.get('type');
+    // Supabase kann Parameter entweder als Query-Parameter oder als Hash-Parameter übergeben
+    // Zuerst prüfen wir die Query-Parameter (bei direktem Link-Aufruf)
+    let accessToken = router.query.token as string || router.query.access_token as string;
+    let refreshToken = router.query.refresh_token as string;
+    let type = router.query.type as string;
     
-    if (!accessToken || type !== 'recovery') {
+    // Wenn keine Query-Parameter vorhanden sind, prüfen wir den Hash (bei Redirect)
+    if (!accessToken) {
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.substring(1));
+        accessToken = params.get('access_token') || '';
+        refreshToken = params.get('refresh_token') || '';
+        type = params.get('type') || '';
+      }
+    }
+    
+    // Wenn immer noch kein Token gefunden wurde, prüfen wir den URL-Pfad
+    if (!accessToken && window.location.pathname.includes('/verify')) {
+      const urlParams = new URLSearchParams(window.location.search);
+      accessToken = urlParams.get('token') || '';
+      type = urlParams.get('type') || '';
+    }
+    
+    console.log('Token gefunden:', !!accessToken, 'Type:', type);
+    
+    if (!accessToken || (type !== 'recovery' && type !== 'signup')) {
       setStatus({
         type: 'error',
-        message: 'Ungültiger oder abgelaufener Link zum Zurücksetzen des Passworts.',
+        message: 'Ungültiger oder abgelaufener Link zum Zurücksetzen des Passworts. Bitte fordern Sie einen neuen Link an.',
       });
-    } else {
-      // Session mit dem Token setzen
-      auth.getSession().then(({ data }) => {
-        if (!data.session) {
-          console.log('Setze Session mit Token aus URL');
-          // Wenn keine Session existiert, versuchen wir, eine mit dem Token zu erstellen
-          const { supabase } = require('../../utils/supabase');
-          supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || ''
-          }).then(({ error }: { error: any }) => {
-            if (error) {
-              console.error('Fehler beim Setzen der Session:', error);
-              setStatus({
-                type: 'error',
-                message: 'Fehler bei der Authentifizierung. Bitte versuchen Sie es erneut.',
-              });
-            }
+      return;
+    }
+    
+    // Session mit dem Token setzen
+    const { supabase } = require('../../utils/supabase');
+    
+    // Versuchen, die Session mit dem Token zu setzen
+    supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken || ''
+    }).then(({ data, error }: { data: any, error: any }) => {
+      if (error) {
+        console.error('Fehler beim Setzen der Session:', error);
+        
+        // Prüfen, ob der Token abgelaufen ist
+        if (error.message && (error.message.includes('expired') || error.message.includes('invalid'))) {
+          setStatus({
+            type: 'error',
+            message: 'Der Link zum Zurücksetzen des Passworts ist abgelaufen. Bitte fordern Sie einen neuen Link an.',
+          });
+        } else {
+          setStatus({
+            type: 'error',
+            message: 'Fehler bei der Authentifizierung. Bitte versuchen Sie es erneut oder fordern Sie einen neuen Link an.',
           });
         }
-      });
-    }
+      } else {
+        console.log('Session erfolgreich gesetzt');
+      }
+    });
   }, [router.query]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
@@ -80,10 +110,25 @@ export default function ResetPassword() {
       const { data: sessionData } = await supabase.auth.getSession();
       
       if (!sessionData.session) {
-        // Wenn keine Session existiert, versuchen wir es mit dem Token aus der URL
-        const hash = window.location.hash;
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get('access_token');
+        // Token aus verschiedenen möglichen Quellen extrahieren
+        let accessToken = router.query.token as string || router.query.access_token as string;
+        let refreshToken = router.query.refresh_token as string;
+        
+        // Wenn keine Query-Parameter vorhanden sind, prüfen wir den Hash
+        if (!accessToken) {
+          const hash = window.location.hash;
+          if (hash) {
+            const params = new URLSearchParams(hash.substring(1));
+            accessToken = params.get('access_token') || '';
+            refreshToken = params.get('refresh_token') || '';
+          }
+        }
+        
+        // Wenn immer noch kein Token gefunden wurde, prüfen wir den URL-Pfad
+        if (!accessToken && window.location.pathname.includes('/verify')) {
+          const urlParams = new URLSearchParams(window.location.search);
+          accessToken = urlParams.get('token') || '';
+        }
         
         if (!accessToken) {
           throw new Error('Keine gültige Authentifizierung gefunden. Bitte fordern Sie einen neuen Link zum Zurücksetzen des Passworts an.');
@@ -92,10 +137,14 @@ export default function ResetPassword() {
         // Session mit dem Token setzen
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: accessToken,
-          refresh_token: params.get('refresh_token') || ''
+          refresh_token: refreshToken || ''
         });
         
         if (sessionError) {
+          console.error('Fehler beim Setzen der Session:', sessionError);
+          if (sessionError.message && (sessionError.message.includes('expired') || sessionError.message.includes('invalid'))) {
+            throw new Error('Der Link zum Zurücksetzen des Passworts ist abgelaufen. Bitte fordern Sie einen neuen Link an.');
+          }
           throw sessionError;
         }
       }
@@ -106,6 +155,10 @@ export default function ResetPassword() {
       });
       
       if (error) {
+        console.error('Fehler beim Aktualisieren des Passworts:', error);
+        if (error.message && (error.message.includes('expired') || error.message.includes('invalid'))) {
+          throw new Error('Der Link zum Zurücksetzen des Passworts ist abgelaufen. Bitte fordern Sie einen neuen Link an.');
+        }
         throw error;
       }
 
@@ -155,18 +208,34 @@ export default function ResetPassword() {
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`mb-6 p-4 ${
-                status.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              } rounded-lg`}
+              className="mb-6"
             >
-              <div className="flex items-center">
-                {status.type === 'success' ? (
-                  <FiCheck className="mr-2" />
-                ) : (
-                  <FiAlertCircle className="mr-2" />
-                )}
-                <p>{status.message}</p>
-              </div>
+              {status.type === 'error' ? (
+                <>
+                  <Alert
+                    message="Fehler"
+                    description={status.message}
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: '20px' }}
+                  />
+                  {(status.message.includes('abgelaufen') || status.message.includes('ungültig')) && (
+                    <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+                      <Link href="/auth/forgot-password">
+                        <span style={{ color: '#1890ff', cursor: 'pointer' }}>Neuen Link zum Zurücksetzen des Passworts anfordern</span>
+                      </Link>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Alert
+                  message="Erfolg"
+                  description={status.message}
+                  type="success"
+                  showIcon
+                  style={{ marginBottom: '20px' }}
+                />
+              )}
             </motion.div>
           )}
           
