@@ -22,34 +22,96 @@ export default function ResetPassword() {
     message: '',
   });
   const router = useRouter();
+  
+  // Prüfe sofort, ob wir direkt von einer Supabase-URL kommen
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.href.includes('supabase.co/auth/v1/verify')) {
+      console.log('Direkte Supabase-URL erkannt, verarbeite Weiterleitung...');
+      try {
+        const urlObj = new URL(window.location.href);
+        const token = urlObj.searchParams.get('token');
+        const redirectTo = urlObj.searchParams.get('redirect_to');
+        
+        if (token && redirectTo) {
+          // Füge den Token als Hash-Parameter zur Redirect-URL hinzu
+          const redirectUrl = new URL(decodeURIComponent(redirectTo));
+          redirectUrl.hash = `access_token=${token}&type=recovery`;
+          
+          // Direkte Weiterleitung zur eigentlichen Reset-Seite mit dem Token
+          window.location.href = redirectUrl.toString();
+        }
+      } catch (error) {
+        console.error('Fehler bei der Verarbeitung der direkten Supabase-URL:', error);
+      }
+    }
+  }, []);
 
   // Überprüfen, ob wir uns auf der richtigen Seite befinden (nach Klick auf den Link in der E-Mail)
   useEffect(() => {
-    // Supabase kann Parameter entweder als Query-Parameter oder als Hash-Parameter übergeben
-    // Zuerst prüfen wir die Query-Parameter (bei direktem Link-Aufruf)
-    let accessToken = router.query.token as string || router.query.access_token as string;
-    let refreshToken = router.query.refresh_token as string;
-    let type = router.query.type as string;
-    
-    // Wenn keine Query-Parameter vorhanden sind, prüfen wir den Hash (bei Redirect)
-    if (!accessToken) {
-      const hash = window.location.hash;
-      if (hash) {
-        const params = new URLSearchParams(hash.substring(1));
-        accessToken = params.get('access_token') || '';
-        refreshToken = params.get('refresh_token') || '';
-        type = params.get('type') || '';
+    const extractTokenFromUrl = () => {
+      // Supabase kann Parameter entweder als Query-Parameter oder als Hash-Parameter übergeben
+      // Zuerst prüfen wir die Query-Parameter (bei direktem Link-Aufruf)
+      let accessToken = router.query.token as string || router.query.access_token as string;
+      let refreshToken = router.query.refresh_token as string;
+      let type = router.query.type as string;
+      
+      // Wenn keine Query-Parameter vorhanden sind, prüfen wir den Hash (bei Redirect)
+      if (!accessToken) {
+        const hash = window.location.hash;
+        if (hash) {
+          const params = new URLSearchParams(hash.substring(1));
+          accessToken = params.get('access_token') || '';
+          refreshToken = params.get('refresh_token') || '';
+          type = params.get('type') || '';
+        }
       }
-    }
-    
-    // Wenn immer noch kein Token gefunden wurde, prüfen wir den URL-Pfad
-    if (!accessToken && window.location.pathname.includes('/verify')) {
-      const urlParams = new URLSearchParams(window.location.search);
-      accessToken = urlParams.get('token') || '';
-      type = urlParams.get('type') || '';
-    }
-    
-    console.log('Token gefunden:', !!accessToken, 'Type:', type);
+      
+      // Wenn immer noch kein Token gefunden wurde, prüfen wir den URL-Pfad
+      if (!accessToken && window.location.pathname.includes('/verify')) {
+        const urlParams = new URLSearchParams(window.location.search);
+        accessToken = urlParams.get('token') || '';
+        type = urlParams.get('type') || '';
+      }
+
+      // Wenn wir direkt von Supabase weitergeleitet wurden, könnte der Token in der ursprünglichen URL sein
+      if (!accessToken && window.location.href.includes('redirect_to=')) {
+        try {
+          // Extrahiere die ursprüngliche URL aus dem redirect_to Parameter
+          const fullUrl = window.location.href;
+          const redirectMatch = fullUrl.match(/redirect_to=([^&]+)/);
+          if (redirectMatch && redirectMatch[1]) {
+            const redirectUrl = decodeURIComponent(redirectMatch[1]);
+            // Prüfe, ob in der Redirect-URL ein Token enthalten ist
+            const redirectParams = new URL(redirectUrl);
+            const redirectHash = redirectParams.hash;
+            if (redirectHash) {
+              const hashParams = new URLSearchParams(redirectHash.substring(1));
+              accessToken = hashParams.get('access_token') || '';
+              refreshToken = hashParams.get('refresh_token') || '';
+              type = hashParams.get('type') || '';
+            }
+          }
+        } catch (error) {
+          console.error('Fehler beim Extrahieren des Tokens aus der Redirect-URL:', error);
+        }
+      }
+
+      // Wenn der Token in der URL als Teil des Pfades ist (Supabase v1 Verify-URL)
+      if (!accessToken && window.location.href.includes('supabase.co/auth/v1/verify')) {
+        try {
+          const urlObj = new URL(window.location.href);
+          accessToken = urlObj.searchParams.get('token') || '';
+          type = urlObj.searchParams.get('type') || 'recovery';
+        } catch (error) {
+          console.error('Fehler beim Extrahieren des Tokens aus der Supabase-URL:', error);
+        }
+      }
+      
+      console.log('Token gefunden:', !!accessToken, 'Type:', type);
+      return { accessToken, refreshToken, type };
+    };
+
+    const { accessToken, refreshToken, type } = extractTokenFromUrl();
     
     if (!accessToken || (type !== 'recovery' && type !== 'signup')) {
       setStatus({
@@ -61,6 +123,29 @@ export default function ResetPassword() {
     
     // Session mit dem Token setzen
     const { supabase } = require('../../utils/supabase');
+    
+    // Wenn wir direkt von der Supabase-Verify-URL kommen, müssen wir anders vorgehen
+    if (window.location.href.includes('supabase.co/auth/v1/verify')) {
+      console.log('Direkte Weiterleitung von Supabase-Verify-URL erkannt');
+      
+      try {
+        // Extrahiere die Redirect-URL und leite direkt dorthin weiter
+        const urlObj = new URL(window.location.href);
+        const redirectTo = urlObj.searchParams.get('redirect_to');
+        
+        if (redirectTo) {
+          // Füge den Token als Hash-Parameter zur Redirect-URL hinzu
+          const redirectUrl = new URL(decodeURIComponent(redirectTo));
+          redirectUrl.hash = `access_token=${accessToken}&type=recovery`;
+          
+          // Direkte Weiterleitung zur eigentlichen Reset-Seite mit dem Token
+          window.location.href = redirectUrl.toString();
+          return; // Beende die Ausführung hier, da wir weiterleiten
+        }
+      } catch (error) {
+        console.error('Fehler bei der Verarbeitung der Supabase-Verify-URL:', error);
+      }
+    }
     
     // Versuchen, die Session mit dem Token zu setzen
     supabase.auth.setSession({
@@ -110,25 +195,71 @@ export default function ResetPassword() {
       const { data: sessionData } = await supabase.auth.getSession();
       
       if (!sessionData.session) {
-        // Token aus verschiedenen möglichen Quellen extrahieren
-        let accessToken = router.query.token as string || router.query.access_token as string;
-        let refreshToken = router.query.refresh_token as string;
-        
-        // Wenn keine Query-Parameter vorhanden sind, prüfen wir den Hash
-        if (!accessToken) {
-          const hash = window.location.hash;
-          if (hash) {
-            const params = new URLSearchParams(hash.substring(1));
-            accessToken = params.get('access_token') || '';
-            refreshToken = params.get('refresh_token') || '';
+        // Nutze die gleiche Token-Extraktionsfunktion wie im useEffect
+        const extractTokenFromUrl = () => {
+          // Supabase kann Parameter entweder als Query-Parameter oder als Hash-Parameter übergeben
+          // Zuerst prüfen wir die Query-Parameter (bei direktem Link-Aufruf)
+          let accessToken = router.query.token as string || router.query.access_token as string;
+          let refreshToken = router.query.refresh_token as string;
+          let type = router.query.type as string;
+          
+          // Wenn keine Query-Parameter vorhanden sind, prüfen wir den Hash (bei Redirect)
+          if (!accessToken) {
+            const hash = window.location.hash;
+            if (hash) {
+              const params = new URLSearchParams(hash.substring(1));
+              accessToken = params.get('access_token') || '';
+              refreshToken = params.get('refresh_token') || '';
+              type = params.get('type') || '';
+            }
           }
-        }
-        
-        // Wenn immer noch kein Token gefunden wurde, prüfen wir den URL-Pfad
-        if (!accessToken && window.location.pathname.includes('/verify')) {
-          const urlParams = new URLSearchParams(window.location.search);
-          accessToken = urlParams.get('token') || '';
-        }
+          
+          // Wenn immer noch kein Token gefunden wurde, prüfen wir den URL-Pfad
+          if (!accessToken && window.location.pathname.includes('/verify')) {
+            const urlParams = new URLSearchParams(window.location.search);
+            accessToken = urlParams.get('token') || '';
+            type = urlParams.get('type') || '';
+          }
+
+          // Wenn wir direkt von Supabase weitergeleitet wurden, könnte der Token in der ursprünglichen URL sein
+          if (!accessToken && window.location.href.includes('redirect_to=')) {
+            try {
+              // Extrahiere die ursprüngliche URL aus dem redirect_to Parameter
+              const fullUrl = window.location.href;
+              const redirectMatch = fullUrl.match(/redirect_to=([^&]+)/);
+              if (redirectMatch && redirectMatch[1]) {
+                const redirectUrl = decodeURIComponent(redirectMatch[1]);
+                // Prüfe, ob in der Redirect-URL ein Token enthalten ist
+                const redirectParams = new URL(redirectUrl);
+                const redirectHash = redirectParams.hash;
+                if (redirectHash) {
+                  const hashParams = new URLSearchParams(redirectHash.substring(1));
+                  accessToken = hashParams.get('access_token') || '';
+                  refreshToken = hashParams.get('refresh_token') || '';
+                  type = hashParams.get('type') || '';
+                }
+              }
+            } catch (error) {
+              console.error('Fehler beim Extrahieren des Tokens aus der Redirect-URL:', error);
+            }
+          }
+
+          // Wenn der Token in der URL als Teil des Pfades ist (Supabase v1 Verify-URL)
+          if (!accessToken && window.location.href.includes('supabase.co/auth/v1/verify')) {
+            try {
+              const urlObj = new URL(window.location.href);
+              accessToken = urlObj.searchParams.get('token') || '';
+              type = urlObj.searchParams.get('type') || 'recovery';
+            } catch (error) {
+              console.error('Fehler beim Extrahieren des Tokens aus der Supabase-URL:', error);
+            }
+          }
+          
+          console.log('Token gefunden in handlePasswordReset:', !!accessToken);
+          return { accessToken, refreshToken, type };
+        };
+
+        const { accessToken, refreshToken } = extractTokenFromUrl();
         
         if (!accessToken) {
           throw new Error('Keine gültige Authentifizierung gefunden. Bitte fordern Sie einen neuen Link zum Zurücksetzen des Passworts an.');
