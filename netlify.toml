@@ -3,6 +3,26 @@
   publish = ".next"
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
 
+[build.processing]
+  skip_processing = false
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.images]
+  compress = true
+
+[build.edge_functions]
+  external_node_modules = ["next/dist/server/next"]
+
 [build.environment]
   NODE_VERSION = "18.17.0"
   NPM_VERSION = "9.6.7"
@@ -14,6 +34,13 @@
   status = 200
   force = true
   conditions = {Role = ["netlify-edge-middleware"]}
+
+# Stelle sicher, dass API-Routen korrekt behandelt werden
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/*"
