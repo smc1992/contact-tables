@@ -130,28 +130,63 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
     setRefreshing(true);
     try {
       // Benutzer über API-Route abrufen
+      console.log('Rufe API-Route /api/admin/users auf...');
       const response = await fetch('/api/admin/users');
-      if (!response.ok) {
-        throw new Error('Fehler beim Abrufen der Benutzer');
-      }
       
       const data = await response.json();
-      setUsers(data.users);
-      setGroupedUsers(data.groupedUsers || {
-        admin: [],
-        restaurant: [],
-        customer: [],
-        user: []
-      });
-      console.log('Geladene Benutzer:', data.users.length);
-      console.log('Benutzer nach Rollen:', {
-        admin: data.groupedUsers?.admin?.length || 0,
-        restaurant: data.groupedUsers?.restaurant?.length || 0,
-        customer: data.groupedUsers?.customer?.length || 0,
-        user: data.groupedUsers?.user?.length || 0
-      });
+      
+      // Prüfen, ob die API einen Fehler zurückgegeben hat
+      if (data.error) {
+        console.error('API-Fehler:', data.error);
+        if (data.errorDetails) {
+          console.error('Fehlerdetails:', data.errorDetails);
+        }
+        
+        // Zeige Fehlermeldung an
+        message.error(`Fehler beim Laden der Benutzer: ${data.error}`);
+        
+        // Verwende die zurückgegebenen leeren Arrays, falls vorhanden
+        if (data.users && data.groupedUsers) {
+          setUsers(data.users);
+          setGroupedUsers(data.groupedUsers);
+          console.log('Verwende leere Benutzerlisten aus API-Antwort');
+        } else {
+          // Fallback zu leeren Arrays
+          setUsers([]);
+          setGroupedUsers({
+            admin: [],
+            restaurant: [],
+            customer: [],
+            user: []
+          });
+        }
+      } else if (!response.ok) {
+        // HTTP-Fehler (z.B. 401, 403, 500)
+        throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
+      } else if (Array.isArray(data.users)) {
+        // Erfolgreiche Antwort mit Benutzerdaten
+        setUsers(data.users);
+        setGroupedUsers(data.groupedUsers || {
+          admin: [],
+          restaurant: [],
+          customer: [],
+          user: []
+        });
+        console.log('Geladene Benutzer:', data.users.length);
+        console.log('Benutzer nach Rollen:', {
+          admin: data.groupedUsers?.admin?.length || 0,
+          restaurant: data.groupedUsers?.restaurant?.length || 0,
+          customer: data.groupedUsers?.customer?.length || 0,
+          user: data.groupedUsers?.user?.length || 0
+        });
+      } else {
+        // Unerwartetes Antwortformat
+        console.error('Unerwartetes API-Antwortformat:', data);
+        throw new Error('Unerwartetes API-Antwortformat');
+      }
     } catch (error) {
       console.error('Fehler beim Laden der Benutzer:', error);
+      message.error(`Fehler beim Laden der Benutzer: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       // Fallback zu Dummy-Daten bei Fehler
       setUsers([
         {

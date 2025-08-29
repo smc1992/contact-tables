@@ -183,30 +183,63 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     // Profile aus profiles Tabelle abrufen
     console.log('Lade Profile...');
-    const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*');
-    
-    if (profilesError) {
-      console.error('Fehler beim Laden der Profile:', profilesError);
-      throw profilesError;
+    let profiles = [];
+    try {
+      const { data, error: profilesError } = await supabase.from('profiles').select('*');
+      
+      if (profilesError) {
+        console.error('Fehler beim Laden der Profile:', profilesError);
+        console.log('Verwende leere Profil-Liste als Fallback');
+        // Wir werfen keinen Fehler, sondern setzen mit leerer Liste fort
+      } else {
+        profiles = data || [];
+        console.log('Anzahl geladener Profile:', profiles.length);
+      }
+    } catch (profileQueryError) {
+      console.error('Unerwarteter Fehler beim Laden der Profile:', profileQueryError);
+      console.log('Verwende leere Profil-Liste als Fallback');
+      // Wir setzen die Ausführung mit einer leeren Profil-Liste fort
     }
     
     console.log('Anzahl geladener Profile:', profiles?.length || 0);
     
     // Restaurants aus der Datenbank (Prisma) laden
     console.log('Lade Restaurants...');
-    const prisma = new PrismaClient();
-    const restaurants = await prisma.restaurant.findMany({
-      select: {
-        id: true,
-        userId: true,
-        name: true,
-        contractStatus: true,
-        isVisible: true,
-        slug: true,
+    let restaurants = [];
+    let restaurantsByUserId = new Map();
+    
+    try {
+      const prisma = new PrismaClient();
+      
+      try {
+        restaurants = await prisma.restaurant.findMany({
+          select: {
+            id: true,
+            userId: true,
+            name: true,
+            contractStatus: true,
+            isVisible: true,
+            slug: true,
+          }
+        });
+        
+        restaurantsByUserId = new Map(restaurants.map(r => [r.userId, r]));
+        console.log('Anzahl geladener Restaurants:', restaurants.length);
+      } catch (prismaError) {
+        console.error('Fehler beim Laden der Restaurants mit Prisma:', prismaError);
+        console.log('Verwende leere Restaurant-Liste als Fallback');
+        // Wir setzen die Ausführung mit einer leeren Restaurant-Liste fort
+      } finally {
+        // Stellen Sie sicher, dass die Prisma-Verbindung immer geschlossen wird
+        await prisma.$disconnect().catch(e => 
+          console.error('Fehler beim Schließen der Prisma-Verbindung:', e)
+        );
       }
-    });
-    const restaurantsByUserId = new Map(restaurants.map(r => [r.userId, r]));
-    console.log('Anzahl geladener Restaurants:', restaurants.length);
+    } catch (prismaInitError) {
+      console.error('Fehler beim Initialisieren des Prisma-Clients:', prismaInitError);
+      console.log('Verwende leere Restaurant-Liste als Fallback');
+      // Wir setzen die Ausführung mit einer leeren Restaurant-Liste fort
+    }
     
     // Daten zusammenführen und nach Rollen gruppieren
     console.log('Führe Benutzerdaten zusammen und gruppiere nach Rollen...');
@@ -294,9 +327,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     console.error('Fehler beim Abrufen der Benutzer:', error);
-    return res.status(500).json({ 
-      error: 'Interner Serverfehler', 
-      message: error instanceof Error ? error.message : 'Unbekannter Fehler'
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'Kein Stack trace verfügbar');
+    
+    // Detaillierte Fehlerinformationen für Debugging
+    const errorDetails = {
+      message: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      type: error instanceof Error ? error.constructor.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    
+    // Versuche, einen minimalen Datensatz zurückzugeben, anstatt einen 500-Fehler
+    return res.status(200).json({ 
+      users: [],
+      groupedUsers: {
+        admin: [],
+        restaurant: [],
+        customer: [],
+        user: []
+      },
+      error: 'Fehler beim Laden der Benutzerdaten',
+      errorDetails: process.env.NODE_ENV === 'development' ? errorDetails : undefined
     });
   }
 }

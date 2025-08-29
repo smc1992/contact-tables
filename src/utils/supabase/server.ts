@@ -57,12 +57,25 @@ export function createClient(context: SupabaseServerContext) {
   const authCookie = context.req.cookies['contact-tables-auth'];
   console.log('Server createClient: Auth-Cookie vorhanden?', !!authCookie);
 
+  // Protokolliere Domain-Informationen für Debugging
+  const host = context.req.headers.host || '';
+  const protocol = context.req.headers['x-forwarded-proto'] || 'http';
+  const origin = `${protocol}://${host}`;
+  console.log('Server createClient: Request Host:', host);
+  console.log('Server createClient: Request Protocol:', protocol);
+  console.log('Server createClient: Request Origin:', origin);
+  
   return createServerClient<Database>(
     supabaseUrl,
     supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
+          // Prüfe alle Cookies für Debugging
+          if (name === 'contact-tables-auth') {
+            console.log('Alle verfügbaren Cookies:', Object.keys(context.req.cookies));
+          }
+          
           const cookie = context.req.cookies[name];
           console.log(`Server cookie get: ${name} = ${cookie ? 'vorhanden' : 'nicht vorhanden'}`);
           return cookie;
@@ -77,18 +90,36 @@ export function createClient(context: SupabaseServerContext) {
           console.log(`Server cookie set: ${name} = [Wert gekürzt]`);
           console.log('Server cookie options:', options);
           
+          // Bestimme die Domain für das Cookie
+          const host = context.req.headers.host || '';
+          const isProduction = process.env.NODE_ENV === 'production';
+          const isCustomDomain = host.includes('contact-tables.org');
+          
+          // Cookie-Teile zusammenstellen
           const cookieParts = [
             `${name}=${value}`,
             `Path=${options.path || '/'}`,
             `Max-Age=${options.maxAge}`,
             `SameSite=${options.sameSite || 'Lax'}`,
           ];
+          
+          // Domain nur in Produktion und für benutzerdefinierte Domain setzen
+          if (isProduction && isCustomDomain) {
+            cookieParts.push(`Domain=.contact-tables.org`);
+            console.log('Cookie Domain gesetzt auf: .contact-tables.org');
+          }
 
           if (options.httpOnly !== false) {
             cookieParts.push('HttpOnly');
           }
-          if (options.secure) {
+          
+          // In Produktion immer Secure setzen, wenn wir HTTPS verwenden
+          const protocol = context.req.headers['x-forwarded-proto'] || 'http';
+          const useSecure = isProduction || protocol === 'https' || options.secure;
+          
+          if (useSecure) {
             cookieParts.push('Secure');
+            console.log('Cookie als Secure markiert');
           }
 
           const cookieString = cookieParts.join('; ');
@@ -147,6 +178,8 @@ export function createClient(context: SupabaseServerContext) {
         maxAge: 60 * 60 * 24 * 7, // 7 Tage
         sameSite: 'lax',
         path: '/',
+        // Secure wird automatisch basierend auf der Umgebung gesetzt
+        secure: process.env.NODE_ENV === 'production',
       },
     }
   );
