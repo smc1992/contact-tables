@@ -14,9 +14,10 @@ import { createLowlight } from 'lowlight';
 import js from 'highlight.js/lib/languages/javascript';
 import ts from 'highlight.js/lib/languages/typescript';
 import css from 'highlight.js/lib/languages/css';
-import xml from 'highlight.js/lib/languages/xml';
+// Problematische ES-Module durch CommonJS-Importe ersetzen
+// import xml from 'highlight.js/lib/languages/xml';
 import json from 'highlight.js/lib/languages/json';
-import sql from 'highlight.js/lib/languages/sql';
+// import sql from 'highlight.js/lib/languages/sql';
 import bash from 'highlight.js/lib/languages/bash';
 import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
@@ -29,9 +30,9 @@ const lowlight = createLowlight();
 lowlight.register('javascript', js);
 lowlight.register('typescript', ts);
 lowlight.register('css', css);
-lowlight.register('xml', xml);
+// Problematische Sprachen entfernt
 lowlight.register('json', json);
-lowlight.register('sql', sql);
+// SQL entfernt
 lowlight.register('bash', bash);
 
 type Props = {
