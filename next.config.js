@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const withPlugins = require('next-compose-plugins');
-const withTM = require('next-transpile-modules')(['rc-util', 'rc-picker', '@rc-component/util', '@rc-component/trigger', 'rc-table', 'rc-tree', 'rc-select', 'rc-dropdown', 'rc-menu', 'rc-motion', 'rc-notification', 'rc-tooltip', 'rc-tree-select']);
+const withTM = require('next-transpile-modules')(['rc-util', 'rc-picker', '@rc-component/util', '@rc-component/trigger', 'rc-table', 'rc-tree', 'rc-select', 'rc-dropdown', 'rc-menu', 'rc-motion', 'rc-notification', 'rc-tooltip', 'rc-tree-select', '@ant-design/icons-svg']);
 
 const nextConfig = {
   reactStrictMode: true,
