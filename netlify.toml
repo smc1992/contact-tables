@@ -21,6 +21,12 @@
   to = "/api/:splat"
   status = 200
 
+# Stelle sicher, dass Bilder korrekt behandelt werden
+[[redirects]]
+  from = "/_next/image*"
+  to = "/_next/image:splat"
+  status = 200
+
 # Alle anderen Routen gehen zum Next.js-Handler
 [[redirects]]
   from = "/*"
@@ -36,5 +42,14 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com;"
 
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+  [plugins.inputs]
+    framework = "nextjs"
+    includeFiles = [".next/**"]
+    nodeModulesPaths = ["node_modules"]
