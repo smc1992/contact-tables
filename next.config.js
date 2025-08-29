@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const withPlugins = require('next-compose-plugins');
+// Explizite Liste der zu transpilierenden Module
 const withTM = require('next-transpile-modules')(['rc-util', 'rc-picker', '@rc-component/util', '@rc-component/trigger', 'rc-table', 'rc-tree', 'rc-select', 'rc-dropdown', 'rc-menu', 'rc-motion', 'rc-notification', 'rc-tooltip', 'rc-tree-select', '@ant-design/icons-svg', 'rc-pagination', 'highlight.js']);
 
 const nextConfig = {
@@ -28,10 +29,23 @@ const nextConfig = {
     if (!isServer) {
       config.module.rules.push({
         test: /\.(js|jsx)$/,
+        exclude: /node_modules\/(?!(highlight\.js|lowlight)\/)/,
         use: {
           loader: 'babel-loader',
           options: {
             presets: ['next/babel']
+          }
+        }
+      });
+
+      // Spezielle Behandlung für highlight.js
+      config.module.rules.push({
+        test: /\.js$/,
+        include: [/node_modules\/highlight\.js/, /node_modules\/lowlight/],
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: [['@babel/preset-env', { modules: 'commonjs' }]]
           }
         }
       });

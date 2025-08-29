@@ -7,24 +7,23 @@
   NODE_VERSION = "18.17.0"
   NPM_VERSION = "9.6.7"
 
-# Produktions-Kontext: Alle Routen gehen zum Index, damit Next.js die Routing-Kontrolle übernehmen kann
+# Stelle sicher, dass statische Assets korrekt behandelt werden
 [[redirects]]
-  from = "/*"
+  from = "/_next/static/*"
   to = "/_next/static/:splat"
   status = 200
-  force = true
 
 # Stelle sicher, dass API-Routen korrekt behandelt werden
 [[redirects]]
   from = "/api/*"
   to = "/api/:splat"
   status = 200
-  force = true
 
+# Alle anderen Routen gehen zum Next.js-Handler
 [[redirects]]
   from = "/*"
-  to = "/404"
-  status = 404
+  to = "/.netlify/functions/___netlify-handler"
+  status = 200
 
 [[headers]]
   for = "/*"
