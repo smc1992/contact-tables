@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const withPlugins = require('next-compose-plugins');
 // Explizite Liste der zu transpilierenden Module
-const withTM = require('next-transpile-modules')(['rc-util', 'rc-picker', '@rc-component/util', '@rc-component/trigger', 'rc-table', 'rc-tree', 'rc-select', 'rc-dropdown', 'rc-menu', 'rc-motion', 'rc-notification', 'rc-tooltip', 'rc-tree-select', '@ant-design/icons-svg', 'rc-pagination', 'highlight.js']);
+const withTM = require('next-transpile-modules')(['highlight.js', 'lowlight', 'react', 'react-dom']);
 
 const nextConfig = {
   reactStrictMode: true,
@@ -29,13 +29,20 @@ const nextConfig = {
       config.cache = false;
     }
     
-    // Konfiguriere externals für react/jsx-runtime
+    // Entferne externals für react/jsx-runtime
     if (!isServer) {
-      config.externals = {
-        ...config.externals,
-        react: 'React',
-        'react-dom': 'ReactDOM'
-      };
+      // Stelle sicher, dass keine externals für React gesetzt sind
+      if (config.externals) {
+        if (Array.isArray(config.externals)) {
+          config.externals = config.externals.filter(external => {
+            return typeof external !== 'object' || 
+                  (external && !external.react && !external['react-dom'] && !external['react/jsx-runtime']);
+          });
+        } else if (typeof config.externals === 'object') {
+          const { react, 'react-dom': reactDom, 'react/jsx-runtime': jsxRuntime, ...restExternals } = config.externals;
+          config.externals = restExternals;
+        }
+      }
     }
     
     // Transpile ES6 modules to CommonJS for compatibility
@@ -71,6 +78,14 @@ const nextConfig = {
         'react-dom': require.resolve('react-dom'),
         'react/jsx-runtime': require.resolve('react/jsx-runtime'),
         'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime')
+      };
+      
+      // Füge explizite Module-Pfade für React hinzu
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        'react': require.resolve('react'),
+        'react-dom': require.resolve('react-dom'),
+        'react/jsx-runtime': require.resolve('react/jsx-runtime')
       };
     }
     
