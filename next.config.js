@@ -49,6 +49,14 @@ const nextConfig = {
           }
         }
       });
+
+      // Stellen Sie sicher, dass React korrekt geladen wird
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'react': require.resolve('react'),
+        'react-dom': require.resolve('react-dom')
+      };
     }
     
     return config;

@@ -96,6 +96,7 @@
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
     "babel-loader": "^10.0.0",
+    "babel-plugin-transform-react-remove-prop-types": "^0.4.24",
     "css-loader": "^7.1.2",
     "eslint": "^8.56.0",
     "eslint-config-next": "^14.1.0",
