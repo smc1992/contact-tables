@@ -49,7 +49,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  [plugins.inputs]
-    framework = "nextjs"
-    includeFiles = [".next/**"]
-    nodeModulesPaths = ["node_modules"]
