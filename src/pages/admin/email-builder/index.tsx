@@ -98,23 +98,25 @@ function EmailBuilderPage() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      // Fetch users with CUSTOMER role from Supabase Auth
-      const { data: { users }, error } = await supabase.auth.admin.listUsers();
+      // Fetch users with CUSTOMER role from API route
+      const response = await fetch('/api/admin/email-users');
+      const data = await response.json();
       
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(data.error || 'Fehler beim Laden der Kunden');
+      }
       
-      // Filter for customers only and format data
-      const customerUsers = users
-        .filter(user => {
-          const role = user.user_metadata?.role;
-          return role === 'CUSTOMER' || role === 'customer';
-        })
-        .map(user => ({
-          id: user.id,
-          email: user.email || '',
-          name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim(),
-          created_at: user.created_at
-        }));
+      if (!data.users) {
+        throw new Error('Keine Benutzerdaten erhalten');
+      }
+      
+      // Format customer data
+      const customerUsers = data.users.map((user: any) => ({
+        id: user.id,
+        email: user.email || '',
+        name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim(),
+        created_at: user.created_at
+      }));
       
       setCustomers(customerUsers);
       
@@ -130,7 +132,7 @@ function EmailBuilderPage() {
           id: 'new',
           name: 'Neue Kunden',
           description: 'Kunden, die sich in den letzten 30 Tagen registriert haben',
-          count: customerUsers.filter(c => {
+          count: customerUsers.filter((c: any) => {
             const createdDate = new Date(c.created_at);
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
