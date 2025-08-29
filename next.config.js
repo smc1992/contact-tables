@@ -19,10 +19,23 @@ const nextConfig = {
     STRIPE_PUBLIC_KEY: process.env.STRIPE_PUBLIC_KEY,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   },
+  // Externe Module konfigurieren
+  experimental: {
+    esmExternals: 'loose',
+  },
   webpack: (config, { dev, isServer }) => {
     // Disable webpack caching in development mode to troubleshoot build issues
     if (dev) {
       config.cache = false;
+    }
+    
+    // Konfiguriere externals für react/jsx-runtime
+    if (!isServer) {
+      config.externals = {
+        ...config.externals,
+        react: 'React',
+        'react-dom': 'ReactDOM'
+      };
     }
     
     // Transpile ES6 modules to CommonJS for compatibility
@@ -50,12 +63,14 @@ const nextConfig = {
         }
       });
 
-      // Stellen Sie sicher, dass React korrekt geladen wird
+      // Stellen Sie sicher, dass React und JSX Runtime korrekt geladen werden
       config.resolve = config.resolve || {};
       config.resolve.alias = {
         ...config.resolve.alias,
         'react': require.resolve('react'),
-        'react-dom': require.resolve('react-dom')
+        'react-dom': require.resolve('react-dom'),
+        'react/jsx-runtime': require.resolve('react/jsx-runtime'),
+        'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime')
       };
     }
     
