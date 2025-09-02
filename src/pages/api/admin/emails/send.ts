@@ -4,6 +4,8 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { emailRateLimiter } from '@/middleware/rateLimiter';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { withAdminAuth } from '@/backend/middleware/withAdminAuth';
+import { prepareEmailForTracking, generateUnsubscribeLink } from '@/utils/email-tracking';
 
 interface Recipient {
   id: string;
@@ -59,22 +61,19 @@ interface SendResponse {
   remainingRecipients?: number;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>) {
+async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, userId: string) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, message: 'Method not allowed' });
   }
 
   try {
-    // Auth check: only admins may send emails
+    // Auth is already checked by withAdminAuth middleware
     const supabase = createClient({ req, res });
     const { data: userData } = await supabase.auth.getUser();
     const currentUser = userData?.user;
+    
     if (!currentUser) {
-      return res.status(401).json({ ok: false, message: 'Unauthorized' });
-    }
-    const role = (currentUser.user_metadata as any)?.role;
-    if (role !== 'admin' && role !== 'ADMIN') {
-      return res.status(403).json({ ok: false, message: 'Forbidden' });
+      return res.status(401).json({ ok: false, message: 'User not found' });
     }
 
     const { subject, content, recipients, templateId, maxRetries = 3, attachments = [], allowBatching = false, batchSize = 50, batchId } = req.body as SendEmailRequest;
@@ -129,11 +128,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return;
     }
 
+    // Überprüfe, ob der Admin-Client korrekt erstellt wurde
+    if (!adminSupabase) {
+      console.error('Admin-Client konnte nicht erstellt werden');
+      return res.status(500).json({ 
+        ok: false, 
+        message: 'Admin-Client konnte nicht erstellt werden. Bitte überprüfen Sie die Umgebungsvariablen.' 
+      });
+    }
+
+    // Teste, ob der Admin-Client Zugriff auf die system_settings-Tabelle hat
+    try {
+      const { count, error: testError } = await adminSupabase
+        .from('system_settings')
+        .select('*', { count: 'exact', head: true });
+
+      if (testError) {
+        console.error('Admin-Client hat keinen Zugriff auf system_settings:', testError);
+        return res.status(500).json({ 
+          ok: false, 
+          message: 'Keine Berechtigung für system_settings-Tabelle. Bitte überprüfen Sie die RLS-Richtlinien.' 
+        });
+      }
+
+      console.log('Admin-Client hat Zugriff auf system_settings. Anzahl Einträge:', count);
+    } catch (testError) {
+      console.error('Fehler beim Testen des Admin-Clients:', testError);
+    }
+
     // Load SMTP settings from system_settings (fall back to env)
-    const { data: settings } = await adminSupabase
+    console.log('Abrufen der SMTP-Einstellungen aus system_settings...');
+    const { data: settings, error: settingsError } = await adminSupabase
       .from('system_settings')
-      .select('smtp_host, smtp_port, smtp_user, smtp_password, contact_email, website_url')
+      .select('smtp_host, smtp_port, smtp_user, smtp_password, contact_email, email_signature')
       .single();
+      
+    if (settingsError) {
+      console.error('Fehler beim Abrufen der SMTP-Einstellungen:', settingsError);
+      return res.status(500).json({ 
+        ok: false, 
+        message: `Fehler beim Abrufen der SMTP-Einstellungen: ${settingsError.message}` 
+      });
+    } else {
+      console.log('SMTP-Einstellungen erfolgreich abgerufen:', settings ? 'Ja' : 'Nein');
+      if (!settings) {
+        console.error('Keine SMTP-Einstellungen in der Datenbank gefunden');
+      }
+    }
       
     // Get template if templateId is provided
     let templateContent = content;
@@ -159,9 +200,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const smtpUser = settings?.smtp_user || process.env.EMAIL_SERVER_USER;
     const smtpPass = settings?.smtp_password || process.env.EMAIL_SERVER_PASSWORD;
     const fromAddress = settings?.contact_email || process.env.EMAIL_FROM;
-    const websiteUrl = settings?.website_url || process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://contact-tables.com';
+    const websiteUrl = process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://contact-tables.com';
+    
+    console.log('SMTP-Konfiguration:', {
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser,
+      pass: smtpPass ? '********' : undefined,
+      fromAddress
+    });
 
     if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromAddress) {
+      console.error('SMTP-Konfiguration unvollständig:', {
+        hostMissing: !smtpHost,
+        portMissing: !smtpPort,
+        userMissing: !smtpUser,
+        passMissing: !smtpPass,
+        fromAddressMissing: !fromAddress
+      });
       return res.status(500).json({ 
         ok: false, 
         message: 'SMTP configuration incomplete. Please set in admin settings.' 
@@ -318,11 +374,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           .replace(/\{\{email\}\}/g, recipient.email)
           .replace(/\{\{unsubscribe_url\}\}/g, `${websiteUrl}/unsubscribe?token=${unsubscribeToken}`);
         
-        // Add tracking pixel if HTML content
-        if (personalizedContent.includes('</body>')) {
-          const trackingPixel = `<img src="${websiteUrl}/api/tracking/email?campaignId=${emailHistory.id}&recipientId=${recipient.id}" width="1" height="1" alt="" style="display:none;" />\n</body>`;
-          personalizedContent = personalizedContent.replace('</body>', trackingPixel);
+        // Füge E-Mail-Signatur hinzu, wenn vorhanden
+        if (settings?.email_signature) {
+          console.log('Füge E-Mail-Signatur hinzu');
+          if (personalizedContent.includes('</body>')) {
+            personalizedContent = personalizedContent.replace('</body>', `${settings.email_signature}\n</body>`);
+          } else {
+            personalizedContent += `\n\n${settings.email_signature}`;
+          }
         }
+        
+        // Füge Unsubscribe-Link am Ende der Email hinzu, falls noch nicht vorhanden
+        if (!personalizedContent.includes('unsubscribe') && !personalizedContent.includes('abmelden')) {
+          const unsubscribeLink = generateUnsubscribeLink(recipient.id, emailHistory.id);
+          if (personalizedContent.includes('</body>')) {
+            personalizedContent = personalizedContent.replace('</body>', `<div style="margin-top: 20px; text-align: center; color: #999999; font-size: 12px;">${unsubscribeLink}</div>\n</body>`);
+          } else {
+            personalizedContent += `<div style="margin-top: 20px; text-align: center; color: #999999; font-size: 12px;">${unsubscribeLink}</div>`;
+          }
+        }
+        
+        // Bereite Email für Tracking vor (fügt Tracking-Pixel und Tracking-Links hinzu)
+        personalizedContent = prepareEmailForTracking(personalizedContent, recipient.id, emailHistory.id);
         
         // Prepare email
         const mailOptions = {
@@ -502,3 +575,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);
