@@ -51,7 +51,7 @@ export default async function handler(
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Benutzer automatisch bestätigen, da dies serverseitig geschieht
+      email_confirm: false, // E-Mail-Bestätigung erforderlich, damit Supabase Bestätigungs-E-Mails versendet
       user_metadata: {
         name: name,
         role: role,
@@ -69,6 +69,21 @@ export default async function handler(
     const user = authData.user;
     if (!user) {
         return res.status(500).json({ message: 'Benutzer konnte nicht erstellt werden.' });
+    }
+    
+    // Explizit eine Bestätigungs-E-Mail senden
+    const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'signup',
+      email,
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
+    });
+    
+    if (emailError) {
+      console.error('Fehler beim Senden der Bestätigungs-E-Mail:', emailError);
+      // Wir geben hier keinen Fehler zurück, da der Benutzer bereits erstellt wurde
+      // Der Admin kann die E-Mail später erneut senden
     }
 
     // Transaktion, um sicherzustellen, dass Restaurant und Profil zusammen erstellt werden
