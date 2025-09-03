@@ -54,11 +54,18 @@ const nextConfig = {
       config.cache = false;
     }
     
+    // Pfad-Aliase für alle Umgebungen (Server und Client)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@/backend': require('path').resolve(__dirname, './src/backend'),
+      '@/utils': require('path').resolve(__dirname, './src/utils'),
+    };
+    
     // Transpile ES6 modules to CommonJS for compatibility
     if (!isServer) {
       config.module.rules.push({
         test: /\.(js|jsx)$/,
-        exclude: /node_modules\/(?!(highlight\.js|lowlight)\/)/,
+        exclude: /node_modules\/(?!(highlight\.js|lowlight)\/)/, 
         use: {
           loader: 'babel-loader',
           options: {
@@ -84,8 +91,6 @@ const nextConfig = {
         ...config.resolve.alias,
         'react/jsx-runtime': require.resolve('react/jsx-runtime'),
         'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime'),
-        '@/backend': require('path').resolve(__dirname, './src/backend'),
-        '@/utils': require('path').resolve(__dirname, './src/utils'),
       };
       
       // Füge Fallbacks für React-Module hinzu
