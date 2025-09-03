@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createAdminClient, createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/server';
+import { withAdminAuth } from '@/backend/middleware/withAdminAuth';
 
 interface EmailTemplate {
   id: string;
@@ -16,19 +17,8 @@ interface ApiResponse {
   data?: EmailTemplate[];
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
-  // Auth check: only admins may access templates
-  const supabase = createClient({ req, res });
-  const { data: userData } = await supabase.auth.getUser();
-  const currentUser = userData?.user;
-  if (!currentUser) {
-    return res.status(401).json({ ok: false, message: 'Unauthorized' });
-  }
-  const role = (currentUser.user_metadata as any)?.role;
-  if (role !== 'admin' && role !== 'ADMIN') {
-    return res.status(403).json({ ok: false, message: 'Forbidden' });
-  }
-
+async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>, userId: string) {
+  // Auth is already checked by withAdminAuth middleware
   const adminSupabase = createAdminClient();
 
   // Handle different HTTP methods
@@ -91,3 +81,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(405).json({ ok: false, message: 'Method not allowed' });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);

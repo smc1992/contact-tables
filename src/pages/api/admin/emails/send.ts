@@ -2,10 +2,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createAdminClient, createClient } from '@/utils/supabase/server';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import { emailRateLimiter } from '@/middleware/rateLimiter';
+import { emailRateLimiter } from './rateLimiter';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { withAdminAuth } from '@/backend/middleware/withAdminAuth';
-import { prepareEmailForTracking, generateUnsubscribeLink } from '@/utils/email-tracking';
+import { withAdminAuth } from './withAdminAuth';
+import { prepareEmailForTracking, generateUnsubscribeLink } from './email-tracking';
 
 interface Recipient {
   id: string;

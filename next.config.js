@@ -1,12 +1,14 @@
 /** @type {import('next').NextConfig} */
 const withPlugins = require('next-compose-plugins');
 // Explizite Liste der zu transpilierenden Module
-const withTM = require('next-transpile-modules')(['highlight.js', 'lowlight']);
+const withTM = require('next-transpile-modules')(['highlight.js', 'lowlight', 'react', 'react-dom']);
 
 const nextConfig = {
   reactStrictMode: true,
+  // Optimierte Konfiguration für Next.js 14 mit Netlify
   images: {
     domains: ['lh3.googleusercontent.com', 'maps.googleapis.com', 'efmbzrmroyetcqxcwxka.supabase.co', 'images.unsplash.com', 'res.cloudinary.com'],
+    unoptimized: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -14,11 +16,38 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Konfiguration für serverseitige Rendering und statischen Export
+  trailingSlash: true,
+  // Explizit Admin-Seiten vom statischen Export ausschließen
+  experimental: {
+    // Ermöglicht die Verwendung von runtime-Konfigurationen in Seiten
+  },
+  // Exclude admin pages from static export
+  exportPathMap: async function (defaultPathMap, { dev, dir, outDir, distDir, buildId }) {
+    const filteredPathMap = {};
+    
+    // Filter out admin pages from static export
+    for (const path in defaultPathMap) {
+      if (!path.startsWith('/admin')) {
+        filteredPathMap[path] = defaultPathMap[path];
+      }
+    }
+    
+    return filteredPathMap;
+  },
+  // Explizit festlegen, welche Seiten serverseitig gerendert werden sollen
+  serverRuntimeConfig: {
+    // Serverseitige Konfiguration hier
+  },
+  publicRuntimeConfig: {
+    // Öffentliche Konfiguration hier
+  },
   env: {
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     STRIPE_PUBLIC_KEY: process.env.STRIPE_PUBLIC_KEY,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   },
+  // Kombinierte webpack-Konfiguration
   webpack: (config, { dev, isServer }) => {
     // Disable webpack caching in development mode to troubleshoot build issues
     if (dev) {
@@ -49,6 +78,22 @@ const nextConfig = {
           }
         }
       });
+
+      // Füge explizite Fallbacks für React-Module hinzu
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'react/jsx-runtime': require.resolve('react/jsx-runtime'),
+        'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime'),
+        '@/backend': require('path').resolve(__dirname, './src/backend'),
+        '@/utils': require('path').resolve(__dirname, './src/utils'),
+      };
+      
+      // Füge Fallbacks für React-Module hinzu
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        react: require.resolve('react'),
+        'react-dom': require.resolve('react-dom'),
+      };
     }
     
     return config;

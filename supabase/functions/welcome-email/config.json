@@ -1,0 +1,7 @@
+{
+  "name": "welcome-email",
+  "version": "1.0.0",
+  "description": "Sendet automatisch eine Willkommens-E-Mail an neu registrierte Kunden",
+  "verify_jwt": false,
+  "import_map": "./import_map.json"
+}
