@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createAdminClient, createClient } from '@/utils/supabase/server';
 import { sendEmail } from '@/utils/email';
-import { getSystemSettings } from '@/utils/settings';
+import { getSystemSettings } from './settings';
 
 interface TestResponse {
   success: boolean;

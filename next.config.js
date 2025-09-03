@@ -89,6 +89,8 @@ const nextConfig = {
       // Füge explizite Fallbacks für React-Module hinzu
       config.resolve.alias = {
         ...config.resolve.alias,
+        '@/backend': require('path').resolve(__dirname, './src/backend'),
+        '@/utils': require('path').resolve(__dirname, './src/utils'),
         'react/jsx-runtime': require.resolve('react/jsx-runtime'),
         'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime'),
       };
