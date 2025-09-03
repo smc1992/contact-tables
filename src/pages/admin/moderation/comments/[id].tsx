@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../../../contexts/AuthContext';
 import AdminSidebar from '../../../../components/AdminSidebar';
 import { FiArrowLeft, FiCheck, FiX, FiFlag, FiTrash2, FiUser, FiCalendar, FiAlertTriangle, FiFileText } from 'react-icons/fi';
+import { withAuth } from '../../../../utils/withAuth';
+import { GetServerSideProps } from 'next';
 
 interface Comment {
   id: string;
@@ -39,56 +41,41 @@ interface Comment {
   relatedContent?: any;
 }
 
-export default function AdminCommentDetailPage() {
-  const { session, user, loading: authLoading } = useAuth();
+const AdminCommentDetailPage = () => {
+  const { user } = useAuth();
   const router = useRouter();
   const { id } = router.query;
-  
-  const [comment, setComment] = useState<Comment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [comment, setComment] = useState<Comment | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adminComment, setAdminComment] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
   
-  // Kommentar laden
+  // Kommentar laden, wenn ID verfügbar ist
   useEffect(() => {
-    const fetchComment = async () => {
-      if (!id) return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/admin/moderation/comments/${id}`);
-        
-        if (!response.ok) {
-          throw new Error('Fehler beim Laden des Kommentars');
-        }
-        
-        const data = await response.json();
-        setComment(data);
-        setAdminComment(data.adminComment || '');
-      } catch (err) {
-        console.error('Fehler beim Laden des Kommentars:', err);
-        setError('Der Kommentar konnte nicht geladen werden.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     if (id) {
+      const fetchComment = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/api/admin/moderation/comments/${id}`);
+          
+          if (!response.ok) {
+            throw new Error('Fehler beim Laden des Kommentars');
+          }
+          
+          const data = await response.json();
+          setComment(data);
+          setAdminComment(data.adminComment || '');
+        } catch (err) {
+          console.error('Fehler beim Laden des Kommentars:', err);
+          setError('Der Kommentar konnte nicht geladen werden.');
+        } finally {
+          setLoading(false);
+        }
+      };
       fetchComment();
     }
   }, [id]);
-  
-  // Authentifizierung prüfen
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (user && user.user_metadata?.role !== 'ADMIN') {
-        router.push('/');
-      }
-    }
-  }, [authLoading, session, router, user]);
   
   // Kommentarstatus aktualisieren
   const updateCommentStatus = async (status: string) => {
@@ -209,7 +196,7 @@ export default function AdminCommentDetailPage() {
     );
   };
   
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -499,3 +486,14 @@ export default function AdminCommentDetailPage() {
     </div>
   );
 }
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);
+
+export default AdminCommentDetailPage;

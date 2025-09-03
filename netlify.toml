@@ -25,3 +25,7 @@
 # Next.js Plugin für Netlify
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Spezifische Konfiguration für Next.js 14
+[functions]
+  node_bundler = "esbuild"

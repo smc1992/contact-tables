@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { motion } from 'framer-motion';
-import { useAuth } from '../../contexts/AuthContext';
 import { FiUsers, FiHome, FiCalendar, FiAlertCircle, FiClock, FiDollarSign, FiBarChart2, FiMessageSquare, FiStar, FiRefreshCw, FiCheck, FiAlertTriangle, FiMail } from 'react-icons/fi';
 import { createClient } from '@/utils/supabase/client';
 import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
@@ -13,8 +12,11 @@ import { ActivityItem } from '@/utils/supabase/dashboardQueries';
 import AdminSidebar from '../../components/AdminSidebar';
 import { formatDate } from '../../utils/dateUtils';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { GetServerSideProps } from 'next';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 
-// Lokale Definition des DashboardStats-Interface mit emailStats
+// Lokale Definition des DashboardStats-Interface mit emailStats und eventsStats
 interface DashboardStats {
   users: number;
   restaurants: number;
@@ -38,6 +40,12 @@ interface DashboardStats {
       created_at: string;
     }>;
   };
+  eventsStats: {
+    totalEvents: number;
+    upcomingEvents: number;
+    pastEvents: number;
+    avgParticipationRate: number;
+  };
 }
 
 // Typen für Analytics und Systemstatus
@@ -55,8 +63,24 @@ interface SystemStatus {
   email: { status: string, latency: number | null };
 }
 
-export default function AdminDashboard() {
-  const { session, user, loading: authLoading } = useAuth();
+interface AdminDashboardProps {
+  user: User;
+}
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'], // Erlaubte Rollen
+  async (context, user) => {
+    console.log('getServerSideProps für /admin/dashboard wird ausgeführt');
+    console.log('Benutzerrolle:', user.user_metadata?.role);
+    console.log('Admin-Berechtigung bestätigt, Seite wird geladen');
+    
+    return {
+      props: {}
+    };
+  }
+);
+
+export default function AdminDashboard({ user }: AdminDashboardProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,24 +101,22 @@ export default function AdminDashboard() {
       monthlyRevenue: 0,
       averageContractValue: 0,
       pendingPayments: 0
+    },
+    emailStats: {
+      totalCampaigns: 0,
+      totalSent: 0,
+      recentCampaigns: []
+    },
+    eventsStats: {
+      totalEvents: 0,
+      upcomingEvents: 0,
+      pastEvents: 0,
+      avgParticipationRate: 0
     }
   });
   const supabase = createClient();
   
-  // Interface für Dashboard-Statistiken
-  interface DashboardStats {
-    users: number;
-    restaurants: number;
-    pendingRequests: number;
-    activeRestaurants: number;
-    recentActivity: ActivityItem[];
-    financialStats?: {
-      monthlyRevenue: number;
-      yearlyRevenue: number;
-      averageContractValue: number;
-      pendingPayments: number;
-    };
-  }
+  // Entfernt, da bereits oben definiert
   
   const [stats, setStats] = useState<DashboardStats>({
     users: 0,
@@ -107,25 +129,58 @@ export default function AdminDashboard() {
       yearlyRevenue: 0,
       averageContractValue: 0,
       pendingPayments: 0
+    },
+    emailStats: {
+      totalCampaigns: 0,
+      totalSent: 0,
+      recentCampaigns: []
+    },
+    eventsStats: {
+      totalEvents: 0,
+      upcomingEvents: 0,
+      pastEvents: 0,
+      avgParticipationRate: 0
     }
   });
   
-  // Funktion zum Laden des Systemstatus
+  // Funktion zum Laden des Systemstatus von der API
   const fetchSystemStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
-      // Hier würde normalerweise ein API-Aufruf erfolgen
-      // Simulierte Antwort für Demozwecke
+      // Echte API-Anfrage zum Abrufen des Systemstatus
+      const response = await fetch('/api/admin/system-status', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        credentials: 'same-origin'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Abrufen des Systemstatus: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Daten in das erwartete Format umwandeln
       const status: SystemStatus = {
-        api: { status: 'online', latency: 120 },
-        database: { status: 'online', latency: 45 },
-        payment: { status: 'online', latency: 230 },
-        email: { status: 'online', latency: 180 }
+        api: { status: data.api.status, latency: data.api.latency },
+        database: { status: data.database.status, latency: data.database.latency },
+        payment: { status: data.payment.status, latency: data.payment.latency },
+        email: { status: data.email.status, latency: data.email.latency }
       };
       
       setSystemStatus(status);
     } catch (error) {
       console.error('Fehler beim Abrufen des Systemstatus:', error);
+      // Fallback zu Offline-Status bei Fehler
+      setSystemStatus({
+        api: { status: 'offline', latency: null },
+        database: { status: 'offline', latency: null },
+        payment: { status: 'offline', latency: null },
+        email: { status: 'offline', latency: null }
+      });
     } finally {
       setStatusLoading(false);
     }
@@ -150,79 +205,80 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Funktion zum Laden der Dashboard-Daten über API-Routen und Supabase
+  // Funktion zum Laden der Dashboard-Daten über API-Routen
   const loadDashboardData = useCallback(async () => {
     setRefreshing(true);
     try {
-      // Benutzer über die API-Route abrufen, die bereits korrekt funktioniert
-      console.log('Starte Benutzerabfrage über API...');
+      console.log('Starte Dashboard-Datenabfrage über API...');
       
-      let userCount = 0;
-      try {
-        const usersResponse = await fetch('/api/admin/users', {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          },
-          credentials: 'same-origin' // Wichtig für Cookies/Session
-        });
-        
-        if (!usersResponse.ok) {
-          console.error('API-Fehler:', usersResponse.status, await usersResponse.text());
-          throw new Error(`Fehler beim Abrufen der Benutzer: ${usersResponse.status}`);
-        }
-        
-        const usersData = await usersResponse.json();
-        userCount = usersData?.users?.length || 0;
-        console.log('Gesamtanzahl der Benutzer aus API:', userCount);
-        console.log('Beispiel-Benutzer:', usersData?.users?.[0]);
-      } catch (userError) {
-        console.error('Fehler bei Benutzerabfrage:', userError);
-        // Verwende einen Fallback-Wert, wenn die API fehlschlägt
-        console.log('Verwende Fallback-Wert für Benutzeranzahl');
-        userCount = 520; // Fallback-Wert basierend auf historischen Daten
+      // Alle Dashboard-Daten über die zentrale API-Route abrufen
+      const dashboardResponse = await fetch('/api/admin/dashboard', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        credentials: 'same-origin' // Wichtig für Cookies/Session
+      });
+      
+      if (!dashboardResponse.ok) {
+        console.error('API-Fehler:', dashboardResponse.status, await dashboardResponse.text());
+        throw new Error(`Fehler beim Abrufen der Dashboard-Daten: ${dashboardResponse.status}`);
       }
       
-      // Direkte Supabase-Abfrage für Dashboard-Daten
-      const { data: restaurantsData, error: restaurantsError } = await supabase
-        .from('restaurants')
-        .select('*', { count: 'exact', head: true });
+      const dashboardData = await dashboardResponse.json();
+      console.log('Dashboard-Daten erfolgreich geladen:', dashboardData);
       
-      const { data: pendingRequestsData, error: pendingRequestsError } = await supabase
-        .from('partner_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+      // Events-Daten über die Events-API-Route abrufen
+      const eventsResponse = await fetch('/api/admin/events?page=1&pageSize=1', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        credentials: 'same-origin'
+      });
       
-      const { data: activeRestaurantsData, error: activeRestaurantsError } = await supabase
-        .from('restaurants')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+      let eventsStats = {
+        totalEvents: 0,
+        upcomingEvents: 0,
+        pastEvents: 0,
+        avgParticipationRate: 0
+      };
       
-      // Neueste Aktivitäten abrufen
-      const { data: recentRegistrations } = await supabase
-        .from('restaurants')
-        .select('name, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        if (eventsData.ok && eventsData.data && eventsData.data.stats) {
+          eventsStats = {
+            totalEvents: eventsData.data.stats.totalEvents || 0,
+            upcomingEvents: eventsData.data.stats.upcomingEvents || 0,
+            pastEvents: eventsData.data.stats.pastEvents || 0,
+            avgParticipationRate: eventsData.data.stats.avgParticipationRate || 0
+          };
+        }
+      } else {
+        console.error('Fehler beim Abrufen der Events-Daten:', eventsResponse.status);
+      }
       
       // Daten in den State setzen
       setDashboardStats({
-        users: userCount, // Echte Anzahl der Benutzer aus der API oder Fallback
-        restaurants: restaurantsData?.length || 2,
-        pendingRequests: pendingRequestsData?.length || 0,
-        activeRestaurants: activeRestaurantsData?.length || 0,
-        recentActivity: recentRegistrations?.map(item => ({
-          type: 'registration',
-          restaurant: item.name,
-          date: item.created_at
-        })) || [],
-        financialStats: {
-          monthlyRevenue: 4250, // Dummy-Daten für Finanzen
-          yearlyRevenue: 51000,
-          averageContractValue: 850,
-          pendingPayments: 1200
-        }
+        users: dashboardData.stats.users || 0,
+        restaurants: dashboardData.stats.restaurants || 0,
+        pendingRequests: dashboardData.stats.pendingRequests || 0,
+        activeRestaurants: dashboardData.stats.activeRestaurants || 0,
+        recentActivity: dashboardData.stats.recentActivity || [],
+        financialStats: dashboardData.stats.financialStats || {
+          monthlyRevenue: 0,
+          yearlyRevenue: 0,
+          averageContractValue: 0,
+          pendingPayments: 0
+        },
+        emailStats: dashboardData.stats.emailStats || {
+          totalCampaigns: 0,
+          totalSent: 0,
+          recentCampaigns: []
+        },
+        eventsStats: eventsStats
       });
       setLastUpdated(new Date());
       
@@ -247,18 +303,27 @@ export default function AdminDashboard() {
           yearlyRevenue: 51000,
           averageContractValue: 850,
           pendingPayments: 1200
+        },
+        emailStats: {
+          totalCampaigns: 0,
+          totalSent: 0,
+          recentCampaigns: []
+        },
+        eventsStats: {
+          totalEvents: 0,
+          upcomingEvents: 0,
+          pastEvents: 0,
+          avgParticipationRate: 0
         }
       });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [supabase, fetchSystemStatus, fetchAnalyticsData]);
+  }, [fetchSystemStatus, fetchAnalyticsData]);
 
   // Echtzeit-Abonnement für Aktivitäten
   useEffect(() => {
-    if (!session || !user || (user.user_metadata?.role !== 'ADMIN' && user.user_metadata?.role !== 'admin')) return;
-    
     // Echtzeit-Abonnement für neue Restaurants
     const restaurantsSubscription = supabase
       .channel('restaurants-changes')
@@ -300,23 +365,13 @@ export default function AdminDashboard() {
       supabase.removeChannel(contractsSubscription);
       supabase.removeChannel(paymentsSubscription);
     };
-  }, [supabase, session, user, loadDashboardData]);
+  }, [loadDashboardData]);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (session && user) {
-        if (user.user_metadata.role !== 'admin' && user.user_metadata.role !== 'ADMIN') {
-          router.push('/');
-          return;
-        }
-        
-        loadDashboardData();
-        fetchSystemStatus();
-      }
-    }
-  }, [authLoading, session, router, loadDashboardData, fetchSystemStatus]);
+    // Daten beim ersten Laden abrufen
+    loadDashboardData();
+    fetchSystemStatus();
+  }, [loadDashboardData, fetchSystemStatus]);
 
   if (loading) {
     return (
@@ -487,7 +542,7 @@ export default function AdminDashboard() {
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">Events</dt>
                         <dd className="flex items-baseline">
-                          <div className="text-2xl font-semibold text-gray-900">24</div>
+                          <div className="text-2xl font-semibold text-gray-900">{dashboardStats.eventsStats.totalEvents}</div>
                         </dd>
                       </dl>
                     </div>
@@ -611,6 +666,163 @@ export default function AdminDashboard() {
               </div>
             </div>
             
+            <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
+              <div className="px-4 py-5 sm:p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Email-Statistiken</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                        <FiMail className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Gesendete Kampagnen</p>
+                        <p className="text-lg font-semibold text-gray-900">{dashboardStats.emailStats.totalCampaigns}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
+                        <FiCheck className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Gesendete Emails</p>
+                        <p className="text-lg font-semibold text-gray-900">{dashboardStats.emailStats.totalSent}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-indigo-500 rounded-md p-3">
+                        <FiBarChart2 className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Durchschn. Öffnungsrate</p>
+                        <p className="text-lg font-semibold text-gray-900">32%</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {dashboardStats.emailStats.recentCampaigns && dashboardStats.emailStats.recentCampaigns.length > 0 ? (
+                  <div>
+                    <h3 className="text-md font-medium text-gray-700 mb-2">Letzte Kampagnen</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Betreff</th>
+                            <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empfänger</th>
+                            <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {dashboardStats.emailStats.recentCampaigns.slice(0, 3).map((campaign) => (
+                            <tr key={campaign.id}>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{campaign.subject}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{campaign.recipient_count}</td>
+                              <td className="px-4 py-2 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  campaign.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                  campaign.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' : 
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {campaign.status === 'completed' ? 'Abgeschlossen' : 
+                                   campaign.status === 'in_progress' ? 'In Bearbeitung' : 
+                                   campaign.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(campaign.created_at).toLocaleDateString('de-DE')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500">Keine kürzlichen Email-Kampagnen</div>
+                )}
+                
+                <div className="mt-4 text-right">
+                  <Link href="/admin/email-builder/history" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+                    Alle Email-Kampagnen anzeigen →
+                  </Link>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
+              <div className="px-4 py-5 sm:p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Events-Übersicht</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                        <FiCalendar className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Kommende Events</p>
+                        <p className="text-lg font-semibold text-gray-900">{dashboardStats.eventsStats.upcomingEvents}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
+                        <FiUsers className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Teilnahmequote</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          {dashboardStats.eventsStats.avgParticipationRate > 0 
+                            ? `${Math.round(dashboardStats.eventsStats.avgParticipationRate)}%` 
+                            : '0%'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                        <FiBarChart2 className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Gesamt Events</p>
+                        <p className="text-lg font-semibold text-gray-900">{dashboardStats.eventsStats.totalEvents}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 p-4 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 bg-amber-500 rounded-md p-3">
+                        <FiClock className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-500">Vergangene Events</p>
+                        <p className="text-lg font-semibold text-gray-900">{dashboardStats.eventsStats.pastEvents}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 text-right">
+                  <Link href="/admin/events" className="text-sm font-medium text-indigo-600 hover:text-indigo-500 mr-4">
+                    Alle Events anzeigen →
+                  </Link>
+                  <Link href="/admin/events/new" className="text-sm font-medium text-green-600 hover:text-green-500 flex items-center inline-flex">
+                    <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Neues Event erstellen
+                  </Link>
+                </div>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white overflow-hidden shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
@@ -687,18 +899,19 @@ export default function AdminDashboard() {
                 <div className="px-4 py-5 sm:p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-medium text-gray-900">Systemstatus</h2>
-                    <button 
-                      onClick={fetchSystemStatus}
-                      disabled={statusLoading}
-                      className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center"
-                    >
-                      {statusLoading ? (
-                        <FiRefreshCw className="h-4 w-4 animate-spin mr-1" />
-                      ) : (
-                        <FiRefreshCw className="h-4 w-4 mr-1" />
-                      )}
-                      Status aktualisieren
-                    </button>
+                    <div className="flex items-center">
+                      <span className="text-xs text-gray-500 mr-3">
+                        {lastUpdated ? `Letztes Update: ${lastUpdated.toLocaleTimeString('de-DE')}` : ''}
+                      </span>
+                      <button 
+                        onClick={fetchSystemStatus}
+                        disabled={statusLoading}
+                        className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center"
+                      >
+                        <FiRefreshCw className={`mr-1 ${statusLoading ? 'animate-spin' : ''}`} />
+                        {statusLoading ? 'Wird aktualisiert...' : 'Aktualisieren'}
+                      </button>
+                    </div>
                   </div>
                   
                   {statusLoading && !systemStatus ? (

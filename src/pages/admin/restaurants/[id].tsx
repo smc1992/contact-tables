@@ -1,31 +1,24 @@
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { GetServerSidePropsContext } from 'next';
+import { User } from '@supabase/supabase-js';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import { motion } from 'framer-motion';
-import { useAuth } from '../../../contexts/AuthContext';
 import AdminSidebar from '../../../components/AdminSidebar';
 import RestaurantDetails from '../../../components/admin/RestaurantDetails';
+import { withAuth } from '@/utils/withAuth';
 
-export default function AdminRestaurantDetailsPage() {
-  const { session, user, loading: authLoading } = useAuth();
+interface AdminRestaurantDetailsPageProps {
+  user: User;
+}
+
+function AdminRestaurantDetailsPage({ user }: AdminRestaurantDetailsPageProps) {
   const router = useRouter();
   const { id } = router.query;
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (user && user.user_metadata?.role !== 'ADMIN') {
-        router.push('/');
-      } else {
-        setLoading(false);
-      }
-    }
-  }, [authLoading, session, router, user]);
-
-  if (loading || authLoading || !id) {
+  const [loading, setLoading] = useState(!id);
+  
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -70,3 +63,13 @@ export default function AdminRestaurantDetailsPage() {
     </div>
   );
 }
+
+// Wrapper für getServerSideProps mit withAuth
+export const getServerSideProps = withAuth(['admin', 'ADMIN'], async (context: GetServerSidePropsContext, user: User) => {
+  // Hier könnten zusätzliche Daten für die Restaurant-Detailseite geladen werden
+  return {
+    props: {}
+  };
+});
+
+export default AdminRestaurantDetailsPage;

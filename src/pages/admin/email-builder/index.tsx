@@ -8,7 +8,10 @@ import AdminSidebar from '@/components/AdminSidebar';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { FiSend, FiUsers, FiRefreshCw, FiSave, FiCheckCircle, FiMail, FiPaperclip, FiTrash2 } from 'react-icons/fi';
-import { withClientAuth } from '@/utils/withClientAuth';
+import { GetServerSideProps } from 'next';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
+import { Select, Button, Input, message, Spin, Checkbox, Modal } from 'antd';
 
 // Import rich text editor with dynamic import to avoid SSR issues
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
@@ -57,9 +60,13 @@ interface Attachment {
   size: number;
 }
 
-function EmailBuilderPage() {
+interface EmailBuilderPageProps {
+  user: User;
+}
+
+function EmailBuilderPage({ user }: EmailBuilderPageProps) {
   const router = useRouter();
-  const { session, user, loading: authLoading } = useAuth();
+  // Authentifizierung wird serverseitig durch withAuth gehandhabt
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
@@ -204,55 +211,43 @@ function EmailBuilderPage() {
   };
   
   // Handle tag selection
-  const handleTagChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const tagId = e.target.value;
-    setSelectedTag(tagId);
-    
-    // Reset group selection when tag changes
+  const handleTagChange = async (value: string) => {
+    setSelectedTag(value);
     setSelectedGroup('');
-    
-    if (!tagId) {
-      setSelectedCustomers([]);
-      return;
-    }
-    
+    setSearchTerm('');
+    setLoading(true);
+
     try {
-      setLoading(true);
-      const response = await fetch(`/api/admin/users/by-tag?tagId=${tagId}`);
+      let response;
+      
+      if (value === 'none') {
+        // Benutzer ohne Tags abrufen
+        response = await fetch('/api/admin/users/without-tags');
+      } else {
+        // Benutzer mit dem ausgewählten Tag abrufen
+        response = await fetch(`/api/admin/users/by-tag?tagId=${value}`);
+      }
       
       if (!response.ok) {
-        throw new Error('Fehler beim Laden der Benutzer mit diesem Tag');
+        throw new Error(`Error: ${response.status}`);
       }
-      
-      const result = await response.json();
-      
-      if (Array.isArray(result.users)) {
-        setSelectedCustomers(result.users.map((user: any) => user.id));
-      }
+      const data = await response.json();
+      setCustomers(data.users || []);
     } catch (error) {
-      console.error('Fehler beim Laden der Benutzer mit diesem Tag:', error);
-      setSelectedCustomers([]);
+      console.error('Failed to fetch customers by tag:', error);
+      message.error('Fehler beim Laden der Kunden nach Tag');
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (session && user) {
-        if (user.user_metadata.role !== 'admin' && user.user_metadata.role !== 'ADMIN') {
-          router.push('/');
-          return;
-        }
-        
-        fetchCustomers();
-        fetchTemplates();
-        fetchTags();
-      }
-    }
-  }, [authLoading, session, user, router]);
+    // Lade Daten, wenn die Komponente gemountet wird
+    fetchCustomers();
+    fetchTemplates();
+    fetchTags();
+  }, []);
 
   // Handle template selection
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -681,29 +676,29 @@ function EmailBuilderPage() {
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Empfänger auswählen</h2>
                   
                   <div className="mb-4">
-                    <label htmlFor="tag" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nach Tag filtern
                     </label>
-                    <select
-                      id="tag"
+                    <Select
+                      placeholder="Tag auswählen"
                       value={selectedTag}
                       onChange={handleTagChange}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      disabled={tagsLoading}
+                      style={{ width: '100%' }}
+                      allowClear
                     >
-                      <option value="">Kein Tag ausgewählt</option>
+                      <Select.Option value="none">Keine Tags</Select.Option>
                       {tagsLoading ? (
-                        <option value="" disabled>Tags werden geladen...</option>
+                        <Select.Option value="" disabled>Tags werden geladen...</Select.Option>
                       ) : tags.length === 0 ? (
-                        <option value="" disabled>Keine Tags verfügbar</option>
+                        <Select.Option value="" disabled>Keine Tags verfügbar</Select.Option>
                       ) : (
                         tags.map(tag => (
-                          <option key={tag.id} value={tag.id}>
+                          <Select.Option key={tag.id} value={tag.id}>
                             {tag.name} ({tag.userCount})
-                          </option>
+                          </Select.Option>
                         ))
                       )}
-                    </select>
+                    </Select>
                   </div>
                   
                   <div className="mb-4">
@@ -817,4 +812,19 @@ function EmailBuilderPage() {
   );
 }
 
-export default withClientAuth(EmailBuilderPage, ['admin', 'ADMIN']);
+export const getServerSideProps: GetServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);
+
+// Konfiguration für Next.js, um statische Exporte zu verhindern
+export const config = {
+  unstable_runtimeJS: true,
+  runtime: 'nodejs'
+};
+
+export default EmailBuilderPage;

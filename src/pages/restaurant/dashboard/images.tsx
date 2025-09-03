@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { GetServerSideProps, GetServerSidePropsContext } from 'next';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient } from '../../../utils/supabase/server';
 import { motion } from 'framer-motion';
 import { FiUpload, FiTrash2, FiImage, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import Header from '../../../components/Header';
@@ -342,24 +342,7 @@ const RestaurantImages = ({ restaurant: initialRestaurant, error: initialError }
 export default RestaurantImages;
 
 export const getServerSideProps: GetServerSideProps = async (context: GetServerSidePropsContext) => {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { 
-      cookies: {
-        get: (name: string) => context.req.cookies[name],
-        set: (name: string, value: string, options: CookieOptions) => {
-          context.res.setHeader('Set-Cookie', `${name}=${value}; Path=/; HttpOnly; SameSite=Lax`);
-        },
-        remove: (name: string, options: CookieOptions) => {
-          context.res.setHeader('Set-Cookie', `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
-        },
-      },
-      cookieOptions: {
-        name: 'contact-tables-auth',
-      },
-    }
-  );
+  const supabase = createClient(context);
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 

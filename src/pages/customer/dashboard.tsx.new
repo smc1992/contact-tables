@@ -1,0 +1,13 @@
+// Temporäre Datei für den Anfang der dashboard.tsx
+// Wir werden nur die ersten Zeilen speichern
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import Header from '../../components/Header';
+import Footer from '../../components/Footer';
+import CustomerSidebar from '../../components/customer/CustomerSidebar';
+import { motion } from 'framer-motion';
+import { FiCalendar, FiClock, FiMapPin, FiUsers, FiStar, FiInfo } from 'react-icons/fi';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../utils/supabase';
+import { type Database } from '../../types/supabase';

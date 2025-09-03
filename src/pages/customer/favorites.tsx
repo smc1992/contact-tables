@@ -117,22 +117,36 @@ export default function CustomerFavorites() {
   };
 
   // Entferne ein Kontakttisch aus den Favoriten
-  const removeFavorite = async (id: string) => {
+  const removeFavorite = async (tableId: string) => {
     if (!user) return;
     
     try {
+      // Finde zuerst den Kontakttisch, um die Restaurant-ID zu erhalten
+      const tableToRemove = favorites.find(fav => fav.id === tableId);
+      
+      if (!tableToRemove || !tableToRemove.restaurant) {
+        throw new Error('Kontakttisch oder Restaurant nicht gefunden');
+      }
+      
+      const restaurantId = tableToRemove.restaurant.id;
+      
+      // Entferne den Favoriten aus der Datenbank
       const { error } = await supabase
         .from('favorites')
         .delete()
         .eq('user_id', user.id)
-        .eq('restaurant_id', id);
+        .eq('restaurant_id', restaurantId);
       
       if (error) {
         throw error;
       }
       
       // Aktualisiere die Liste der Favoriten
-      setFavorites(favorites.filter(fav => fav.id !== id));
+      // Entferne alle Kontakttische des Restaurants aus der lokalen Liste
+      setFavorites(favorites.filter(fav => fav.restaurant?.id !== restaurantId));
+      
+      // Zeige Erfolgsmeldung
+      setError(null);
     } catch (error) {
       console.error('Fehler beim Entfernen des Favoriten:', error);
       setError('Der Favorit konnte nicht entfernt werden. Bitte versuche es später erneut.');

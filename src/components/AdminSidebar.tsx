@@ -28,6 +28,7 @@ export default function AdminSidebar({ activeItem = 'dashboard' }: AdminSidebarP
     { icon: FiFileText, label: 'Blogs', id: 'blogs', path: '/admin/blogs' },
     { icon: FiMail, label: 'Newsletter', id: 'newsletter', path: '/admin/newsletters' },
     { icon: FiMail, label: 'E-Mail-Builder', id: 'email-builder', path: '/admin/email-builder' },
+    { icon: FiMail, label: 'E-Mail-Vorlagen', id: 'email-templates', path: '/admin/email-templates' },
     { icon: FiSettings, label: 'Einstellungen', id: 'settings', path: '/admin/settings' },
   ];
 

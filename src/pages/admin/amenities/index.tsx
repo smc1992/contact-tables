@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@/utils/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
 import { FiPackage, FiPlus, FiEdit2, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 
 interface Amenity {
   id: string;
@@ -16,9 +17,12 @@ interface Amenity {
   created_at: string;
 }
 
-export default function AmenitiesPage() {
+interface AmenitiesPageProps {
+  user: User;
+}
+
+function AmenitiesPage({ user }: AmenitiesPageProps) {
   const router = useRouter();
-  const { session, user, loading: authLoading } = useAuth();
   const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,19 +104,10 @@ export default function AmenitiesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (session && user) {
-        if (user.user_metadata.role !== 'admin' && user.user_metadata.role !== 'ADMIN') {
-          router.push('/');
-          return;
-        }
-        
-        fetchAmenities();
-      }
-    }
-  }, [authLoading, session, user, router]);
+    // Seite ist durch withAuth geschützt; einfach laden
+    fetchAmenities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Formatierung des Datums
   const formatDate = (dateString: string) => {
@@ -401,3 +396,9 @@ export default function AmenitiesPage() {
     </div>
   );
 }
+
+export const getServerSideProps = withAuth(['ADMIN', 'admin'], async () => {
+  return { props: {} };
+});
+
+export default AmenitiesPage;

@@ -6,9 +6,11 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../../contexts/AuthContext';
 import AdminSidebar from '../../../components/AdminSidebar';
 import { FiMessageSquare, FiStar, FiAlertTriangle, FiCheckCircle, FiXCircle, FiFlag } from 'react-icons/fi';
+import { withAuth } from '../../../utils/withAuth';
+import { GetServerSideProps } from 'next';
 
 export default function AdminModerationPage() {
-  const { session, user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -28,19 +30,10 @@ export default function AdminModerationPage() {
     }
   });
 
-  // Authentifizierung prüfen
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (user && user.user_metadata?.role !== 'ADMIN') {
-        router.push('/');
-      } else {
-        setLoading(false);
-        fetchModerationStats();
-      }
-    }
-  }, [authLoading, session, router, user]);
+    setLoading(false);
+    fetchModerationStats();
+  }, []);
 
   // Moderationsstatistiken laden
   const fetchModerationStats = async () => {
@@ -69,7 +62,7 @@ export default function AdminModerationPage() {
     }
   };
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -246,3 +239,12 @@ export default function AdminModerationPage() {
     </div>
   );
 }
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);

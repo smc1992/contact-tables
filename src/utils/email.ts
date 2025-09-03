@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer';
+import { getSystemSettings } from './settings';
+import { v4 as uuidv4 } from 'uuid';
 
 interface EmailOptions {
   to: string;
@@ -8,35 +10,138 @@ interface EmailOptions {
 }
 
 // E-Mail-Transporter konfigurieren
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_SERVER_HOST,
-    port: Number(process.env.EMAIL_SERVER_PORT),
-    secure: Number(process.env.EMAIL_SERVER_PORT) === 465,
+const createTransporter = async () => {
+  // Systemeinstellungen abrufen
+  const settings = await getSystemSettings();
+  
+  // SMTP-Einstellungen aus der Datenbank oder Umgebungsvariablen verwenden
+  const host = settings?.smtp_host || process.env.EMAIL_SERVER_HOST;
+  const port = Number(settings?.smtp_port || process.env.EMAIL_SERVER_PORT);
+  const user = settings?.smtp_user || process.env.EMAIL_SERVER_USER;
+  const pass = settings?.smtp_password || process.env.EMAIL_SERVER_PASSWORD;
+  
+  // Absender-E-Mail aus Einstellungen oder Umgebungsvariablen verwenden
+  const fromEmail = settings?.contact_email || process.env.EMAIL_FROM;
+  const domain = fromEmail?.split('@')[1];
+  
+  console.log('SMTP-Konfiguration:', { host, port, secure: port === 465 });
+  
+  // Basis-Transporter-Konfiguration
+  const transporterConfig: any = {
+    host,
+    port,
+    secure: port === 465,
     auth: {
-      user: process.env.EMAIL_SERVER_USER,
-      pass: process.env.EMAIL_SERVER_PASSWORD
+      user,
+      pass
     }
-  });
+  };
+  
+  // DKIM-Konfiguration hinzufügen, wenn alle erforderlichen Einstellungen vorhanden sind
+  if (settings?.dkim_private_key && settings?.dkim_selector && domain) {
+    try {
+      console.log(`DKIM-Konfiguration wird mit Selector ${settings.dkim_selector} für Domain ${domain} hinzugefügt`);
+      
+      transporterConfig.dkim = {
+        domainName: domain,
+        keySelector: settings.dkim_selector,
+        privateKey: settings.dkim_private_key
+      };
+      
+      console.log('DKIM-Konfiguration erfolgreich hinzugefügt');
+    } catch (dkimError) {
+      console.error('Fehler bei der DKIM-Konfiguration:', dkimError);
+      // Fehler bei der DKIM-Konfiguration sollte den E-Mail-Versand nicht blockieren
+    }
+  }
+  
+  return nodemailer.createTransport(transporterConfig);
 };
 
 // E-Mail senden
 export const sendEmail = async ({ to, subject, text, html }: EmailOptions): Promise<boolean> => {
   try {
-    if (!process.env.EMAIL_FROM) {
-      console.error('EMAIL_FROM ist nicht konfiguriert');
+    // Systemeinstellungen abrufen
+    const settings = await getSystemSettings();
+    
+    if (!process.env.EMAIL_FROM && !settings?.contact_email) {
+      console.error('EMAIL_FROM ist nicht konfiguriert und keine Kontakt-E-Mail in den Einstellungen');
       return false;
     }
 
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
     
-    await transporter.sendMail({
-      from: `"Contact Tables" <${process.env.EMAIL_FROM}>`,
+    // HTML mit Signatur vorbereiten
+    let finalHtml = html;
+    
+    // Wenn eine Signatur vorhanden ist und HTML-Inhalt existiert, füge die Signatur hinzu
+    if (settings?.email_signature && html) {
+      // Prüfen, ob HTML einen schließenden Body-Tag hat
+      if (html.includes('</body>')) {
+        // Füge die Signatur vor dem schließenden Body-Tag ein
+        finalHtml = html.replace('</body>', `
+<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+  ${settings.email_signature}
+</div>
+</body>`);
+      } else {
+        // Füge die Signatur am Ende des HTML-Inhalts ein
+        finalHtml = `${html}
+<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+  ${settings.email_signature}
+</div>`;
+      }
+    }
+    
+    // Wenn eine Signatur vorhanden ist und nur Text-Inhalt existiert, füge die Signatur zum Text hinzu
+    let finalText = text;
+    if (settings?.email_signature && text && !html) {
+      // Entferne HTML-Tags aus der Signatur für die Textversion
+      const plainSignature = settings.email_signature.replace(/<[^>]*>/g, '');
+      finalText = `${text}\n\n---\n${plainSignature}`;
+    }
+    
+    // Absender-E-Mail aus Einstellungen oder Umgebungsvariablen verwenden
+    const fromEmail = settings?.contact_email || process.env.EMAIL_FROM;
+    const domain = fromEmail?.split('@')[1];
+    
+    // Generiere eine eindeutige Message-ID
+    const messageId = `<${uuidv4()}@${domain}>`;
+    
+    // Erstelle erweiterte E-Mail-Header für bessere Zustellbarkeit
+    const headers: Record<string, string> = {
+      'Message-ID': messageId,
+      'X-Mailer': 'Contact Tables Email Service',
+      'X-Contact-Tables-Version': '1.0.0',
+      'List-Unsubscribe': `<mailto:unsubscribe@${domain}?subject=unsubscribe>`,
+      'Precedence': 'bulk'
+    };
+    
+    // Wenn Bounce-Handling aktiviert ist, füge Return-Path hinzu
+    if (settings?.bounce_handling_email) {
+      headers['Return-Path'] = `<${settings.bounce_handling_email}>`;
+    }
+    
+    // E-Mail-Optionen mit erweiterten Headern
+    const mailOptions = {
+      from: `"Contact Tables" <${fromEmail}>`,
       to,
       subject,
-      text,
-      html
-    });
+      text: finalText,
+      html: finalHtml,
+      headers,
+      messageId
+    };
+    
+    // DKIM wird jetzt direkt über die Nodemailer-Konfiguration im Transporter hinzugefügt
+    // Wir fügen hier einen Hinweis hinzu, dass DKIM aktiviert ist, wenn die Konfiguration vorhanden ist
+    if (settings?.dkim_private_key && settings?.dkim_selector && domain) {
+      headers['X-DKIM-Enabled'] = 'true';
+      console.log(`E-Mail wird mit DKIM für Domain ${domain} und Selector ${settings.dkim_selector} gesendet`);
+    }
+    
+    // E-Mail senden
+    await transporter.sendMail(mailOptions);
     
     return true;
   } catch (error) {

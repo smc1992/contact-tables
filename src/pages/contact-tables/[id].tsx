@@ -4,9 +4,12 @@ import prisma from '../../lib/prisma';
 import PageLayout from '../../components/PageLayout';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { FiCalendar, FiUsers, FiMapPin, FiClock, FiInfo } from 'react-icons/fi';
+import { FiCalendar, FiUsers, FiMapPin, FiClock, FiInfo, FiHeart } from 'react-icons/fi';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../utils/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Define the type for the event with all its relations
 type EventWithDetails = Event & {
@@ -19,6 +22,79 @@ interface ContactTableDetailProps {
 }
 
 export default function ContactTableDetail({ event }: ContactTableDetailProps) {
+  const { user } = useAuth();
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  const [favoritesLoading, setFavoritesLoading] = useState<boolean>(true);
+  
+  // Prüfe, ob das Restaurant ein Favorit ist
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!user || !event?.restaurant) {
+        setFavoritesLoading(false);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('favorites')
+          .select('restaurant_id')
+          .eq('user_id', user.id)
+          .eq('restaurant_id', event.restaurant.id);
+        
+        if (error) {
+          console.error('Fehler beim Prüfen der Favoriten:', error);
+        } else {
+          setIsFavorite(data && data.length > 0);
+        }
+      } catch (err) {
+        console.error('Fehler beim Prüfen der Favoriten:', err);
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+    
+    checkFavorite();
+  }, [user, event]);
+  
+  // Füge ein Restaurant zu den Favoriten hinzu oder entferne es
+  const toggleFavorite = async () => {
+    if (!user || !event?.restaurant) {
+      alert('Bitte melde dich an, um Favoriten zu speichern.');
+      return;
+    }
+    
+    try {
+      if (isFavorite) {
+        // Entferne aus Favoriten
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('restaurant_id', event.restaurant.id);
+          
+        if (error) throw error;
+        
+        // Aktualisiere den lokalen Zustand
+        setIsFavorite(false);
+      } else {
+        // Füge zu Favoriten hinzu
+        const { error } = await supabase
+          .from('favorites')
+          .insert({
+            user_id: user.id,
+            restaurant_id: event.restaurant.id
+          });
+          
+        if (error) throw error;
+        
+        // Aktualisiere den lokalen Zustand
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren der Favoriten:', err);
+      alert('Es gab ein Problem beim Aktualisieren deiner Favoriten. Bitte versuche es später erneut.');
+    }
+  };
   if (!event) {
     return (
       <PageLayout>
@@ -115,12 +191,32 @@ export default function ContactTableDetail({ event }: ContactTableDetailProps) {
                                       <Image src={event.restaurant.imageUrl} alt={event.restaurant.name} fill className="object-cover"/>
                                   </div>
                               )}
-                              <div>
+                              <div className="flex-grow">
                                   <h3 className="font-bold text-lg text-primary-700">{event.restaurant.name}</h3>
                                   <p className="text-sm text-gray-600 flex items-center mt-1">
                                       <FiMapPin className="mr-2"/> {event.restaurant.address}, {event.restaurant.city}
                                   </p>
                               </div>
+                              
+                              {user && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault(); // Verhindere Navigation zum Restaurant
+                                    toggleFavorite();
+                                  }}
+                                  disabled={favoritesLoading}
+                                  className={`p-2 rounded-full flex items-center justify-center transition-colors ${
+                                    isFavorite 
+                                      ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                  }`}
+                                  title={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                                >
+                                  <FiHeart 
+                                    className={`h-5 w-5 ${isFavorite ? 'fill-current' : ''}`} 
+                                  />
+                                </button>
+                              )}
                          </div>
                       </a>
                   </Link>

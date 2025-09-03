@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
-import { createClient } from '@/utils/supabase/server';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiUsers, FiMapPin, FiFilter, FiSearch, FiInfo, FiTrash2 } from 'react-icons/fi';
 import Header from '../../components/Header';
@@ -35,7 +36,11 @@ interface ContactTableEvent {
   }[];
 }
 
-export default function AdminContactTables() {
+interface AdminContactTablesProps {
+  user: User;
+}
+
+export default function AdminContactTables({ user }: AdminContactTablesProps) {
   const router = useRouter();
   const [contactTables, setContactTables] = useState<ContactTableEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -311,21 +316,8 @@ export default function AdminContactTables() {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const supabase = createClient(ctx);
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user || user.user_metadata.role !== 'ADMIN') {
-    return {
-      redirect: {
-        destination: '/login?error=unauthorized',
-        permanent: false,
-      },
-    };
-  }
-
+export const getServerSideProps = withAuth(['ADMIN', 'admin'], async (context, user) => {
   return {
-    props: {},
+    props: {}
   };
-};
+});

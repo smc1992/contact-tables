@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { GetServerSidePropsContext } from 'next';
+import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
 import { FiList, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiEye, FiMapPin } from 'react-icons/fi';
+import { withAuth } from '@/utils/withAuth';
+import dynamic from 'next/dynamic';
 
 interface Restaurant {
   id: string;
@@ -28,29 +31,39 @@ interface Restaurant {
   image_url?: string;
 }
 
-export default function RestaurantsPage() {
+interface RestaurantsPageProps {
+  user: User;
+}
+
+// Dynamisch importieren, um Build-Fehler zu vermeiden
+const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
   const router = useRouter();
-  const { session, user, loading: authLoading } = useAuth();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<any>(null);
 
   // Laden der Restaurant-Daten
   const fetchRestaurants = async () => {
+    if (!supabase) return;
+    
     setRefreshing(true);
     try {
       const { data, error } = await supabase
         .from('restaurants')
         .select(`
           *,
-          profiles:owner_id (first_name, last_name)
+          profiles:userId (first_name, last_name)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase-Fehler beim Laden der Restaurants:', error);
+        alert(`Fehler beim Laden der Restaurants: ${error.message}`);
+        return;
+      }
 
-      const formattedData = (data || []).map(restaurant => {
+      const formattedData = (data || []).map((restaurant: any) => {
         const profile = restaurant.profiles as unknown as { first_name: string | null; last_name: string | null };
         return {
           ...restaurant,
@@ -61,69 +74,9 @@ export default function RestaurantsPage() {
       setRestaurants(formattedData);
     } catch (error) {
       console.error('Fehler beim Laden der Restaurants:', error);
-      // Fallback zu Dummy-Daten bei Fehler
-      setRestaurants([
-        {
-          id: '1',
-          name: 'Ristorante Italiano',
-          description: 'Authentische italienische Küche im Herzen von Berlin.',
-          address: 'Hauptstraße 42',
-          city: 'Berlin',
-          postal_code: '10115',
-          phone: '+49123456789',
-          email: 'info@ristoranteitaliano.de',
-          website: 'https://ristoranteitaliano.de',
-          is_active: true,
-          is_featured: true,
-          owner_id: '1',
-          owner_name: 'Marco Rossi',
-          created_at: '2025-06-15T10:30:00Z',
-          updated_at: '2025-08-10T14:45:00Z',
-          rating: 4.7,
-          review_count: 128,
-          image_url: '/images/restaurants/italian.jpg'
-        },
-        {
-          id: '2',
-          name: 'Sushi Palace',
-          description: 'Frisches Sushi und japanische Spezialitäten.',
-          address: 'Friedrichstraße 123',
-          city: 'Berlin',
-          postal_code: '10117',
-          phone: '+49987654321',
-          email: 'info@sushipalace.de',
-          website: 'https://sushipalace.de',
-          is_active: true,
-          is_featured: false,
-          owner_id: '2',
-          owner_name: 'Yuki Tanaka',
-          created_at: '2025-05-20T09:15:00Z',
-          updated_at: '2025-08-05T11:30:00Z',
-          rating: 4.5,
-          review_count: 95,
-          image_url: '/images/restaurants/sushi.jpg'
-        },
-        {
-          id: '3',
-          name: 'Burger House',
-          description: 'Die besten Burger der Stadt mit hausgemachten Saucen.',
-          address: 'Alexanderplatz 5',
-          city: 'Berlin',
-          postal_code: '10178',
-          phone: '+49123123123',
-          email: 'info@burgerhouse.de',
-          website: 'https://burgerhouse.de',
-          is_active: false,
-          is_featured: false,
-          owner_id: '3',
-          owner_name: 'Max Müller',
-          created_at: '2025-07-10T15:45:00Z',
-          updated_at: '2025-07-10T15:45:00Z',
-          rating: 4.2,
-          review_count: 42,
-          image_url: '/images/restaurants/burger.jpg'
-        }
-      ]);
+      alert('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
+      // Leere Liste anzeigen statt Mockup-Daten
+      setRestaurants([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -131,19 +84,19 @@ export default function RestaurantsPage() {
   };
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (session && user) {
-        if (user.user_metadata.role !== 'admin' && user.user_metadata.role !== 'ADMIN') {
-          router.push('/');
-          return;
-        }
-        
-        fetchRestaurants();
-      }
+    // Supabase-Client nur clientseitig initialisieren
+    if (typeof window !== 'undefined') {
+      const { createClient } = require('@/utils/supabase/client');
+      setSupabase(createClient());
     }
-  }, [authLoading, session, user, router]);
+  }, []);
+  
+  // Daten laden, wenn Supabase-Client verfügbar ist
+  useEffect(() => {
+    if (supabase) {
+      fetchRestaurants();
+    }
+  }, [supabase]);
 
   // Formatierung des Datums
   const formatDate = (dateString: string) => {
@@ -168,7 +121,7 @@ export default function RestaurantsPage() {
 
   // Restaurant löschen
   const handleDeleteRestaurant = async (id: string) => {
-    if (!confirm('Möchten Sie dieses Restaurant wirklich löschen?')) return;
+    if (!supabase || !confirm('Möchten Sie dieses Restaurant wirklich löschen?')) return;
     
     try {
       const { error } = await supabase
@@ -368,3 +321,23 @@ export default function RestaurantsPage() {
     </div>
   );
 }
+
+// Export der Komponente
+export default RestaurantsPage;
+
+// Standardisiertes withAuth HOC Muster für getServerSideProps
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    // Hier könnten zusätzliche Daten für die Admin-Restaurants-Seite geladen werden
+    return {
+      props: { user }
+    };
+  }
+);
+
+// Diese Seite erfordert JavaScript zur Laufzeit und kann nicht statisch exportiert werden
+export const config = {
+  unstable_runtimeJS: true,
+  runtime: 'nodejs'
+};

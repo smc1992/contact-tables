@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { withCache } from '@/utils/server-cache';
-import { withRateLimit } from '@/utils/rate-limit';
+import { withCache } from './server-cache';
+import { withRateLimit } from './rate-limit';
 
 // Mock-Daten für hervorgehobene Restaurants
 const mockFeaturedRestaurants = [

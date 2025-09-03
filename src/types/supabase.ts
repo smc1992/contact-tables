@@ -246,7 +246,7 @@ export type Database = {
       UserRole: "CUSTOMER" | "RESTAURANT" | "ADMIN";
       Language: "DE" | "EN" | "ES" | "PT" | "FR";
       ContractStatus: "PENDING" | "ACTIVE" | "CANCELLED" | "REJECTED" | "APPROVED";
-      EventStatus: "OPEN" | "FULL" | "CLOSED" | "PAST";
+      EventStatus: "OPEN" | "FULL" | "CLOSED" | "PAST" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
       CmsSectionType: "HERO" | "FEATURE" | "FOOTER" | "TESTIMONIAL" | "BANNER";
       ContactMessageStatus: "NEW" | "READ" | "REPLIED" | "ARCHIVED";
     };

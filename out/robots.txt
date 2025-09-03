@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and dashboard areas
+Disallow: /admin/
+Disallow: /customer/dashboard
+Disallow: /restaurant/dashboard
+
+# Sitemap location
+Sitemap: https://contact-tables.org/sitemap.xml

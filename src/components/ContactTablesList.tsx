@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { type Database } from '../types/supabase';
 import Link from 'next/link';
 import { FiCalendar, FiClock, FiMapPin, FiHeart, FiInfo } from 'react-icons/fi';
+import { supabase } from '../utils/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
 type Restaurant = Database['public']['Tables']['restaurants']['Row'];
@@ -21,6 +23,40 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
   // The internal data fetching logic has been removed to prevent the error.
   const [contactTables] = useState<ContactTableWithRestaurant[]>(initialContactTables || []);
   const [joining, setJoining] = useState<string | null>(null); // Track joining status by table id
+  const [favorites, setFavorites] = useState<string[]>([]); // Array of restaurant IDs that are favorites
+  const [favoritesLoading, setFavoritesLoading] = useState<boolean>(true);
+  const { user } = useAuth();
+
+  // Lade die Favoriten des Benutzers
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (!user) {
+        setFavoritesLoading(false);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('favorites')
+          .select('restaurant_id')
+          .eq('user_id', user.id);
+        
+        if (error) {
+          console.error('Fehler beim Laden der Favoriten:', error);
+        } else {
+          // Extrahiere die Restaurant-IDs
+          const favoriteIds = data.map(fav => fav.restaurant_id);
+          setFavorites(favoriteIds);
+        }
+      } catch (err) {
+        console.error('Fehler beim Laden der Favoriten:', err);
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+    
+    loadFavorites();
+  }, [user]);
 
   const handleJoin = async (tableId: string) => {
     setJoining(tableId);
@@ -41,6 +77,48 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
       alert(err.message);
     } finally {
       setJoining(null);
+    }
+  };
+  
+  // Füge ein Restaurant zu den Favoriten hinzu oder entferne es
+  const toggleFavorite = async (restaurantId: string) => {
+    if (!user) {
+      alert('Bitte melde dich an, um Favoriten zu speichern.');
+      return;
+    }
+    
+    const isFavorite = favorites.includes(restaurantId);
+    
+    try {
+      if (isFavorite) {
+        // Entferne aus Favoriten
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('restaurant_id', restaurantId);
+          
+        if (error) throw error;
+        
+        // Aktualisiere den lokalen Zustand
+        setFavorites(favorites.filter(id => id !== restaurantId));
+      } else {
+        // Füge zu Favoriten hinzu
+        const { error } = await supabase
+          .from('favorites')
+          .insert({
+            user_id: user.id,
+            restaurant_id: restaurantId
+          });
+          
+        if (error) throw error;
+        
+        // Aktualisiere den lokalen Zustand
+        setFavorites([...favorites, restaurantId]);
+      }
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren der Favoriten:', err);
+      alert('Es gab ein Problem beim Aktualisieren deiner Favoriten. Bitte versuche es später erneut.');
     }
   };
 
@@ -105,15 +183,40 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
             </div>
 
             <div className="bg-neutral-50 px-6 py-4">
-              {userRole === 'CUSTOMER' && (
-                <button 
-                  onClick={() => handleJoin(table.id)}
-                  disabled={joining === table.id}
-                  className="w-full bg-primary-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-neutral-400 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {joining === table.id ? 'Beitreten...' : 'Teilnehmen'}
+              <div className="flex justify-between items-center mb-3">
+                {userRole === 'CUSTOMER' && (
+                  <button 
+                    onClick={() => handleJoin(table.id)}
+                    disabled={joining === table.id}
+                    className="flex-grow bg-primary-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-neutral-400 disabled:cursor-not-allowed flex items-center justify-center mr-2"
+                  >
+                    {joining === table.id ? 'Beitreten...' : 'Teilnehmen'}
+                  </button>
+                )}
+                
+                {user && table.restaurant && (
+                  <button
+                    onClick={() => toggleFavorite(table.restaurant?.id || '')}
+                    disabled={favoritesLoading}
+                    className={`p-2 rounded-full flex items-center justify-center transition-colors ${
+                      favorites.includes(table.restaurant?.id || '') 
+                        ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                    }`}
+                    title={favorites.includes(table.restaurant?.id || '') ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                  >
+                    <FiHeart 
+                      className={`h-5 w-5 ${favorites.includes(table.restaurant?.id || '') ? 'fill-current' : ''}`} 
+                    />
+                  </button>
+                )}
+              </div>
+              
+              <Link href={`/contact-tables/${table.id}`} className="block">
+                <button className="w-full border border-neutral-300 text-neutral-700 font-medium py-2 px-4 rounded-lg hover:bg-neutral-100 transition-colors">
+                  Details ansehen
                 </button>
-              )}
+              </Link>
             </div>
           </div>
         );

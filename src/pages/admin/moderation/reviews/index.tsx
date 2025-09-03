@@ -6,25 +6,19 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../../../contexts/AuthContext';
 import AdminSidebar from '../../../../components/AdminSidebar';
 import ReviewModeration from '../../../../components/admin/ReviewModeration';
+import { withAuth } from '../../../../utils/withAuth';
+import { GetServerSideProps } from 'next';
 
 export default function AdminReviewModerationPage() {
-  const { session, user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (user && user.user_metadata?.role !== 'ADMIN') {
-        router.push('/');
-      } else {
-        setLoading(false);
-      }
-    }
-  }, [authLoading, session, router, user]);
+    setLoading(false);
+  }, []);
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -77,3 +71,12 @@ export default function AdminReviewModerationPage() {
     </div>
   );
 }
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);

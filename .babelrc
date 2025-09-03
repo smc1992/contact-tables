@@ -1,6 +1,9 @@
 {
   "presets": [
-    ["next/babel"]
+    ["next/babel", {
+      "runtime": "automatic",
+      "importSource": "react"
+    }]
   ],
   "plugins": []
 }

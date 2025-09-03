@@ -7,8 +7,9 @@ import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
 import Link from 'next/link';
 import { FiMail, FiRefreshCw, FiChevronRight, FiCheck, FiX, FiAlertTriangle, FiClock, FiInfo, FiTrash2, FiEye, FiChevronLeft, FiChevronRight as FiChevronRightIcon } from 'react-icons/fi';
-import { withClientAuth } from '@/utils/withClientAuth';
+import { withAuth } from '@/utils/withAuth';
 import { toast } from 'react-hot-toast';
+import { GetServerSideProps } from 'next';
 
 // Define email campaign type
 interface EmailCampaign {
@@ -70,7 +71,7 @@ interface Pagination {
 
 function EmailHistoryPage() {
   const router = useRouter();
-  const { session, user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<EmailCampaign | null>(null);
@@ -188,10 +189,8 @@ function EmailHistoryPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && session && user) {
-      fetchCampaigns(1);
-    }
-  }, [authLoading, session, user]);
+    fetchCampaigns(1);
+  }, []);
 
   // Handle campaign selection
   const handleCampaignSelect = (campaign: EmailCampaign) => {
@@ -816,4 +815,13 @@ function EmailHistoryPage() {
   );
 }
 
-export default withClientAuth(EmailHistoryPage, ['admin', 'ADMIN']);
+export default EmailHistoryPage;
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);

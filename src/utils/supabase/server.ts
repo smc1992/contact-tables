@@ -12,17 +12,28 @@ export function createAdminClient() {
 
   console.log('Admin Client: URL vorhanden?', !!supabaseUrl);
   console.log('Admin Client: Service Key vorhanden?', !!supabaseServiceKey);
+  console.log('Admin Client: Service Key Länge:', supabaseServiceKey ? supabaseServiceKey.length : 0);
+  console.log('Admin Client: Umgebungsvariablen:', {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+  });
 
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Admin Supabase configuration is missing:', {
       url: !!supabaseUrl,
       serviceKey: !!supabaseServiceKey
     });
-    throw new Error('Admin Supabase configuration is missing. SUPABASE_SERVICE_ROLE_KEY muss in den Umgebungsvariablen gesetzt sein.');
+    
+    // Kein Fallback mehr zum Anon-Key, da dies zu Berechtigungsproblemen führt
+    // Stattdessen werfen wir einen klaren Fehler
+    throw new Error('Admin Supabase configuration is missing. SUPABASE_SERVICE_ROLE_KEY und NEXT_PUBLIC_SUPABASE_URL müssen in den Umgebungsvariablen gesetzt sein.');
   }
 
   try {
-    return createServerClient<Database>(
+    console.log('Admin Client: Erstelle Supabase-Client mit Service Key');
+    const client = createServerClient<Database>(
       supabaseUrl,
       supabaseServiceKey,
       {
@@ -33,8 +44,11 @@ export function createAdminClient() {
         },
       }
     );
+    console.log('Admin Client: Supabase-Client erfolgreich erstellt');
+    return client;
   } catch (error) {
     console.error('Fehler beim Erstellen des Admin-Clients:', error);
+    console.error('Fehler-Details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     throw new Error('Fehler beim Erstellen des Admin-Clients: ' + (error instanceof Error ? error.message : String(error)));
   }
 }
@@ -94,6 +108,7 @@ export function createClient(context: SupabaseServerContext) {
           const host = context.req.headers.host || '';
           const isProduction = process.env.NODE_ENV === 'production';
           const isCustomDomain = host.includes('contact-tables.org');
+          const isNetlifyDomain = host.includes('netlify.app');
           
           // Cookie-Teile zusammenstellen
           const cookieParts = [
@@ -103,10 +118,16 @@ export function createClient(context: SupabaseServerContext) {
             `SameSite=${options.sameSite || 'Lax'}`,
           ];
           
-          // Domain nur in Produktion und für benutzerdefinierte Domain setzen
-          if (isProduction && isCustomDomain) {
-            cookieParts.push(`Domain=.contact-tables.org`);
-            console.log('Cookie Domain gesetzt auf: .contact-tables.org');
+          // Domain-Logik für verschiedene Umgebungen
+          if (isProduction) {
+            if (isCustomDomain) {
+              // Für die Haupt-Domain
+              cookieParts.push(`Domain=.contact-tables.org`);
+              console.log('Cookie Domain gesetzt auf: .contact-tables.org');
+            } else if (isNetlifyDomain) {
+              // Für Netlify-Subdomains - keine Domain setzen, damit der Browser die aktuelle Domain verwendet
+              console.log('Netlify-Domain erkannt, verwende Standard-Domain-Verhalten');
+            }
           }
 
           if (options.httpOnly !== false) {

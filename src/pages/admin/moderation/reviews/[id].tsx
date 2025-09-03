@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../../../contexts/AuthContext';
 import AdminSidebar from '../../../../components/AdminSidebar';
 import { FiArrowLeft, FiCheck, FiX, FiFlag, FiTrash2, FiUser, FiMapPin, FiCalendar, FiAlertTriangle } from 'react-icons/fi';
+import { withAuth } from '../../../../utils/withAuth';
+import { GetServerSideProps } from 'next';
 
 interface Review {
   id: string;
@@ -42,25 +44,20 @@ interface Review {
   }>;
 }
 
-export default function AdminReviewDetailPage() {
-  const { session, user, loading: authLoading } = useAuth();
+const AdminReviewDetailPage = () => {
+  const { user } = useAuth();
   const router = useRouter();
   const { id } = router.query;
-  
-  const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
+  const [review, setReview] = useState<Review | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adminComment, setAdminComment] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
-  
-  // Bewertung laden
+
   useEffect(() => {
-    const fetchReview = async () => {
-      if (!id) return;
-      
+    const fetchReview = async (reviewId: string) => {
       try {
-        setLoading(true);
-        const response = await fetch(`/api/admin/moderation/reviews/${id}`);
+        const response = await fetch(`/api/admin/moderation/reviews/${reviewId}`);
         
         if (!response.ok) {
           throw new Error('Fehler beim Laden der Bewertung');
@@ -78,20 +75,11 @@ export default function AdminReviewDetailPage() {
     };
     
     if (id) {
-      fetchReview();
+      fetchReview(id as string);
     }
   }, [id]);
   
-  // Authentifizierung prüfen
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (user && user.user_metadata?.role !== 'ADMIN') {
-        router.push('/');
-      }
-    }
-  }, [authLoading, session, router, user]);
+  // Authentifizierung wird jetzt serverseitig über withAuth gehandhabt
   
   // Bewertungsstatus aktualisieren
   const updateReviewStatus = async (status: string) => {
@@ -202,7 +190,7 @@ export default function AdminReviewDetailPage() {
     );
   };
   
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -474,3 +462,14 @@ export default function AdminReviewDetailPage() {
     </div>
   );
 }
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);
+
+export default AdminReviewDetailPage;

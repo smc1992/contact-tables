@@ -1,17 +1,19 @@
-import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { motion } from 'framer-motion';
-import { useAuth } from '../../contexts/AuthContext';
 import { FiBell, FiCheck, FiAlertCircle, FiMessageSquare, FiTrash2, FiRefreshCw } from 'react-icons/fi';
 import { createClient } from '@/utils/supabase/client';
 import AdminSidebar from '../../components/AdminSidebar';
 import { AdminNotification } from '@/components/admin/NotificationCenter';
+import { withAuth } from '../../utils/withAuth';
+import { User } from '@supabase/supabase-js';
 
-export default function AdminNotifications() {
-  const { session, user, loading: authLoading } = useAuth();
-  const router = useRouter();
+interface AdminNotificationsProps {
+  user: User;
+}
+
+export default function AdminNotifications({ user }: AdminNotificationsProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -88,33 +90,25 @@ export default function AdminNotifications() {
   };
 
   // Echtzeit-Abonnement für neue Benachrichtigungen
-  useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (user && user.user_metadata?.role !== 'ADMIN') {
-        router.push('/');
-      } else {
-        fetchNotifications();
+  useState(() => {
+    fetchNotifications();
+    
+    const subscription = supabase
+      .channel('admin_notifications_channel')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'admin_notifications' }, 
+        (payload) => {
+          const newNotification = payload.new as AdminNotification;
+          setNotifications(prev => [newNotification, ...prev]);
+          setTotalCount(prev => prev + 1);
+        }
+      )
+      .subscribe();
 
-        const subscription = supabase
-          .channel('admin_notifications_channel')
-          .on('postgres_changes', 
-            { event: 'INSERT', schema: 'public', table: 'admin_notifications' }, 
-            (payload) => {
-              const newNotification = payload.new as AdminNotification;
-              setNotifications(prev => [newNotification, ...prev]);
-              setTotalCount(prev => prev + 1);
-            }
-          )
-          .subscribe();
-
-        return () => {
-          supabase.removeChannel(subscription);
-        };
-      }
-    }
-  }, [authLoading, session, router, user]);
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  });
 
   // Icon basierend auf Benachrichtigungstyp
   const getNotificationIcon = (type: string) => {
@@ -143,7 +137,7 @@ export default function AdminNotifications() {
     });
   };
 
-  if (loading && authLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -331,3 +325,9 @@ export default function AdminNotifications() {
     </div>
   );
 }
+
+export const getServerSideProps = withAuth(['ADMIN', 'admin'], async (context, user) => {
+  return {
+    props: {}
+  };
+});

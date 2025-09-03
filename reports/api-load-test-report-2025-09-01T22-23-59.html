@@ -1,0 +1,480 @@
+
+  <!DOCTYPE html>
+  <html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API-Lasttest-Bericht - Contact Tables</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      h1, h2, h3 {
+        color: #2c3e50;
+      }
+      .summary {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      th, td {
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        text-align: left;
+      }
+      th {
+        background-color: #4b6584;
+        color: white;
+      }
+      tr:nth-child(even) {
+        background-color: #f8f9fa;
+      }
+      .success {
+        color: #27ae60;
+      }
+      .warning {
+        color: #f39c12;
+      }
+      .danger {
+        color: #e74c3c;
+      }
+      .scenario {
+        margin-bottom: 30px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+      }
+      .chart-container {
+        height: 300px;
+        margin-bottom: 30px;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <h1>API-Lasttest-Bericht - Contact Tables</h1>
+    <div class="summary">
+      <p><strong>Datum:</strong> 9/2/2025, 12:23:59 AM</p>
+      <p><strong>Basis-URL:</strong> http://localhost:3000</p>
+      <p><strong>Getestete Szenarien:</strong> 3</p>
+      <p><strong>Detaillierte Ergebnisse:</strong> <a href="api-load-test-results-2025-09-01T22-23-59.json" target="_blank">JSON-Datei herunterladen</a></p>
+    </div>
+    
+    <h2>Zusammenfassung der Szenarien</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Szenario</th>
+          <th>Gesamtzeit</th>
+          <th>Zeitstempel</th>
+        </tr>
+      </thead>
+      <tbody>
+  
+        <tr>
+          <td>Niedrige Last</td>
+          <td>12.54 Sekunden</td>
+          <td>9/2/2025, 12:23:44 AM</td>
+        </tr>
+    
+        <tr>
+          <td>Mittlere Last</td>
+          <td>7.32 Sekunden</td>
+          <td>9/2/2025, 12:23:52 AM</td>
+        </tr>
+    
+        <tr>
+          <td>Hohe Last</td>
+          <td>7.81 Sekunden</td>
+          <td>9/2/2025, 12:23:59 AM</td>
+        </tr>
+    
+      </tbody>
+    </table>
+    
+    <div class="chart-container">
+      <canvas id="responseTimeChart"></canvas>
+    </div>
+    
+    <div class="chart-container">
+      <canvas id="successRateChart"></canvas>
+    </div>
+  
+    <div class="scenario">
+      <h2>Szenario: Niedrige Last</h2>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Endpunkt</th>
+            <th>Anfragen</th>
+            <th>Erfolgsrate</th>
+            <th>Durchschn. Antwortzeit</th>
+            <th>Median (P50)</th>
+            <th>P95</th>
+            <th>P99</th>
+            <th>Anfragen/Sek</th>
+          </tr>
+        </thead>
+        <tbody>
+    
+          <tr>
+            <td>GET /api/restaurants</td>
+            <td>50</td>
+            <td class="success">100.00%</td>
+            <td>57.23ms</td>
+            <td>14.83ms</td>
+            <td>422.40ms</td>
+            <td>462.86ms</td>
+            <td>20.66</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/categories</td>
+            <td>50</td>
+            <td class="success">100.00%</td>
+            <td>29.09ms</td>
+            <td>11.78ms</td>
+            <td>107.07ms</td>
+            <td>158.08ms</td>
+            <td>23.15</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/featured-restaurants</td>
+            <td>50</td>
+            <td class="success">100.00%</td>
+            <td>66.70ms</td>
+            <td>16.37ms</td>
+            <td>382.97ms</td>
+            <td>385.48ms</td>
+            <td>20.00</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/search?query=restaurant</td>
+            <td>50</td>
+            <td class="success">100.00%</td>
+            <td>77.41ms</td>
+            <td>9.58ms</td>
+            <td>555.18ms</td>
+            <td>563.74ms</td>
+            <td>19.26</td>
+          </tr>
+      
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="scenario">
+      <h2>Szenario: Mittlere Last</h2>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Endpunkt</th>
+            <th>Anfragen</th>
+            <th>Erfolgsrate</th>
+            <th>Durchschn. Antwortzeit</th>
+            <th>Median (P50)</th>
+            <th>P95</th>
+            <th>P99</th>
+            <th>Anfragen/Sek</th>
+          </tr>
+        </thead>
+        <tbody>
+    
+          <tr>
+            <td>GET /api/restaurants</td>
+            <td>300</td>
+            <td class="success">100.00%</td>
+            <td>18.29ms</td>
+            <td>12.35ms</td>
+            <td>58.80ms</td>
+            <td>60.01ms</td>
+            <td>172.72</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/categories</td>
+            <td>300</td>
+            <td class="success">100.00%</td>
+            <td>15.89ms</td>
+            <td>10.29ms</td>
+            <td>44.21ms</td>
+            <td>69.97ms</td>
+            <td>175.59</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/featured-restaurants</td>
+            <td>300</td>
+            <td class="success">100.00%</td>
+            <td>38.15ms</td>
+            <td>9.83ms</td>
+            <td>209.31ms</td>
+            <td>361.90ms</td>
+            <td>142.52</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/search?query=restaurant</td>
+            <td>300</td>
+            <td class="success">100.00%</td>
+            <td>14.97ms</td>
+            <td>10.80ms</td>
+            <td>42.69ms</td>
+            <td>46.95ms</td>
+            <td>177.64</td>
+          </tr>
+      
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="scenario">
+      <h2>Szenario: Hohe Last</h2>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Endpunkt</th>
+            <th>Anfragen</th>
+            <th>Erfolgsrate</th>
+            <th>Durchschn. Antwortzeit</th>
+            <th>Median (P50)</th>
+            <th>P95</th>
+            <th>P99</th>
+            <th>Anfragen/Sek</th>
+          </tr>
+        </thead>
+        <tbody>
+    
+          <tr>
+            <td>GET /api/restaurants</td>
+            <td>1000</td>
+            <td class="success">100.00%</td>
+            <td>67.40ms</td>
+            <td>52.51ms</td>
+            <td>159.98ms</td>
+            <td>316.42ms</td>
+            <td>413.77</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/categories</td>
+            <td>1000</td>
+            <td class="success">100.00%</td>
+            <td>40.11ms</td>
+            <td>25.08ms</td>
+            <td>103.91ms</td>
+            <td>292.00ms</td>
+            <td>537.51</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/featured-restaurants</td>
+            <td>1000</td>
+            <td class="success">100.00%</td>
+            <td>39.31ms</td>
+            <td>32.16ms</td>
+            <td>102.02ms</td>
+            <td>202.96ms</td>
+            <td>552.75</td>
+          </tr>
+      
+          <tr>
+            <td>GET /api/search?query=restaurant</td>
+            <td>1000</td>
+            <td class="success">100.00%</td>
+            <td>27.04ms</td>
+            <td>23.88ms</td>
+            <td>57.34ms</td>
+            <td>75.38ms</td>
+            <td>632.80</td>
+          </tr>
+      
+        </tbody>
+      </table>
+    </div>
+    
+    <script>
+      // Daten für die Diagramme vorbereiten
+      const scenarioLabels = ["Niedrige Last","Mittlere Last","Hohe Last"];
+      
+      // Antwortzeiten-Diagramm
+      const responseTimeData = {
+        labels: scenarioLabels,
+        datasets: [
+    
+          {
+            label: 'GET /api/restaurants',
+            data: [
+    57.23,18.29,67.4,
+            ],
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 1
+          },
+    
+          {
+            label: 'GET /api/categories',
+            data: [
+    29.09,15.89,40.11,
+            ],
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          },
+    
+          {
+            label: 'GET /api/featured-restaurants',
+            data: [
+    66.7,38.15,39.31,
+            ],
+            backgroundColor: 'rgba(255, 206, 86, 0.7)',
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 1
+          },
+    
+          {
+            label: 'GET /api/search?query=restaurant',
+            data: [
+    77.41,14.97,27.04,
+            ],
+            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+          },
+    
+        ]
+      };
+      
+      // Erfolgsraten-Diagramm
+      const successRateData = {
+        labels: scenarioLabels,
+        datasets: [
+    
+          {
+            label: 'GET /api/restaurants',
+            data: [
+    100,100,100,
+            ],
+            backgroundColor: 'rgba(46, 204, 113, 0.7)',
+            borderColor: 'rgba(46, 204, 113, 1)',
+            borderWidth: 1
+          },
+    
+          {
+            label: 'GET /api/categories',
+            data: [
+    100,100,100,
+            ],
+            backgroundColor: 'rgba(52, 152, 219, 0.7)',
+            borderColor: 'rgba(52, 152, 219, 1)',
+            borderWidth: 1
+          },
+    
+          {
+            label: 'GET /api/featured-restaurants',
+            data: [
+    100,100,100,
+            ],
+            backgroundColor: 'rgba(155, 89, 182, 0.7)',
+            borderColor: 'rgba(155, 89, 182, 1)',
+            borderWidth: 1
+          },
+    
+          {
+            label: 'GET /api/search?query=restaurant',
+            data: [
+    100,100,100,
+            ],
+            backgroundColor: 'rgba(52, 73, 94, 0.7)',
+            borderColor: 'rgba(52, 73, 94, 1)',
+            borderWidth: 1
+          },
+    
+        ]
+      };
+      
+      // Diagramme erstellen
+      window.addEventListener('load', function() {
+        // Antwortzeiten-Diagramm
+        new Chart(document.getElementById('responseTimeChart'), {
+          type: 'bar',
+          data: responseTimeData,
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Durchschnittliche Antwortzeiten (ms)'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ': ' + context.raw + ' ms';
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Antwortzeit (ms)'
+                }
+              }
+            }
+          }
+        });
+        
+        // Erfolgsraten-Diagramm
+        new Chart(document.getElementById('successRateChart'), {
+          type: 'bar',
+          data: successRateData,
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Erfolgsraten (%)'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ': ' + context.raw + '%';
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                  display: true,
+                  text: 'Erfolgsrate (%)'
+                }
+              }
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+  </html>
+  

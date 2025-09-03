@@ -11,8 +11,8 @@ import { GetServerSideProps } from 'next';
 import { withAuth } from '@/utils/withAuth';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import PasswordInput from '@/components/PasswordInput';
-import { Badge, Button, Input, Modal, Select, Table, message, Tag, Dropdown, Menu, Checkbox, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, LockOutlined, SearchOutlined, PlusOutlined, FilterOutlined, TagOutlined, TagsOutlined } from '@ant-design/icons';
+import { Button, Table, Modal, Input, Select, message, Tabs, Tooltip, Badge, Popconfirm, Spin, Tag, Dropdown, Menu, Checkbox } from 'antd';
+import { EditOutlined, DeleteOutlined, LockOutlined, SearchOutlined, PlusOutlined, FilterOutlined, TagOutlined, TagsOutlined, LoadingOutlined, MoreOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 
 interface User {
   id: string;
@@ -71,6 +71,12 @@ export const getServerSideProps = withAuth(
   }
 );
 
+// Konfiguration für Next.js, um statische Exporte zu verhindern
+export const config = {
+  unstable_runtimeJS: true,
+  runtime: 'nodejs'
+};
+
 export default function UsersPage({ initialUsers, initialGroupedUsers, error, user: authUser }: UsersPageProps & { error?: string, user: SupabaseUser }) {
   const router = useRouter();
   const { session, user, loading: authLoading } = useAuth();
@@ -111,6 +117,11 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   const [emailSearch, setEmailSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [hasPhoneOnly, setHasPhoneOnly] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string>('all');
+  const [tagFilterLoading, setTagFilterLoading] = useState(false);
+  const [usersWithSelectedTag, setUsersWithSelectedTag] = useState<string[]>([]);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   
   // Debugging-Informationen
   useEffect(() => {
@@ -135,55 +146,60 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
       
       const data = await response.json();
       
-      // Prüfen, ob die API einen Fehler zurückgegeben hat
       if (data.error) {
-        console.error('API-Fehler:', data.error);
-        if (data.errorDetails) {
-          console.error('Fehlerdetails:', data.errorDetails);
-        }
-        
-        // Zeige Fehlermeldung an
-        message.error(`Fehler beim Laden der Benutzer: ${data.error}`);
-        
-        // Verwende die zurückgegebenen leeren Arrays, falls vorhanden
-        if (data.users && data.groupedUsers) {
-          setUsers(data.users);
-          setGroupedUsers(data.groupedUsers);
-          console.log('Verwende leere Benutzerlisten aus API-Antwort');
-        } else {
-          // Fallback zu leeren Arrays
-          setUsers([]);
-          setGroupedUsers({
-            admin: [],
-            restaurant: [],
-            customer: [],
-            user: []
-          });
-        }
-      } else if (!response.ok) {
-        // HTTP-Fehler (z.B. 401, 403, 500)
-        throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
-      } else if (Array.isArray(data.users)) {
-        // Erfolgreiche Antwort mit Benutzerdaten
-        setUsers(data.users);
-        setGroupedUsers(data.groupedUsers || {
-          admin: [],
-          restaurant: [],
-          customer: [],
-          user: []
-        });
-        console.log('Geladene Benutzer:', data.users.length);
-        console.log('Benutzer nach Rollen:', {
-          admin: data.groupedUsers?.admin?.length || 0,
-          restaurant: data.groupedUsers?.restaurant?.length || 0,
-          customer: data.groupedUsers?.customer?.length || 0,
-          user: data.groupedUsers?.user?.length || 0
-        });
-      } else {
-        // Unerwartetes Antwortformat
+        console.error('Fehler beim Laden der Benutzer:', data.error);
+        message.error('Fehler beim Laden der Benutzer');
+        return;
+      }
+      
+      if (!Array.isArray(data.users)) {
         console.error('Unerwartetes API-Antwortformat:', data);
         throw new Error('Unerwartetes API-Antwortformat');
       }
+      
+      // Benutzer-Tags laden
+      console.log('Lade Benutzer-Tags...');
+      const tagsResponse = await fetch('/api/admin/users/get-user-tags');
+      const tagsData = await tagsResponse.json();
+      
+      if (tagsData.error) {
+        console.error('Fehler beim Laden der Benutzer-Tags:', tagsData.error);
+        // Wir setzen fort, auch wenn Tags nicht geladen werden konnten
+      }
+      
+      // Tags den Benutzern zuordnen
+      const userTags = tagsData.userTags || {};
+      const usersWithTags = data.users.map(user => ({
+        ...user,
+        tags: userTags[user.id] || []
+      }));
+      
+      // Gruppierte Benutzer mit Tags aktualisieren
+      const groupedUsersWithTags = {};
+      
+      Object.entries(data.groupedUsers || {}).forEach(([role, users]) => {
+        groupedUsersWithTags[role] = (users as any[]).map(user => ({
+          ...user,
+          tags: userTags[user.id] || []
+        }));
+      });
+      
+      // Daten setzen
+      setUsers(usersWithTags);
+      setGroupedUsers(groupedUsersWithTags || {
+        admin: [],
+        restaurant: [],
+        customer: [],
+        user: []
+      });
+      
+      console.log('Geladene Benutzer:', usersWithTags.length);
+      console.log('Benutzer nach Rollen:', {
+        admin: groupedUsersWithTags?.admin?.length || 0,
+        restaurant: groupedUsersWithTags?.restaurant?.length || 0,
+        customer: groupedUsersWithTags?.customer?.length || 0,
+        user: groupedUsersWithTags?.user?.length || 0
+      });
     } catch (error) {
       console.error('Fehler beim Laden der Benutzer:', error);
       message.error(`Fehler beim Laden der Benutzer: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
@@ -198,7 +214,8 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
           phone: '+49123456789',
           created_at: '2025-01-15T12:00:00Z',
           last_sign_in_at: '2025-08-20T10:30:00Z',
-          is_active: true
+          is_active: true,
+          tags: [] // Leeres Tags-Array für Fallback-Daten
         },
         {
           id: '2',
@@ -209,7 +226,8 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
           phone: '+49987654321',
           created_at: '2025-02-10T09:45:00Z',
           last_sign_in_at: '2025-08-19T14:20:00Z',
-          is_active: true
+          is_active: true,
+          tags: [] // Leeres Tags-Array für Fallback-Daten
         },
         {
           id: '3',
@@ -220,7 +238,8 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
           phone: '+49123123123',
           created_at: '2025-03-05T15:30:00Z',
           last_sign_in_at: '2025-08-18T18:15:00Z',
-          is_active: true
+          is_active: true,
+          tags: [] // Leeres Tags-Array für Fallback-Daten
         }
       ]);
     } finally {
@@ -230,11 +249,20 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   };
 
   useEffect(() => {
+    // Lade Daten, wenn die Komponente gemountet wird
+    fetchUsers();
+    fetchTags();
+  }, []);
+
+  useEffect(() => {
     // Benutzer laden, wenn die Seite geladen wird
     // Da wir withAuth verwenden, ist die Authentifizierung bereits sichergestellt
     if (!authLoading && initialUsers.length === 0) {
       fetchUsers();
     }
+    
+    // Tags laden
+    fetchTags();
     
     // authUser aus den Props kann hier verwendet werden, falls nötig
     if (authUser) {
@@ -483,7 +511,7 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   // Filtere Benutzer basierend auf dem aktiven Tab
   const filteredUsers = activeTab === 'all' ? users : groupedUsers[activeTab] || [];
   
-  // Zusätzliche Filter: Suche, E-Mail, Status, Telefon vorhanden
+  // Zusätzliche Filter: Suche, E-Mail, Status, Telefon vorhanden, Tag
   const visibleUsers = (filteredUsers || []).filter((u) => {
     // Status-Filter
     if (statusFilter === 'active' && !u.is_active) return false;
@@ -491,6 +519,23 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
 
     // Nur mit Telefonnummer
     if (hasPhoneOnly && !u.phone) return false;
+
+    // Tag-Filter
+    if (tagFilter !== 'all') {
+      // Wenn ein Tag ausgewählt ist (einschließlich 'none') und der Benutzer nicht in der Liste der Benutzer mit diesem Tag ist
+      if (usersWithSelectedTag.length > 0 && !usersWithSelectedTag.includes(u.id)) {
+        return false;
+      }
+      // Wenn keine Benutzer mit diesem Tag gefunden wurden, aber ein Tag ausgewählt ist
+      // (verhindert, dass alle Benutzer angezeigt werden, wenn keine mit dem Tag gefunden wurden)
+      else if (usersWithSelectedTag.length === 0 && tagFilter !== 'none') {
+        return false;
+      }
+      // Wenn 'keine Tags' ausgewählt ist und keine Benutzer zurückgegeben wurden, zeige keine Benutzer an
+      else if (tagFilter === 'none' && usersWithSelectedTag.length === 0) {
+        return false;
+      }
+    }
 
     // Generische Suche (Name, E-Mail, Telefon)
     const q = search.trim().toLowerCase();
@@ -521,6 +566,7 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   const [tags, setTags] = useState<any[]>([]);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState('');
+  const [newTagDescription, setNewTagDescription] = useState('');
   
   // Statistiken für die Tabs
   const userCounts = {
@@ -578,6 +624,43 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
       },
     },
     {
+      title: (
+        <div className="flex items-center">
+          <TagsOutlined className="mr-1" /> Tags
+        </div>
+      ),
+      dataIndex: 'tags',
+      key: 'tags',
+      render: (_, user) => {
+        // Suche nach Tags für diesen Benutzer
+        const userTags = user.tags || [];
+        
+        if (userTags.length === 0) {
+          return <span className="text-gray-400 text-xs italic">Keine Tags</span>;
+        }
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {userTags.map((tagId: string) => {
+              const tag = tags.find(t => t.id === tagId);
+              if (!tag) return null;
+              
+              return (
+                <span 
+                  key={tagId}
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                  title={tag.description || ''}
+                >
+                  <TagsOutlined className="mr-1" style={{ fontSize: '10px' }} />
+                  {tag.name}
+                </span>
+              );
+            })}
+          </div>
+        );
+      },
+    },
+    {
       title: 'Telefon',
       dataIndex: 'phone',
       key: 'phone',
@@ -614,17 +697,20 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
             icon={<EditOutlined />}
             size="small"
             onClick={() => handleEditUser(user)}
+            title="Benutzer bearbeiten"
           />
           <Button
             icon={<LockOutlined />}
             size="small"
             onClick={() => handleChangePassword(user)}
+            title="Passwort ändern"
           />
           <Button
             icon={<DeleteOutlined />}
             size="small"
             danger
             onClick={() => handleDeleteUser(user)}
+            title="Benutzer löschen"
           />
         </div>
       ),
@@ -704,7 +790,14 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
       if (response.ok) {
         const result = await response.json();
         message.success(`Tag erfolgreich ${result.assigned} Benutzern zugewiesen`);
+        
+        // Benutzerdaten neu laden, um die aktualisierten Tags anzuzeigen
+        await fetchUsers();
+        
+        // Tag-Modal schließen und Auswahl zurücksetzen
         setShowTagModal(false);
+        setSelectedUserIds([]);
+        setSelectedTag(undefined);
       } else {
         const error = await response.json();
         message.error(error.error || 'Fehler beim Zuweisen des Tags');
@@ -716,6 +809,122 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   };
 
   const [showTagModal, setShowTagModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  
+  // Laden der Tags
+  const fetchTags = async () => {
+    try {
+      console.log('Lade Tags...');
+      const response = await fetch('/api/admin/tags/list');
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Laden der Tags: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setTags(data.tags || []);
+    } catch (error) {
+      console.error('Fehler beim Laden der Tags:', error);
+      message.error('Tags konnten nicht geladen werden');
+      setTags([]);
+    }
+  };
+
+  // Tag löschen
+  const handleDeleteTag = async (tagId: string, tagName: string) => {
+    Modal.confirm({
+      title: 'Tag löschen',
+      icon: <ExclamationCircleOutlined />,
+      content: (
+        <div>
+          <p>Möchten Sie den Tag <strong>{tagName}</strong> wirklich löschen?</p>
+          <p className="text-red-500">Diese Aktion kann nicht rückgängig gemacht werden und entfernt den Tag von allen Benutzern.</p>
+        </div>
+      ),
+      okText: 'Ja, löschen',
+      okType: 'danger',
+      cancelText: 'Abbrechen',
+      onOk: async () => {
+        try {
+          const response = await fetch(`/api/admin/users/delete-tag?tagId=${tagId}`, {
+            method: 'DELETE',
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Fehler beim Löschen des Tags: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          message.success(result.message || `Tag "${tagName}" wurde erfolgreich gelöscht`);
+          
+          // Tag-Filter zurücksetzen, wenn der gelöschte Tag ausgewählt war
+          if (tagFilter === tagId) {
+            setTagFilter('all');
+            setUsersWithSelectedTag([]);
+          }
+          
+          // Tags neu laden
+          await fetchTags();
+        } catch (error) {
+          console.error('Fehler beim Löschen des Tags:', error);
+          message.error(`Fehler beim Löschen des Tags: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+        }
+      },
+    });
+  };
+
+  // Benutzer nach Tag filtern
+  const handleTagFilterChange = async (value: string) => {
+    console.log(`Tag-Filter geändert auf: ${value}`);
+    setTagFilter(value);
+    
+    if (value === 'all') {
+      // Alle Benutzer anzeigen (kein Filter)
+      console.log('Filter zurückgesetzt auf "Alle"');
+      setUsersWithSelectedTag([]);
+      return;
+    }
+    
+    setTagFilterLoading(true);
+    try {
+      let response;
+      
+      if (value === 'none') {
+        // Benutzer ohne Tags abrufen
+        console.log('Rufe Benutzer ohne Tags ab...');
+        response = await fetch('/api/admin/users/without-tags');
+      } else {
+        // Benutzer mit dem ausgewählten Tag abrufen
+        console.log(`Rufe Benutzer mit Tag ID ${value} ab...`);
+        response = await fetch(`/api/admin/users/by-tag?tagId=${value}`);
+      }
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API-Fehler (${response.status}):`, errorText);
+        throw new Error(`Fehler beim Laden der Benutzer nach Tag: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('API-Antwort erhalten:', result);
+      
+      if (Array.isArray(result.users)) {
+        const userIds = result.users.map((user: any) => user.id);
+        console.log(`${userIds.length} Benutzer mit diesem Tag gefunden:`, userIds);
+        setUsersWithSelectedTag(userIds);
+      } else {
+        console.warn('Keine Benutzer in der API-Antwort gefunden oder ungültiges Format');
+        setUsersWithSelectedTag([]);
+      }
+    } catch (error) {
+      console.error('Fehler beim Filtern nach Tag:', error);
+      message.error(`Fehler beim Filtern nach Tag: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      setUsersWithSelectedTag([]);
+    } finally {
+      setTagFilterLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -750,8 +959,12 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
                 </Button>
                 {selectedUserIds.length > 0 && (
                   <Button
+                    className="ml-2"
                     icon={<TagsOutlined />}
-                    onClick={() => setShowTagModal(true)}
+                    onClick={() => {
+                      console.log('Tags zuweisen Button geklickt');
+                      setShowTagModal(true);
+                    }}
                   >
                     Tags zuweisen ({selectedUserIds.length})
                   </Button>
@@ -817,7 +1030,7 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
 
             {/* Filterleiste */}
             <div className="mb-4 bg-white shadow-sm rounded-lg border border-gray-200 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-500 mb-1">Suche</label>
                   <div className="relative">
@@ -856,6 +1069,76 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
                     <Select.Option value="inactive">Inaktiv</Select.Option>
                   </Select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Tag-Filter</label>
+                  <Select
+                    value={tagFilter}
+                    onChange={handleTagFilterChange}
+                    loading={tagFilterLoading}
+                    className="w-full"
+                    placeholder="Nach Tag filtern"
+                    suffixIcon={tagFilterLoading ? <LoadingOutlined /> : <TagsOutlined />}
+                    optionLabelProp="label"
+                    dropdownRender={(menu) => (
+                      <>
+                        {menu}
+                        {tags.length === 0 && (
+                          <div className="p-2 text-xs text-gray-500 border-t">
+                            Keine Tags vorhanden. Erstellen Sie Tags über den Button "Tags zuweisen".
+                          </div>
+                        )}
+                      </>
+                    )}
+                  >
+                    <Select.Option value="all" label="Alle Tags">
+                      <div className="flex items-center">
+                        <TagsOutlined className="mr-2" />
+                        <span>Alle Tags</span>
+                      </div>
+                    </Select.Option>
+                    <Select.Option value="none" label="Keine Tags">
+                      <div className="flex items-center">
+                        <TagsOutlined className="mr-2" style={{ opacity: 0.5 }} />
+                        <span>Keine Tags</span>
+                      </div>
+                    </Select.Option>
+                    {tags.map(tag => (
+                      <Select.Option 
+                        key={tag.id} 
+                        value={tag.id}
+                        label={`${tag.name} (${tag.userCount || 0})`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <TagsOutlined className="mr-2" style={{ color: '#6366f1' }} />
+                            <span>{tag.name}</span>
+                          </div>
+                          <div className="flex items-center">
+                            {tag.userCount > 0 && (
+                              <span className="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded-full mr-2">
+                                {tag.userCount}
+                              </span>
+                            )}
+                            <Button 
+                              type="text" 
+                              size="small" 
+                              icon={<DeleteOutlined style={{ color: '#f5222d' }} />} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTag(tag.id, tag.name);
+                              }}
+                              title="Tag löschen"
+                              className="opacity-70 hover:opacity-100"
+                            />
+                          </div>
+                        </div>
+                        {tag.description && (
+                          <div className="text-xs text-gray-500 mt-1 pl-6">{tag.description}</div>
+                        )}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </div>
                 <div className="flex items-end justify-between">
                   <label className="inline-flex items-center text-sm text-gray-700">
                     <Input
@@ -872,6 +1155,8 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
                       setEmailSearch('');
                       setStatusFilter('all');
                       setHasPhoneOnly(false);
+                      setTagFilter('all');
+                      setUsersWithSelectedTag([]);
                     }}
                     className="ml-4 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
                     title="Filter zurücksetzen"
@@ -892,7 +1177,23 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
                   dataSource={visibleUsers}
                   rowKey="id"
                   loading={loading}
-                  pagination={{ pageSize: 10 }}
+                  pagination={{
+                    pageSize: pageSize,
+                    current: currentPage,
+                    pageSizeOptions: ['10', '20', '50', '100'],
+                    showSizeChanger: true,
+                    onChange: (page, size) => {
+                      setCurrentPage(page);
+                      if (size !== pageSize) {
+                        setPageSize(size);
+                      }
+                    },
+                    onShowSizeChange: (current, size) => {
+                      setPageSize(size);
+                      setCurrentPage(1);
+                    },
+                    showTotal: (total, range) => `${range[0]}-${range[1]} von ${total} Einträgen`
+                  }}
                   rowSelection={{
                     selectedRowKeys: selectedUserIds,
                     onChange: (selectedRowKeys: React.Key[]) => setSelectedUserIds(selectedRowKeys as string[]),
@@ -1096,6 +1397,121 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
         </div>
       )}
 
+      {/* Modal für Tag-Zuweisung */}
+      {showTagModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                Tags zuweisen
+              </h2>
+              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                {selectedUserIds.length} Benutzer ausgewählt
+              </span>
+            </div>
+            
+            {/* Vorhandene Tags */}
+            <div className="mb-5">
+              <label htmlFor="tag-select" className="block text-sm font-medium text-gray-700 mb-2">
+                Vorhandene Tags
+              </label>
+              
+              {tags.length === 0 ? (
+                <div className="text-sm text-gray-500 italic mb-2 bg-gray-50 p-3 rounded border border-gray-200">
+                  Keine Tags vorhanden. Erstellen Sie unten einen neuen Tag.
+                </div>
+              ) : (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {tags.map(tag => (
+                    <div 
+                      key={tag.id} 
+                      onClick={() => setSelectedTag(tag.id)}
+                      className={`cursor-pointer px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 transition-colors ${selectedTag === tag.id 
+                        ? 'bg-indigo-100 text-indigo-800 border border-indigo-300' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200'}`}
+                    >
+                      <TagsOutlined style={{ fontSize: '14px' }} />
+                      {tag.name}
+                      {tag.userCount > 0 && (
+                        <span className="bg-gray-200 text-gray-700 text-xs px-1.5 py-0.5 rounded-full">
+                          {tag.userCount}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <Select
+                id="tag-select"
+                value={selectedTag}
+                onChange={(value) => setSelectedTag(value)}
+                className="w-full"
+                placeholder="Oder wählen Sie einen Tag aus der Liste"
+                allowClear
+              >
+                {tags.map(tag => (
+                  <Select.Option key={tag.id} value={tag.id}>
+                    {tag.name} {tag.userCount ? `(${tag.userCount} Benutzer)` : ''}
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+            
+            {/* Neuen Tag erstellen */}
+            <div className="mb-5 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  <PlusOutlined className="mr-1" /> Neuen Tag erstellen
+                </label>
+              </div>
+              <Input
+                type="text"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="Tag-Name"
+                className="w-full mb-2"
+                maxLength={50}
+              />
+              <Input
+                type="text"
+                value={newTagDescription}
+                onChange={(e) => setNewTagDescription(e.target.value)}
+                placeholder="Beschreibung (optional)"
+                className="w-full mb-2"
+                maxLength={200}
+              />
+              <Button 
+                onClick={createTag}
+                type="primary"
+                className="w-full"
+                disabled={!newTagName.trim()}
+                icon={<PlusOutlined />}
+              >
+                Tag erstellen
+              </Button>
+            </div>
+            
+            {/* Aktionen */}
+            <div className="flex justify-end space-x-3 mt-6 border-t pt-4 border-gray-200">
+              <Button
+                onClick={() => setShowTagModal(false)}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                type="primary"
+                onClick={handleAssignTag}
+                disabled={!selectedTag || selectedUserIds.length === 0}
+                icon={<TagsOutlined />}
+              >
+                Tag zuweisen
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Modal für Passwort ändern */}
       {isPasswordModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

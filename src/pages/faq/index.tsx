@@ -151,12 +151,18 @@ Wenn sich jemand unwohl fühlt oder es Probleme gibt, ist es völlig in Ordnung,
   {
     category: 'restaurants',
     question: 'Wie kann mein Restaurant teilnehmen?',
-    answer: 'Restaurants können sich über unser Partnerportal anmelden. Nach einer kurzen Prüfung können Sie festlegen, wann und wie viele contact-tables Sie anbieten möchten. Wir unterstützen Sie bei der Integration in Ihr Reservierungssystem und stellen Ihnen Materialien zur Verfügung, um die contact-tables in Ihrem Restaurant zu kennzeichnen. Der Registrierungsprozess ist einfach und unkompliziert.'
+    answer: `Restaurants können sich über unser Partnerportal anmelden. Nach einer kurzen Prüfung können Sie festlegen, wann und wie viele contact-tables Sie anbieten möchten. Wir stellen Ihnen Materialien zur Verfügung, um die contact-tables in Ihrem Restaurant zu kennzeichnen. Der Registrierungsprozess ist einfach und unkompliziert.`
   },
   {
     category: 'restaurants',
     question: 'Ist die Teilnahme für Restaurants kostenpflichtig?',
-    answer: 'Ja, für Restaurants ist die Teilnahme kostenpflichtig. Die monatliche Gebühr beträgt 39 €. Bei jährlicher Zahlung sind es 399 € pro Jahr - also rund 33,25 € im Monat.'
+    answer: `Ja, für Restaurants ist die Teilnahme kostenpflichtig. Die monatliche Gebühr beträgt 39 €. Bei jährlicher Zahlung sind es 399 € pro Jahr - also rund 33,25 € im Monat.
+
+Mit Contact-tables öffnen Sie Ihre Türen für Menschen, die Gesellschaft suchen – Alleinreisende, Neuankömmlinge, Geschäftsreisende oder einfach Menschen, die nicht gern allein essen.
+
+Sie schaffen einen Platz für Begegnung – und setzen damit ein Zeichen für Gastfreundschaft und soziale Verbundenheit.
+
+Der Beitrag rechnet sich oft schon mit einem zusätzlichen Gast pro Monat – und bringt Ihrem Restaurant gleichzeitig mehr Sichtbarkeit, neue Zielgruppen und ein positives Image.`
   },
   {
     category: 'restaurants',
@@ -231,12 +237,7 @@ Wenn sich jemand unwohl fühlt oder es Probleme gibt, ist es völlig in Ordnung,
   {
     category: 'general',
     question: 'In welchen Städten ist contact-tables verfügbar?',
-    answer: 'contact-tables ist derzeit in mehreren deutschen Großstädten aktiv, darunter Berlin, München, Hamburg, Köln und Frankfurt. Wir erweitern unser Netzwerk kontinuierlich und planen, bald auch in weiteren Städten präsent zu sein. Auf unserer Website findest du immer eine aktuelle Übersicht aller teilnehmenden Städte und Restaurants.'
-  },
-  {
-    category: 'general',
-    question: 'Starten neuer Städte',
-    answer: 'Wir erweitern unser Netzwerk kontinuierlich und planen, bald in ganz Deutschland präsent zu sein. Auf unserer Website findest du immer eine aktuelle Übersicht aller teilnehmenden Städte und Restaurants.'
+    answer: `contact-tables ist derzeit in mehreren deutschen Großstädten aktiv, darunter Berlin, München, Hamburg, Köln und Frankfurt. Wir erweitern unser Netzwerk kontinuierlich und planen, bald auch in ganz Deutschland präsent zu sein. Auf unserer Website findest du immer eine aktuelle Übersicht aller teilnehmenden Städte und Restaurants.`
   },
   {
     category: 'general',

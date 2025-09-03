@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiLogOut, FiHeart, FiCalendar, FiSettings, FiBell, FiMapPin } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiHeart, FiCalendar, FiSettings, FiBell, FiMapPin, FiUsers, FiMail, FiTag, FiGrid, FiLayers } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 
 const UserMenu = () => {
@@ -81,7 +81,10 @@ const UserMenu = () => {
                 <div className="px-4 py-2 border-b border-gray-100">
                   <p className="text-sm font-semibold text-gray-900">{user.user_metadata?.name || 'User'}</p>
                   <p className="text-xs text-gray-500">{user.email}</p>
-                  {userRole && <p className="text-xs font-medium text-indigo-500 mt-1">{userRole === 'RESTAURANT' ? 'Restaurant-Konto' : 'Kunden-Konto'}</p>}
+                  {userRole && <p className="text-xs font-medium text-indigo-500 mt-1">
+                    {userRole === 'RESTAURANT' ? 'Restaurant-Konto' : 
+                     (userRole === 'ADMIN' || userRole === 'admin') ? 'Admin-Konto' : 'Kunden-Konto'}
+                  </p>}
                 </div>
                 
                 {/* Menüpunkte für Kunden */}
@@ -130,6 +133,40 @@ const UserMenu = () => {
                     <Link href="/restaurant/dashboard/contact-tables" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       <FiCalendar className="mr-3 text-gray-500" size={16} />
                       Kontakttische verwalten
+                    </Link>
+                  </>
+                )}
+                
+                {/* Menüpunkte für Admins */}
+                {(userRole === 'ADMIN' || userRole === 'admin') && (
+                  <>
+                    <div className="px-4 py-1 bg-blue-50">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Admin-Navigation</p>
+                    </div>
+                    
+                    <Link href="/admin/dashboard" className="flex items-center px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50">
+                      <FiGrid className="mr-3 text-indigo-500" size={16} />
+                      Dashboard
+                    </Link>
+                    
+                    <Link href="/admin/users" className="flex items-center px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50">
+                      <FiUsers className="mr-3 text-indigo-500" size={16} />
+                      Benutzer
+                    </Link>
+                    
+                    <Link href="/admin/email-builder" className="flex items-center px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50">
+                      <FiMail className="mr-3 text-indigo-500" size={16} />
+                      E-Mail-Builder
+                    </Link>
+                    
+                    <Link href="/admin/categories" className="flex items-center px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50">
+                      <FiTag className="mr-3 text-indigo-500" size={16} />
+                      Kategorien
+                    </Link>
+                    
+                    <Link href="/admin/settings" className="flex items-center px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50">
+                      <FiSettings className="mr-3 text-indigo-500" size={16} />
+                      Einstellungen
                     </Link>
                   </>
                 )}

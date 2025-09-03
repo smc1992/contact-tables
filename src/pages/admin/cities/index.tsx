@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { GetServerSideProps } from 'next';
+import { User } from '@supabase/supabase-js';
 import { createClient } from '@/utils/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
 import { FiMapPin, FiPlus, FiEdit2, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { withAuth } from '@/utils/withAuth';
 
 interface City {
   id: string;
@@ -19,9 +21,12 @@ interface City {
   created_at: string;
 }
 
-export default function CitiesPage() {
+interface CitiesPageProps {
+  user: User;
+}
+
+function CitiesPage({ user }: CitiesPageProps) {
   const router = useRouter();
-  const { session, user, loading: authLoading } = useAuth();
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,19 +123,8 @@ export default function CitiesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (session && user) {
-        if (user.user_metadata.role !== 'admin' && user.user_metadata.role !== 'ADMIN') {
-          router.push('/');
-          return;
-        }
-        
-        fetchCities();
-      }
-    }
-  }, [authLoading, session, user, router]);
+    fetchCities();
+  }, []);
 
   // Formatierung des Datums
   const formatDate = (dateString: string) => {
@@ -493,3 +487,18 @@ export default function CitiesPage() {
     </div>
   );
 }
+
+// Export mit withAuth HOC
+export default CitiesPage;
+
+// Server-side props mit withAuth HOC
+export const getServerSideProps: GetServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: {
+        user
+      }
+    };
+  }
+);

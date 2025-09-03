@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@/utils/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
 import { FiGrid, FiPlus, FiEdit2, FiTrash2, FiRefreshCw } from 'react-icons/fi';
+import { GetServerSideProps } from 'next';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 
 interface Category {
   id: string;
@@ -17,9 +19,21 @@ interface Category {
   created_at: string;
 }
 
-export default function CategoriesPage() {
+interface CategoriesPageProps {
+  user: User;
+}
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'], // Erlaubte Rollen
+  async (context, user) => {
+    return {
+      props: {}
+    };
+  }
+);
+
+export default function CategoriesPage({ user }: CategoriesPageProps) {
   const router = useRouter();
-  const { session, user, loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -106,19 +120,8 @@ export default function CategoriesPage() {
   };
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!session) {
-        router.push('/auth/login');
-      } else if (session && user) {
-        if (user.user_metadata.role !== 'admin' && user.user_metadata.role !== 'ADMIN') {
-          router.push('/');
-          return;
-        }
-        
-        fetchCategories();
-      }
-    }
-  }, [authLoading, session, user, router]);
+    fetchCategories();
+  }, []);
 
   // Formatierung des Datums
   const formatDate = (dateString: string) => {

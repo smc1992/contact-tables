@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@/utils/supabase/server';
-import { withCache } from '@/utils/server-cache';
-import { withRateLimit } from '@/utils/rate-limit';
+import { withCache } from './server-cache';
+import { withRateLimit } from './rate-limit';
 
 // Handler-Funktion für die API-Route
 async function searchHandler(req: NextApiRequest, res: NextApiResponse) {
