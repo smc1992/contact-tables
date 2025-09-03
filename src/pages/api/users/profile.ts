@@ -39,8 +39,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Fallback: Erstellt ein temporäres Profil aus Auth-Daten, wenn kein DB-Eintrag existiert.
         const defaultProfile = {
           id: userId,
-          email: user.email,
           name: user.user_metadata?.name || 'Benutzer',
+          first_name: user.user_metadata?.first_name || '',
+          last_name: user.user_metadata?.last_name || '',
+          phone: user.user_metadata?.phone || '',
+          address: user.user_metadata?.address || '',
+          city: user.user_metadata?.city || '',
+          zip_code: user.user_metadata?.zipCode || '',
           languageCode: 'de',
           role: user.user_metadata?.role || 'USER',
           isPaying: false,
@@ -69,7 +74,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // PUT: Benutzerprofil aktualisieren
   if (req.method === 'PUT') {
     try {
-      const { name, languageCode } = req.body;
+      const { 
+        name, 
+        firstName, 
+        lastName, 
+        phone, 
+        address, 
+        city, 
+        zipCode, 
+        languageCode 
+      } = req.body;
+      
 
       if (!name) {
         return res.status(400).json({ error: 'Ungültige Anfrage', message: 'Name ist erforderlich.' });
@@ -88,6 +103,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .upsert({
           id: userId,
           name,
+          first_name: firstName || '',
+          last_name: lastName || '',
+          phone: phone || '',
+          address: address || '',
+          city: city || '',
+          zip_code: zipCode || '',
           language_code: languageCode || 'de', // Snakecase für Supabase
           updated_at: new Date().toISOString(), // Snakecase für Supabase
         })

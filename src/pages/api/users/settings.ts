@@ -78,14 +78,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // PUT-Anfrage für Aktualisierung der Benutzereinstellungen
   if (req.method === 'PUT') {
     try {
-      const settings = req.body;
+      const frontendSettings = req.body;
       
       // Debug-Ausgabe der Anfrage
       console.log('Einstellungen-Update-Anfrage erhalten:', {
         userId,
-        settings,
+        frontendSettings,
         userMetadata: user.user_metadata
       });
+      
+      // Konvertiere Frontend-Format in API-Format
+      const settings = {
+        notifications: {
+          email: frontendSettings.notificationsEmail || false,
+          push: frontendSettings.notificationsPush || false,
+          eventReminders: frontendSettings.notificationsNewEvents || false,
+          messages: frontendSettings.notificationsUpdates || false,
+          marketing: frontendSettings.notificationsMarketing || false
+        },
+        privacy: {
+          profileVisibility: frontendSettings.privacyProfile || 'public',
+          showContactInfo: frontendSettings.privacyContactInfo === 'public',
+          allowLocationAccess: true
+        },
+        language: frontendSettings.language || 'de',
+        theme: 'light'
+      };
 
       // Transaktion für konsistente Aktualisierung beider Tabellen
       const [settingsResult, profileResult] = await Promise.all([

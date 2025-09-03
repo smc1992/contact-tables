@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, ContractStatus } from '@prisma/client';
 import { createClient } from '@/utils/supabase/server';
+import { withAdminAuth } from '../middleware/withAdminAuth';
 import crypto from 'crypto';
 
 // Funktion zum Generieren eines sicheren Tokens
@@ -8,28 +9,14 @@ function generateSecureToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
   // Nur POST-Anfragen erlauben
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Methode nicht erlaubt' });
   }
 
-  // Supabase-Client für Authentifizierung erstellen
-  const supabase = createClient({ req, res });
-
   try {
-    // Überprüfen, ob der Benutzer authentifiziert und ein Admin ist
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return res.status(401).json({ message: 'Nicht authentifiziert' });
-    }
-
-    if (user.user_metadata.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
-    }
+    // Benutzer ist bereits durch withAdminAuth authentifiziert und autorisiert
 
     const { restaurantId } = req.body;
 
@@ -102,3 +89,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);

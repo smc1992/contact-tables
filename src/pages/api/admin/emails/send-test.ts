@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createAdminClient, createClient } from '@/utils/supabase/server';
 import nodemailer from 'nodemailer';
-import { withAdminAuth } from '@/backend/middleware/withAdminAuth';
+import { withAdminAuth } from '../../middleware/withAdminAuth';
 
 interface Attachment {
   filename: string;

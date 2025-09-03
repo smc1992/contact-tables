@@ -5,14 +5,18 @@ import { withAdminAuth } from '../../middleware/withAdminAuth';
 const prisma = new PrismaClient();
 
 async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     // Authentifizierung und Rollenprüfung bereits durch withAdminAuth durchgeführt
-    console.log('Prüfe, ob user_tags Tabelle existiert...');
-    
+    const { name, description } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'Name ist erforderlich' });
+    }
+
     // Prüfen, ob die Tabelle existiert
     const tableExists = await prisma.$queryRaw`
       SELECT EXISTS (
@@ -56,54 +60,30 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
       `;
       
       console.log('Tag-Tabellen erfolgreich erstellt!');
-      
-      // Leere Liste zurückgeben, da die Tabelle gerade erst erstellt wurde
-      return res.status(200).json({ tags: [] });
     }
-    
-    console.log('user_tags Tabelle existiert, hole Tags...');
 
-    // Tags mit Anzahl der zugewiesenen Benutzer abrufen
-    try {
-      const tags = await prisma.$queryRaw<Array<{id: string, name: string, description: string | null, userCount: number}>>`
-        SELECT 
-          ut.id, 
-          ut.name, 
-          ut.description, 
-          COUNT(uta.id) as "userCount" 
-        FROM "user_tags" ut
-        LEFT JOIN "user_tag_assignments" uta ON ut.id = uta.tag_id
-        GROUP BY ut.id, ut.name, ut.description
-        ORDER BY ut.name ASC
-      `;
-      
-      console.log(`${tags.length} Tags gefunden`);
-      return res.status(200).json({ tags });
-    } catch (queryError) {
-      console.error('Fehler bei der Tag-Abfrage:', queryError);
-      
-      // Versuche eine einfachere Abfrage ohne Join
-      try {
-        const simpleTags = await prisma.$queryRaw<Array<{id: string, name: string, description: string | null}>>`
-          SELECT id, name, description FROM "user_tags" ORDER BY name ASC
-        `;
-        
-        // Füge userCount manuell hinzu
-        const tagsWithCount = simpleTags.map(tag => ({
-          ...tag,
-          userCount: 0
-        }));
-        
-        console.log(`${tagsWithCount.length} Tags mit einfacher Abfrage gefunden`);
-        return res.status(200).json({ tags: tagsWithCount });
-      } catch (simpleQueryError) {
-        console.error('Auch einfache Abfrage fehlgeschlagen:', simpleQueryError);
-        return res.status(200).json({ tags: [], error: 'Fehler beim Abrufen der Tags' });
-      }
+    // Prüfen, ob der Tag bereits existiert
+    const existingTag = await prisma.$queryRaw<Array<{id: string}>>`
+      SELECT id FROM "user_tags" WHERE name = ${name}
+    `;
+
+    if (existingTag.length > 0) {
+      return res.status(400).json({ error: 'Ein Tag mit diesem Namen existiert bereits' });
     }
+
+    // Tag erstellen
+    const newTag = await prisma.$queryRaw<Array<{id: string, name: string, description: string | null}>>`
+      INSERT INTO "user_tags" (name, description)
+      VALUES (${name}, ${description || null})
+      RETURNING id, name, description
+    `;
+
+    console.log('Neuer Tag erstellt:', newTag[0]);
+
+    return res.status(201).json({ tag: newTag[0] });
   } catch (error) {
-    console.error('Fehler beim Abrufen der Tags:', error);
-    return res.status(200).json({ tags: [], error: 'Interner Serverfehler' });
+    console.error('Fehler beim Erstellen des Tags:', error);
+    return res.status(500).json({ error: 'Interner Serverfehler' });
   } finally {
     await prisma.$disconnect();
   }

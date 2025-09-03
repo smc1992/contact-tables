@@ -1,25 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient } from '../../../utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'DELETE') {
     return res.status(405).json({ message: 'Methode nicht erlaubt' });
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => req.cookies[name],
-        set: (name: string, value: string, options: CookieOptions) => {},
-        remove: (name: string, options: CookieOptions) => {},
-      },
-      cookieOptions: {
-        name: process.env.NEXT_PUBLIC_SUPABASE_COOKIE_NAME || 'contact-tables-auth',
-      },
-    }
-  );
+  const supabase = createClient({ req, res });
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 

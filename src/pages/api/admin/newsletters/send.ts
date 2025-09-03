@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import nodemailer from 'nodemailer';
-import { createAdminClient, createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/server';
+import { withAdminAuth } from '../../middleware/withAdminAuth';
 
 interface SendResponse {
   ok: boolean;
@@ -10,23 +11,13 @@ interface SendResponse {
   failed?: number;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>) {
+async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, userId: string) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, message: 'Method not allowed' });
   }
 
   try {
-    // Auth check: only admins may send
-    const supabase = createClient({ req, res });
-    const { data: userData } = await supabase.auth.getUser();
-    const currentUser = userData?.user;
-    if (!currentUser) {
-      return res.status(401).json({ ok: false, message: 'Unauthorized' });
-    }
-    const role = (currentUser.user_metadata as any)?.role;
-    if (role !== 'admin' && role !== 'ADMIN') {
-      return res.status(403).json({ ok: false, message: 'Forbidden' });
-    }
+    // Auth is already checked by withAdminAuth middleware
 
     const { id: newsletterId } = req.body as { id?: string };
     if (!newsletterId) {
@@ -131,3 +122,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return res.status(500).json({ ok: false, message: 'Internal server error' });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);

@@ -1,18 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient, createAdminClient } from '@/utils/supabase/server';
+import { withAdminAuth } from '../../middleware/withAdminAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
   if (req.method !== 'GET') return res.status(405).json({ message: 'Method not allowed' });
 
   try {
-    const supabase = createClient({ req, res });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ message: 'Nicht authentifiziert' });
-
-    const role = user.user_metadata?.role;
-    if (role !== 'ADMIN' && role !== 'admin') {
-      return res.status(403).json({ message: 'Keine Berechtigung' });
-    }
 
     const admin = createAdminClient();
 
@@ -54,3 +47,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Interner Serverfehler' });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);

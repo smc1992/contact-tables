@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
+import { withAdminAuth } from '../middleware/withAdminAuth';
 
 interface User {
   id: string;
@@ -50,7 +51,7 @@ interface GroupedUsers {
   [key: string]: User[];
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
   console.log('API-Route /api/admin/users aufgerufen');
   try {
     // Nur GET-Anfragen erlauben
@@ -63,37 +64,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = createClient({ req, res });
     console.log('Supabase-Client erstellt');
     
-    // Benutzer-Session prüfen
-    console.log('Prüfe Session...');
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      console.error('Fehler bei Session-Abfrage:', sessionError);
-      return res.status(500).json({ error: 'Fehler bei Authentifizierung' });
-    }
-    
-    if (!session) {
-      console.log('Keine gültige Session gefunden');
-      return res.status(401).json({ error: 'Nicht authentifiziert' });
-    }
-    console.log('Session gefunden für Benutzer:', session.user.id);
-    
-    // Benutzerrolle prüfen
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError) {
-      console.error('Fehler bei Benutzerabfrage:', userError);
-      return res.status(500).json({ error: 'Fehler bei Benutzerabfrage' });
-    }
-    
-    if (!user) {
-      console.log('Kein Benutzer gefunden');
-      return res.status(401).json({ error: 'Kein Benutzer gefunden' });
-    }
-    
-    console.log('Benutzerrolle:', user.user_metadata?.role);
-    if (user.user_metadata?.role !== 'admin' && user.user_metadata?.role !== 'ADMIN') {
-      console.log('Keine Admin-Berechtigung:', user.user_metadata?.role);
-      return res.status(403).json({ error: 'Keine Berechtigung' });
-    }
+    // Benutzer ist bereits durch withAdminAuth authentifiziert und autorisiert
+    console.log('Authentifizierter Admin-Benutzer:', userId);
     
     // Benutzer über die Admin-API abrufen
     console.log('Rufe Benutzer über Admin-API ab...');
@@ -350,3 +322,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);

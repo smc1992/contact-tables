@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@/utils/supabase/server';
+import { withAdminAuth } from '../middleware/withAdminAuth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -10,16 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Supabase-Client erstellen
     const supabase = createClient({ req, res });
     
-    // Benutzer authentifizieren
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Nicht authentifiziert' });
-    }
-    
-    if (user.user_metadata?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Keine Berechtigung' });
-    }
+    // Benutzer ist bereits durch withAdminAuth authentifiziert und autorisiert
 
     // Zeitraum aus Query-Parameter extrahieren oder Standard setzen
     const timeframe = req.query.timeframe as string || 'month';
@@ -106,6 +98,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Interner Serverfehler' });
   }
 }
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);
 
 // Hilfsfunktion zum Generieren von Dummy-Daten
 function generateDummyData(timeframe: string) {

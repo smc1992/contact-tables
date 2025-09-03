@@ -1,16 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, Language, CmsSectionType } from '@prisma/client';
-import { createClient } from '@/utils/supabase/server';
+import { withAdminAuth } from '../../middleware/withAdminAuth';
 
 const prisma = new PrismaClient();
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const supabase = createClient({ req, res });
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user || user.user_metadata?.role !== 'ADMIN') {
-    return res.status(403).json({ error: 'Forbidden: Admins only' });
-  }
+async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
+  // Benutzer ist bereits durch withAdminAuth authentifiziert und autorisiert
 
   switch (req.method) {
     case 'GET':
@@ -120,4 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'DELETE']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-} 
+}
+
+// Export the handler with admin authentication
+export default withAdminAuth(handler);

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createAdminClient } from '@/utils/supabase/server';
-import { withAdminAuth } from '@/backend/middleware/withAdminAuth';
+import { withAdminAuth } from '../../../middleware/withAdminAuth';
 
 interface EmailTemplate {
   id: string;
