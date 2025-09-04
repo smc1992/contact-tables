@@ -52,19 +52,10 @@ export default function RegisterPage() {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Fehler bei der Registrierung.');
       }
-
-      // Schritt 2: Nach erfolgreicher Registrierung den Benutzer anmelden
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        throw new Error(`Anmeldung nach Registrierung fehlgeschlagen: ${signInError.message}`);
-      }
       
-      setSuccess('Registrierung erfolgreich! Sie werden angemeldet...');
-      // Weiterleitung wird durch den onAuthStateChange-Listener ausgelöst
+      // Nach erfolgreicher Registrierung eine Erfolgsmeldung anzeigen
+      setSuccess('Registrierung erfolgreich! Bitte überprüfen Sie Ihren E-Mail-Posteingang und bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.');
+      // Kein automatischer Anmeldeversuch mehr, da E-Mail-Bestätigung erforderlich ist
 
     } catch (err: any) {
       setError(err.message);
