@@ -6,29 +6,90 @@ import { createAdminClient } from '@/utils/supabase/server';
 // Prisma-Client für Datenbankoperationen
 const prisma = new PrismaClient();
 
-// Globale Variable für den Supabase Admin-Client
+// In Netlify-Serverless-Funktionen sollten wir den Client bei jeder Anfrage neu erstellen
+// anstatt eine globale Variable zu verwenden, da jede Funktion in einer isolierten Umgebung läuft
 let supabaseAdmin: ReturnType<typeof createAdminClient> | null = null;
 
-// Initialisiere den Supabase Admin-Client nur einmal
-try {
-  supabaseAdmin = createAdminClient();
-  console.log('Supabase Admin-Client erfolgreich initialisiert');
-} catch (error) {
-  console.error('Fehler beim Initialisieren des Supabase Admin-Clients:', error);
-  // Wir werfen hier keinen Fehler, da wir ihn in der Handler-Funktion abfangen wollen
+// Prüfe, ob wir in einer Netlify-Umgebung sind
+const isNetlify = process.env.NETLIFY === 'true';
+
+// Prüfe, ob die erforderlichen Umgebungsvariablen vorhanden sind
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Detaillierte Protokollierung der Umgebungsvariablen (ohne sensible Werte)
+console.log(`Registrierung API (${isNetlify ? 'Netlify' : 'Lokal'}): Umgebungsvariablen Status:`, {
+  NETLIFY: process.env.NETLIFY,
+  NEXT_PUBLIC_SUPABASE_URL: !!supabaseUrl,
+  NEXT_PUBLIC_SUPABASE_URL_LENGTH: supabaseUrl?.length || 0,
+  SUPABASE_SERVICE_ROLE_KEY: !!supabaseServiceKey,
+  SUPABASE_SERVICE_ROLE_KEY_LENGTH: supabaseServiceKey?.length || 0,
+  NODE_ENV: process.env.NODE_ENV,
+  SITE_URL: process.env.NEXT_PUBLIC_SITE_URL
+});
+
+// In Netlify-Umgebung initialisieren wir den Client nicht global,
+// sondern erst bei Bedarf in der Handler-Funktion
+if (!isNetlify) {
+  try {
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Erforderliche Umgebungsvariablen fehlen: NEXT_PUBLIC_SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY');
+    }
+    
+    supabaseAdmin = createAdminClient();
+    console.log('Lokale Umgebung: Supabase Admin-Client erfolgreich initialisiert');
+  } catch (error) {
+    console.error('Fehler beim Initialisieren des Supabase Admin-Clients:', error);
+    // Wir werfen hier keinen Fehler, da wir ihn in der Handler-Funktion abfangen wollen
+  }
 }
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Prüfen, ob der Supabase Admin-Client korrekt initialisiert wurde
-  if (!supabaseAdmin) {
-    console.error('Supabase Admin-Client ist nicht initialisiert');
+  // Prüfen, ob die erforderlichen Umgebungsvariablen vorhanden sind
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('Erforderliche Umgebungsvariablen fehlen');
     return res.status(500).json({ 
-      message: 'Interner Serverfehler: Authentifizierungsdienst nicht verfügbar.',
-      details: 'Supabase Admin-Client konnte nicht initialisiert werden.'
+      message: 'Interner Serverfehler: Konfigurationsproblem.',
+      details: 'Die Anwendung ist nicht korrekt konfiguriert. Bitte kontaktieren Sie den Administrator.'
     });
+  }
+
+  // In Netlify-Umgebung müssen wir den Client bei jeder Anfrage neu erstellen
+  if (isNetlify || !supabaseAdmin) {
+    console.log(`${isNetlify ? 'Netlify-Umgebung' : 'Lokale Umgebung'}: Initialisiere Supabase Admin-Client`);
+    try {
+      // Direkte Zuweisung der Umgebungsvariablen für bessere Kompatibilität mit Netlify
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (!url || !key) {
+        throw new Error('Umgebungsvariablen fehlen beim Versuch, den Admin-Client zu initialisieren');
+      }
+      
+      // Protokolliere die Länge der Werte (nicht die Werte selbst)
+      console.log('URL Länge:', url.length, 'Key Länge:', key.length);
+      
+      supabaseAdmin = createAdminClient();
+      console.log(`${isNetlify ? 'Netlify' : 'Lokal'}: Supabase Admin-Client erfolgreich initialisiert`);
+    } catch (initError) {
+      console.error(`${isNetlify ? 'Netlify' : 'Lokal'}: Initialisierung des Supabase Admin-Clients fehlgeschlagen:`, initError);
+      
+      // Detailliertere Fehlermeldung für Netlify
+      if (isNetlify) {
+        return res.status(500).json({ 
+          message: 'Netlify: Authentifizierungsdienst nicht verfügbar.',
+          details: 'Bitte überprüfen Sie die Netlify-Umgebungsvariablen und stellen Sie sicher, dass SUPABASE_SERVICE_ROLE_KEY korrekt gesetzt ist.'
+        });
+      } else {
+        return res.status(500).json({ 
+          message: 'Interner Serverfehler: Authentifizierungsdienst nicht verfügbar.',
+          details: 'Supabase Admin-Client konnte nicht initialisiert werden.'
+        });
+      }
+    }
   }
 
   if (req.method !== 'POST') {

@@ -7,19 +7,34 @@ type SupabaseServerContext =
   | { req: NextApiRequest; res: NextApiResponse };
 
 export function createAdminClient() {
+  // Direkte Zuweisung der Umgebungsvariablen für bessere Kompatibilität mit Netlify
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  // Detaillierte Protokollierung für Netlify-Debugging
+  console.log('Admin Client: Netlify-Umgebung?', process.env.NETLIFY === 'true');
   console.log('Admin Client: URL vorhanden?', !!supabaseUrl);
   console.log('Admin Client: Service Key vorhanden?', !!supabaseServiceKey);
   console.log('Admin Client: Service Key Länge:', supabaseServiceKey ? supabaseServiceKey.length : 0);
   console.log('Admin Client: Umgebungsvariablen:', {
     NODE_ENV: process.env.NODE_ENV,
+    NETLIFY: process.env.NETLIFY,
     NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
   });
 
+  // Spezielle Behandlung für Netlify-Umgebung
+  if (process.env.NETLIFY === 'true' && (!supabaseUrl || !supabaseServiceKey)) {
+    console.error('Netlify-Umgebung erkannt, aber Supabase-Konfiguration fehlt:', {
+      url: !!supabaseUrl,
+      serviceKey: !!supabaseServiceKey
+    });
+    
+    throw new Error('Netlify: Admin Supabase configuration is missing. Bitte überprüfen Sie, ob SUPABASE_SERVICE_ROLE_KEY und NEXT_PUBLIC_SUPABASE_URL in den Netlify-Umgebungsvariablen korrekt gesetzt sind.');
+  }
+  
+  // Standardprüfung für alle Umgebungen
   if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Admin Supabase configuration is missing:', {
       url: !!supabaseUrl,
@@ -27,12 +42,28 @@ export function createAdminClient() {
     });
     
     // Kein Fallback mehr zum Anon-Key, da dies zu Berechtigungsproblemen führt
-    // Stattdessen werfen wir einen klaren Fehler
     throw new Error('Admin Supabase configuration is missing. SUPABASE_SERVICE_ROLE_KEY und NEXT_PUBLIC_SUPABASE_URL müssen in den Umgebungsvariablen gesetzt sein.');
   }
 
   try {
-    console.log('Admin Client: Erstelle Supabase-Client mit Service Key');
+    // Zusätzliche Prüfung für Netlify-Umgebung
+    if (process.env.NETLIFY === 'true') {
+      console.log('Netlify-Umgebung: Erstelle Supabase-Client mit Service Key');
+      console.log('Netlify-Umgebung: URL Länge:', supabaseUrl?.length || 0);
+      console.log('Netlify-Umgebung: Service Key Länge:', supabaseServiceKey?.length || 0);
+    } else {
+      console.log('Admin Client: Erstelle Supabase-Client mit Service Key');
+    }
+    
+    // Zusätzliche Validierung der Parameter
+    if (typeof supabaseUrl !== 'string' || supabaseUrl.trim() === '') {
+      throw new Error('Supabase URL ist leer oder kein String');
+    }
+    
+    if (typeof supabaseServiceKey !== 'string' || supabaseServiceKey.trim() === '') {
+      throw new Error('Supabase Service Key ist leer oder kein String');
+    }
+    
     const client = createServerClient<Database>(
       supabaseUrl,
       supabaseServiceKey,
@@ -44,11 +75,37 @@ export function createAdminClient() {
         },
       }
     );
+    
+    // Prüfe, ob der Client korrekt erstellt wurde
+    if (!client || !client.auth) {
+      throw new Error('Supabase-Client wurde erstellt, aber scheint ungültig zu sein');
+    }
+    
     console.log('Admin Client: Supabase-Client erfolgreich erstellt');
     return client;
   } catch (error) {
+    // Detaillierte Fehlerprotokollierung
     console.error('Fehler beim Erstellen des Admin-Clients:', error);
-    console.error('Fehler-Details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
+    // Versuche, möglichst viele Informationen über den Fehler zu sammeln
+    let errorDetails = 'Keine Details verfügbar';
+    try {
+      if (error instanceof Error) {
+        errorDetails = `${error.name}: ${error.message}\nStack: ${error.stack || 'Kein Stack verfügbar'}`;
+      } else {
+        errorDetails = JSON.stringify(error, Object.getOwnPropertyNames(error || {}));
+      }
+    } catch (jsonError) {
+      errorDetails = 'Fehler beim Serialisieren des Fehlers: ' + String(jsonError);
+    }
+    
+    console.error('Fehler-Details:', errorDetails);
+    
+    // Spezifische Fehlermeldung für Netlify
+    if (process.env.NETLIFY === 'true') {
+      throw new Error('Netlify: Fehler beim Erstellen des Admin-Clients. Bitte überprüfen Sie die Netlify-Umgebungsvariablen und Logs.');
+    }
+    
     throw new Error('Fehler beim Erstellen des Admin-Clients: ' + (error instanceof Error ? error.message : String(error)));
   }
 }
