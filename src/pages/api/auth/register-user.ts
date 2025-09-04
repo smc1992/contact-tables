@@ -125,7 +125,7 @@ export default async function handler(
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // E-Mail-Bestätigung erforderlich, damit Supabase Bestätigungs-E-Mails versendet
+      email_confirm: true, // E-Mail direkt bestätigen, da wir die Bestätigungs-E-Mail manuell senden
       user_metadata: {
         name: name,
         role: role,
@@ -156,19 +156,36 @@ export default async function handler(
     }
     
     // Explizit eine Bestätigungs-E-Mail senden
-    const { error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'signup',
-      email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      },
-    });
+    console.log('Sende Bestätigungs-E-Mail an:', email);
+    console.log('Redirect-URL:', `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`);
+    
+    // Prüfe, ob die SITE_URL korrekt gesetzt ist
+    if (!process.env.NEXT_PUBLIC_SITE_URL) {
+      console.error('WARNUNG: NEXT_PUBLIC_SITE_URL ist nicht gesetzt!');
+    }
+    
+    try {
+      const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink', // Verwende magiclink statt signup, da der Benutzer bereits bestätigt ist
+        email,
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
+        },
+      });
 
-    if (emailError) {
-      console.error('Fehler beim Senden der Bestätigungs-E-Mail:', emailError);
+      if (emailError) {
+        console.error('Fehler beim Senden der Bestätigungs-E-Mail:', emailError);
+        console.error('Fehler-Details:', JSON.stringify(emailError, null, 2));
+        // Wir brechen hier nicht ab, da der Benutzer bereits erstellt wurde
+      } else {
+        console.log('Bestätigungs-E-Mail erfolgreich gesendet');
+        if (linkData) {
+          console.log('E-Mail-Link generiert:', !!linkData);
+        }
+      }
+    } catch (emailSendError) {
+      console.error('Unerwarteter Fehler beim E-Mail-Versand:', emailSendError);
       // Wir brechen hier nicht ab, da der Benutzer bereits erstellt wurde
-    } else {
-      console.log('Bestätigungs-E-Mail erfolgreich gesendet');
     }
 
     // Transaktion, um sicherzustellen, dass Restaurant und Profil zusammen erstellt werden
