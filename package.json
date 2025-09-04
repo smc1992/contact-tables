@@ -9,7 +9,8 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "prisma:seed": "node prisma/seed.js",
-    "generate-slugs": "node scripts/generate-slugs.js"
+    "generate-slugs": "node scripts/generate-slugs.js",
+    "test-token-refresh": "node --experimental-modules scripts/test-token-refresh-esm.js"
   },
   "keywords": [],
   "author": "",

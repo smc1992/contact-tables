@@ -1,7 +1,16 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../../types/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-// Debounce-Funktion zur Begrenzung der Häufigkeit von Funktionsaufrufen
+// Typdefinition für die Session-Rückgabe
+type SessionResponse = {
+  data: { session: any | null },
+  error: any | null
+};
+
+/**
+ * Debounce-Funktion zur Begrenzung der Häufigkeit von Funktionsaufrufen
+ */
 function debounce<F extends (...args: any[]) => any>(func: F, wait: number): (...args: Parameters<F>) => void {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   
@@ -16,23 +25,39 @@ function debounce<F extends (...args: any[]) => any>(func: F, wait: number): (..
   };
 }
 
-// Globaler Status für Token-Refresh-Versuche
+/**
+ * Hilfsfunktion zum Warten
+ */
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Konfigurationskonstanten für Rate-Limiting
+ */
+const MIN_REFRESH_INTERVAL = 30000; // 30 Sekunden zwischen Refreshes
+const MAX_REFRESH_COUNT = 3; // Maximal 3 Refreshes im Zeitfenster
+const REFRESH_COUNT_WINDOW = 120000; // 2 Minuten Zeitfenster
+const SESSION_CACHE_DURATION = 60000; // 1 Minute Session-Cache-Dauer
+const INITIAL_BACKOFF = 2000; // 2 Sekunden initiale Backoff-Zeit
+const MAX_BACKOFF = 300000; // 5 Minuten maximale Backoff-Zeit
+
+/**
+ * Globaler Status für Token-Refresh-Versuche und Session-Caching
+ */
 const refreshState = {
   isRefreshing: false,
   lastRefreshTime: 0,
   refreshCount: 0,
   consecutiveErrors: 0,
-  backoffTime: 1000, // Anfängliche Backoff-Zeit in ms
+  backoffTime: INITIAL_BACKOFF,
+  lastSessionData: null as SessionResponse | null,
+  lastSessionTime: 0,
+  pendingPromise: null as Promise<SessionResponse> | null,
+  retryQueue: [] as (() => void)[],
+  isRateLimited: false,
+  rateLimitedUntil: 0,
 };
 
-// Minimale Zeit zwischen Token-Refreshes (in ms)
-const MIN_REFRESH_INTERVAL = 10000; // 10 Sekunden
-// Maximale Anzahl von Refreshes in einem kurzen Zeitraum
-const MAX_REFRESH_COUNT = 5;
-// Zeitfenster für die Zählung der Refreshes (in ms)
-const REFRESH_COUNT_WINDOW = 60000; // 1 Minute
-
-export function createClient() {
+export function createClient(): SupabaseClient<Database> {
   console.log('Client createClient: Erstelle Browser-Client');
   
   // Debugging: Prüfe, ob die Umgebungsvariablen verfügbar sind
@@ -62,30 +87,107 @@ export function createClient() {
     Object.assign(cookieOptions, { domain: '.contact-tables.org' });
   }
   
-  // Benutzerdefinierte Fetch-Funktion mit Rate-Limiting-Erkennung
-  const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  // Wir verwenden die globale sleep-Funktion von oben
+
+  // Hilfsfunktion zum Ausführen der Retry-Queue
+  const processRetryQueue = async () => {
+    if (refreshState.retryQueue.length > 0) {
+      console.log(`Verarbeite ${refreshState.retryQueue.length} zurückgestellte Anfragen...`);
+      const queue = [...refreshState.retryQueue];
+      refreshState.retryQueue = [];
+      
+      // Verarbeite die Anfragen mit Verzögerung
+      for (const retryFn of queue) {
+        await sleep(1000); // 1 Sekunde zwischen den Retries
+        retryFn();
+      }
+    }
+  };
+
+  /**
+   * Benutzerdefinierte Fetch-Funktion mit Rate-Limit-Erkennung und Backoff
+   */
+  const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     try {
+      // Prüfe, ob wir aktuell rate-limited sind
+      const now = Date.now();
+      if (refreshState.isRateLimited && now < refreshState.rateLimitedUntil) {
+        const waitTime = refreshState.rateLimitedUntil - now;
+        console.warn(`Rate-Limiting aktiv. Warte ${waitTime}ms vor nächstem Versuch.`);
+        
+        // Füge Anfrage zur Warteschlange hinzu, wenn es sich um eine Token-Refresh-Anfrage handelt
+        const inputStr = input.toString();
+        if (inputStr.includes('token?grant_type=refresh_token')) {
+          return new Promise<Response>((resolve) => {
+            refreshState.retryQueue.push(async () => {
+              try {
+                const response = await fetch(input, init);
+                resolve(response);
+              } catch (error) {
+                console.error('Fehler bei zurückgestellter Anfrage:', error);
+                resolve(new Response(JSON.stringify({ error: 'Netzwerkfehler' }), { status: 500 }));
+              }
+            });
+          });
+        }
+        
+        // Für andere Anfragen warten wir kurz und versuchen es dann
+        await sleep(Math.min(waitTime, 5000));
+      }
+      
+      // Führe die Anfrage aus
       const response = await fetch(input, init);
       
-      // Überprüfe auf Rate-Limiting-Fehler (429)
+      // Prüfe auf 429 Too Many Requests
       if (response.status === 429) {
-        console.warn('Supabase API Rate-Limit erreicht. Verlangsame Anfragen.');
+        console.warn('429 Too Many Requests erhalten!');
         
-        // Erhöhe die Backoff-Zeit exponentiell
-        refreshState.consecutiveErrors++;
-        refreshState.backoffTime = Math.min(refreshState.backoffTime * 2, 60000); // Max 1 Minute
+        // Setze Rate-Limiting-Status
+        refreshState.isRateLimited = true;
         
-        // Extrahiere Retry-After-Header, falls vorhanden
+        // Erhöhe Backoff-Zeit mit Jitter (zufällige Variation)
+        refreshState.backoffTime = Math.min(
+          refreshState.backoffTime * 2 * (0.8 + Math.random() * 0.4), // 20% Jitter
+          MAX_BACKOFF
+        );
+        
+        // Bestimme Backoff-Zeit aus Header oder verwende berechnete Zeit
         const retryAfter = response.headers.get('Retry-After');
-        if (retryAfter) {
-          const retrySeconds = parseInt(retryAfter, 10) || 30;
-          console.log(`Rate-Limit: Retry-After Header empfangen: ${retrySeconds} Sekunden`);
-        }
+        const retryAfterMs = retryAfter 
+          ? parseInt(retryAfter) * 1000 
+          : refreshState.backoffTime;
+        
+        refreshState.rateLimitedUntil = Date.now() + retryAfterMs;
+        
+        console.warn(`Rate-Limiting aktiv für ${retryAfterMs}ms. Backoff: ${refreshState.backoffTime}ms`);
+        
+        // Plane die Verarbeitung der Warteschlange nach Ablauf des Rate-Limits
+        setTimeout(() => {
+          if (refreshState.retryQueue.length > 0) {
+            console.log(`Verarbeite ${refreshState.retryQueue.length} zurückgestellte Anfragen...`);
+            
+            // Kopiere und leere die Warteschlange
+            const queue = [...refreshState.retryQueue];
+            refreshState.retryQueue = [];
+            
+            // Setze Rate-Limiting zurück
+            refreshState.isRateLimited = false;
+            
+            // Verarbeite die Warteschlange mit Verzögerung zwischen den Anfragen
+            queue.forEach((retry, index) => {
+              setTimeout(retry, index * 1000); // 1 Sekunde zwischen Anfragen
+            });
+          } else {
+            // Setze Rate-Limiting zurück, wenn keine Anfragen in der Warteschlange sind
+            refreshState.isRateLimited = false;
+          }
+        }, retryAfterMs);
       } else {
-        // Zurücksetzen der Fehler-Counter bei erfolgreichen Anfragen
-        if (refreshState.consecutiveErrors > 0) {
+        // Bei erfolgreicher Antwort setzen wir die Backoff-Zeit zurück
+        const inputStr = input.toString();
+        if (response.ok && !inputStr.includes('token?grant_type=refresh_token')) {
+          refreshState.backoffTime = INITIAL_BACKOFF;
           refreshState.consecutiveErrors = 0;
-          refreshState.backoffTime = 1000; // Zurücksetzen auf Anfangswert
         }
       }
       
@@ -96,6 +198,7 @@ export function createClient() {
     }
   };
   
+  // Erstelle den Supabase-Client mit korrekten Typen
   const client = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -105,48 +208,104 @@ export function createClient() {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
-        flowType: 'pkce',
-        // Benutzerdefinierte onAuthStateChange-Funktion
-        onAuthStateChange: debounce((event, session) => {
-          console.log(`[Debounced] Auth state changed: ${event}`, { hasSession: !!session });
-        }, 1000) // 1 Sekunde Debounce
+        flowType: 'pkce'
       },
       global: {
-        fetch: customFetch
+        fetch: customFetch as typeof fetch
       }
     }
   );
   
-  // Überschreibe die getSession-Methode, um Rate-Limiting zu verhindern
+  // Registriere den Auth-State-Change-Handler separat
+  client.auth.onAuthStateChange(debounce((event, session) => {
+    console.log(`[Debounced] Auth state changed: ${event}`, { hasSession: !!session });
+  }, 1000));
+  
+  // Überschreibe die getSession-Methode mit verbessertem Caching und Anfrage-Koaleszenz
   const originalGetSession = client.auth.getSession.bind(client.auth);
-  client.auth.getSession = async function() {
+  const getSessionWithRateLimiting = async function(): Promise<SessionResponse> {
     const now = Date.now();
     
-    // Prüfe, ob wir zu viele Refreshes in kurzer Zeit durchführen
-    if (now - refreshState.lastRefreshTime < MIN_REFRESH_INTERVAL) {
-      console.log('Token-Refresh zu häufig angefordert, verwende gecachte Session');
-      return await originalGetSession();
+    // 1. Verwende gecachte Session, wenn sie noch gültig ist
+    if (refreshState.lastSessionData && 
+        now - refreshState.lastSessionTime < SESSION_CACHE_DURATION) {
+      console.log('Verwende gecachte Session (Cache-Alter: ' + 
+                 Math.round((now - refreshState.lastSessionTime)/1000) + 's)');
+      return refreshState.lastSessionData;
     }
     
-    // Prüfe, ob wir das Limit für Refreshes im Zeitfenster erreicht haben
+    // 2. Anfrage-Koaleszenz: Wenn bereits eine Anfrage läuft, warte auf deren Ergebnis
+    if (refreshState.pendingPromise) {
+      console.log('Anfrage-Koaleszenz: Verwende bereits laufende Session-Anfrage');
+      return refreshState.pendingPromise;
+    }
+    
+    // 3. Rate-Limiting: Prüfe, ob wir zu viele Refreshes in kurzer Zeit durchführen
+    if (refreshState.isRateLimited) {
+      console.warn('Rate-Limit aktiv, verwende gecachte Session oder warte');
+      
+      if (refreshState.lastSessionData) {
+        return refreshState.lastSessionData;
+      }
+      
+      // Warte auf das Ende des Rate-Limits
+      const waitTime = Math.min(refreshState.rateLimitedUntil - now, MAX_BACKOFF);
+      if (waitTime > 0) {
+        console.log(`Warte ${Math.ceil(waitTime/1000)}s vor dem nächsten Versuch...`);
+        await sleep(waitTime);
+      }
+    }
+    
+    // 4. Prüfe auf zu häufige Anfragen im Zeitfenster
     if (now - refreshState.lastRefreshTime < REFRESH_COUNT_WINDOW) {
       refreshState.refreshCount++;
+      
       if (refreshState.refreshCount > MAX_REFRESH_COUNT) {
-        console.warn(`Zu viele Token-Refreshes (${refreshState.refreshCount}) innerhalb von ${REFRESH_COUNT_WINDOW/1000} Sekunden`);
-        // Warte, bevor wir fortfahren, wenn zu viele Refreshes
-        if (refreshState.consecutiveErrors > 0) {
-          console.log(`Warte ${refreshState.backoffTime}ms vor dem nächsten Versuch...`);
-          await new Promise(resolve => setTimeout(resolve, refreshState.backoffTime));
+        console.warn(`Zu viele Token-Refreshes (${refreshState.refreshCount}) innerhalb von ${REFRESH_COUNT_WINDOW/1000}s`);
+        
+        // Wenn wir das Limit überschritten haben und eine gecachte Session haben, verwende diese
+        if (refreshState.lastSessionData) {
+          console.log('Verwende gecachte Session aufgrund von Rate-Limiting');
+          return refreshState.lastSessionData;
         }
+        
+        // Exponentielles Backoff anwenden
+        const backoffTime = Math.min(
+          INITIAL_BACKOFF * Math.pow(1.5, refreshState.refreshCount - MAX_REFRESH_COUNT),
+          MAX_BACKOFF / 2
+        );
+        
+        console.log(`Warte ${Math.ceil(backoffTime/1000)}s vor dem nächsten Versuch...`);
+        await sleep(backoffTime);
       }
     } else {
       // Zurücksetzen des Zählers, wenn wir außerhalb des Zeitfensters sind
       refreshState.refreshCount = 1;
     }
     
-    refreshState.lastRefreshTime = now;
-    return await originalGetSession();
+    // 5. Führe die tatsächliche Anfrage durch und speichere sie für Koaleszenz
+    try {
+      refreshState.lastRefreshTime = now;
+      refreshState.pendingPromise = originalGetSession();
+      
+      const result = await refreshState.pendingPromise;
+      
+      // Cache das Ergebnis
+      refreshState.lastSessionData = result;
+      refreshState.lastSessionTime = Date.now();
+      
+      return result;
+    } catch (error) {
+      console.error('Fehler beim Abrufen der Session:', error);
+      throw error;
+    } finally {
+      // Setze pendingPromise zurück, damit neue Anfragen gestellt werden können
+      refreshState.pendingPromise = null;
+    }
   };
+  
+  // Zuweisung der verbesserten getSession-Methode
+  client.auth.getSession = getSessionWithRateLimiting as typeof client.auth.getSession;
   
   // Debugging: Session-Status prüfen
   client.auth.getSession().then(({ data }) => {
