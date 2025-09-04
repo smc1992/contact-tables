@@ -6,6 +6,7 @@ const withTM = require('next-transpile-modules')(['highlight.js', 'lowlight', 'r
 const nextConfig = {
   reactStrictMode: true,
   // Optimierte Konfiguration für Next.js 14 mit Netlify
+  target: 'serverless', // Wichtig für Netlify-Kompatibilität
   images: {
     domains: ['lh3.googleusercontent.com', 'maps.googleapis.com', 'efmbzrmroyetcqxcwxka.supabase.co', 'images.unsplash.com', 'res.cloudinary.com'],
     unoptimized: true,

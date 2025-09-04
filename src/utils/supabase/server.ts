@@ -51,6 +51,12 @@ export function createAdminClient() {
       console.log('Netlify-Umgebung: Erstelle Supabase-Client mit Service Key');
       console.log('Netlify-Umgebung: URL Länge:', supabaseUrl?.length || 0);
       console.log('Netlify-Umgebung: Service Key Länge:', supabaseServiceKey?.length || 0);
+      
+      // Zusätzliche Validierung für Netlify-Umgebung
+      if (supabaseUrl?.length < 10 || supabaseServiceKey?.length < 10) {
+        console.error('Netlify-Umgebung: Ungültige Länge der Umgebungsvariablen');
+        throw new Error('Netlify: Umgebungsvariablen scheinen ungültig zu sein. Bitte überprüfen Sie die Länge und das Format.');
+      }
     } else {
       console.log('Admin Client: Erstelle Supabase-Client mit Service Key');
     }

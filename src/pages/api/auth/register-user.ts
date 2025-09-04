@@ -48,6 +48,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Benutzer-Variable für den Scope der gesamten Funktion deklarieren
+  let user: any = null;
   // Prüfen, ob die erforderlichen Umgebungsvariablen vorhanden sind
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error('Erforderliche Umgebungsvariablen fehlen');
@@ -150,7 +152,7 @@ export default async function handler(
     
     console.log('Benutzer erfolgreich in Supabase Auth erstellt');
 
-    const user = authData.user;
+    user = authData.user;
     if (!user) {
         return res.status(500).json({ message: 'Benutzer konnte nicht erstellt werden.' });
     }
@@ -245,9 +247,32 @@ export default async function handler(
   } catch (error) {
     console.error('Unerwarteter Fehler bei der Benutzerregistrierung:', error);
     
+    // Detaillierte Fehlerprotokollierung für bessere Diagnose
+    try {
+      console.error('Fehler-Typ:', error?.constructor?.name);
+      console.error('Fehler-Stack:', error instanceof Error ? error.stack : 'Kein Stack verfügbar');
+      
+      // Prüfe auf spezifische Fehlertypen
+      if (error instanceof TypeError && error.message.includes('is not a function')) {
+        console.error('Möglicher API-Kompatibilitätsfehler mit Supabase');
+      }
+      
+      if (error instanceof Error && error.message.includes('rate limit')) {
+        console.error('Rate-Limiting-Fehler erkannt');
+        return res.status(429).json({
+          message: 'Zu viele Anfragen. Bitte versuchen Sie es in einigen Minuten erneut.',
+          error: 'rate_limited',
+          details: 'Die Anwendung hat das Anfragelimit erreicht.'
+        });
+      }
+    } catch (logError) {
+      console.error('Fehler beim Protokollieren des ursprünglichen Fehlers:', logError);
+    }
+    
     // Wenn ein Benutzer erstellt wurde, aber ein Fehler bei der Profilerstellung auftrat,
     // versuchen wir, den Benutzer zu löschen, um Inkonsistenzen zu vermeiden
-    if (typeof user !== 'undefined' && user?.id) {
+    // Prüfen, ob die user-Variable im äußeren Scope existiert und eine ID hat
+    if (typeof user === 'object' && user !== null && 'id' in user) {
       try {
         if (supabaseAdmin) {
           await supabaseAdmin.auth.admin.deleteUser(user.id);
@@ -260,6 +285,7 @@ export default async function handler(
       }
     }
     
+    // Benutzerfreundliche Fehlermeldung zurückgeben
     return res.status(500).json({ 
       message: 'Ein Fehler ist bei der Registrierung aufgetreten.',
       error: error instanceof Error ? error.message : 'Unbekannter Fehler',
