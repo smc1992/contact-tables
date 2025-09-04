@@ -29,27 +29,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Hilfsfunktion zum Debounce von Funktionsaufrufen
+  const useDebounce = <T extends any[]>(callback: (...args: T) => void, delay: number) => {
+    const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    
+    return (...args: T) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+        timeoutRef.current = null;
+      }, delay);
+    };
+  };
+
+  // Status für die Fehlerbehandlung
+  const [authErrors, setAuthErrors] = useState<{count: number, lastTime: number}>({count: 0, lastTime: 0});
+  
+  // Debounced Funktion für Auth-State-Änderungen
+  const handleAuthStateChange = useDebounce((event: string, session: Session | null) => {
+    console.log(`[AuthContext] Auth state changed. Event: ${event}`, { hasSession: !!session });
+    setSession(session);
+    const currentUser = session?.user ?? null;
+    setUser(currentUser);
+    setUserRole(currentUser?.user_metadata?.role || null);
+    setLoading(false);
+  }, 500); // 500ms Debounce
+
   // Initialisierung und Sitzungsüberwachung mit Optimierungen zur Vermeidung von zu vielen history.replaceState()-Aufrufen
   useEffect(() => {
     setLoading(true);
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setUserRole(currentUser?.user_metadata?.role || null);
-      setLoading(false);
-    }).catch(error => {
-        console.error("Error getting initial session:", error);
+    
+    // Initialen Session-Status abrufen
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting initial session:", error);
+          // Fehler zählen für Backoff-Strategie
+          setAuthErrors(prev => ({
+            count: prev.count + 1,
+            lastTime: Date.now()
+          }));
+        } else {
+          // Erfolgreicher Abruf, Fehlerzähler zurücksetzen
+          setAuthErrors({count: 0, lastTime: 0});
+          handleAuthStateChange('INITIAL_SESSION', session);
+        }
+      } catch (error) {
+        console.error("Unexpected error getting initial session:", error);
+      } finally {
         setLoading(false);
-    });
+      }
+    };
+    
+    getInitialSession();
 
+    // Auth-Status-Änderungen abonnieren
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`[AuthContext] Auth state changed. Event: ${event}`, { hasSession: !!session });
-      setSession(session);
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setUserRole(currentUser?.user_metadata?.role || null);
-      setLoading(false);
+      // Verwende die debounced Funktion für Auth-State-Änderungen
+      handleAuthStateChange(event, session);
     });
 
     return () => {
