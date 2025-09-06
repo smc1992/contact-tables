@@ -65,14 +65,16 @@ export default function RestaurantRegister() {
     }
 
     try {
-      const response = await fetch('/api/auth/register-user', {
+      const response = await fetch('/api/auth/register-user/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         // Wir senden jetzt alle Formulardaten an das Backend
         body: JSON.stringify({
-          name: formData.name,
+          firstName: "Restaurant", // Platzhalter für Vorname
+          lastName: "Owner", // Platzhalter für Nachname
+          restaurantName: formData.name,
           email: formData.email,
           password: formData.password,
           role: 'RESTAURANT',
@@ -90,25 +92,19 @@ export default function RestaurantRegister() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Ein Fehler bei der Registrierung ist aufgetreten.');
+        // Spezifische Fehlermeldung für bereits existierende Benutzer
+        if (response.status === 409) {
+          throw new Error(result.details || 'Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.');
+        }
+        
+        throw new Error(result.details || result.error || 'Ein Fehler bei der Registrierung ist aufgetreten.');
       }
 
-      // Schritt 2: Benutzer nach erfolgreicher Registrierung im Frontend anmelden
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (signInError) {
-        throw new Error(`Anmeldung nach Registrierung fehlgeschlagen: ${signInError.message}`);
-      }
-
-      // Schritt 3: Erfolgsmeldung anzeigen und zum Dashboard weiterleiten
+      // Erfolgsmeldung anzeigen (keine Auto-Anmeldung; E-Mail-Bestätigung erforderlich)
       setStatus({
         type: 'success',
-        message: 'Erfolgreich registriert und angemeldet! Die Weiterleitung wird vorbereitet...',
+        message: 'Registrierung erfolgreich! Bitte prüfen Sie Ihre E-Mail und bestätigen Sie Ihre Adresse, um fortzufahren.',
       });
-      // Die Weiterleitung wird jetzt durch den onAuthStateChange-Listener unten ausgelöst, um Race Conditions zu vermeiden.
 
     } catch (error) {
       setStatus({
@@ -128,28 +124,7 @@ export default function RestaurantRegister() {
     }));
   };
 
-  // Dieser Hook lauscht auf Anmelde-Ereignisse und leitet den Benutzer
-  // sicher zum Dashboard weiter, sobald die Sitzung im Browser aktiv ist.
-  // Dies verhindert Race Conditions mit der Middleware.
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[Auth State Change] Event:', event);
-      if (session) {
-        console.log('[Auth State Change] Session User:', session.user);
-        console.log('[Auth State Change] User Metadata:', session.user.user_metadata);
-        console.log('[Auth State Change] User Role:', session.user.user_metadata?.role);
-      }
-
-      if (event === 'SIGNED_IN' && session?.user.user_metadata.role === 'RESTAURANT') {
-        console.log('[Auth State Change] Role-Check PASSED. Redirecting to dashboard...');
-        router.push('/restaurant/dashboard');
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router, supabase]);
+  // Hinweis: Keine Auto-Weiterleitung mehr vor E-Mail-Bestätigung
 
   return (
     <div className="min-h-screen flex flex-col">

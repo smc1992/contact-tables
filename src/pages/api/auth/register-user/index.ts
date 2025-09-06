@@ -155,10 +155,43 @@ export default async function handler(
   }
 
   try {
-    // Daten aus der Anfrage extrahieren
-    const { email, password, firstName, lastName, restaurantName, role } = req.body;
+    // Daten aus der Anfrage extrahieren (abwärtskompatibel normalisieren)
+    const raw = req.body || {};
+    const email: string | undefined = raw.email;
+    const password: string | undefined = raw.password;
+    const role: string | undefined = raw.role;
+    let firstName: string | undefined = raw.firstName;
+    let lastName: string | undefined = raw.lastName;
+    let restaurantName: string | undefined = raw.restaurantName;
+    const legacyName: string | undefined = raw.name; // ältere Payloads
 
-    // Validierung der Eingabedaten
+    // Falls nur ein allgemeines 'name' gesendet wird
+    if (!restaurantName && legacyName) {
+      restaurantName = legacyName;
+    }
+
+    // Fallbacks ableiten
+    const roleUpper = (role || 'CUSTOMER').toString().toUpperCase();
+    if (roleUpper === 'RESTAURANT') {
+      // Für Restaurant-Benutzer: Platzhalter für fehlende Besitzer-Namen erlauben
+      if (!firstName) firstName = 'Restaurant';
+      if (!lastName) lastName = 'Owner';
+      if (!restaurantName && firstName && lastName) {
+        restaurantName = `${firstName} ${lastName}`;
+      }
+    } else {
+      // Für Kunden: wenn nur 'name' geliefert wurde, versuchen zu splitten
+      if ((!firstName || !lastName) && legacyName) {
+        const parts = legacyName.trim().split(/\s+/);
+        firstName = firstName || parts[0];
+        lastName = lastName || (parts.slice(1).join(' ') || '');
+      }
+      if (!restaurantName && firstName && lastName) {
+        restaurantName = `${firstName} ${lastName}`;
+      }
+    }
+
+    // Validierung nach Normalisierung
     if (!email || !password || !firstName || !lastName || !restaurantName) {
       return res.status(400).json({ 
         error: 'Ungültige Anfrage', 
