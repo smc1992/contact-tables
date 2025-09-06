@@ -3,17 +3,18 @@ import { createClient } from '@/utils/supabase/server'
 
 export async function getServerSideProps(ctx: GetServerSidePropsContext) {
   try {
-    const token_hash = (ctx.query.token_hash as string) || ''
-    const type = (ctx.query.type as string) || ''
-    const next = (ctx.query.next as string) || '/'
+    const q = ctx.query || {}
+    const getParam = (v: string | string[] | undefined) => Array.isArray(v) ? v[0] : (v || '')
+    const token_hash = getParam(q.token_hash)
+    const rawType = getParam(q.type)
+    const next = getParam(q.next) || '/'
 
-    if (token_hash && type) {
+    if (token_hash && rawType) {
       const supabase = createClient({ req: ctx.req as any, res: ctx.res as any })
 
-      const { error } = await supabase.auth.verifyOtp({
-        type: type as any,
-        token_hash,
-      })
+      // Supabase erwartet bei E-Mail-Bestätigung den Typ 'email'
+      const verifyType = rawType === 'email' || rawType === 'signup' ? 'email' : 'email'
+      const { error } = await supabase.auth.verifyOtp({ type: verifyType as any, token_hash })
 
       if (!error) {
         return {

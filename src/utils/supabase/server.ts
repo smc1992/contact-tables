@@ -129,9 +129,11 @@ export function createClient(context: SupabaseServerContext) {
     throw new Error('Server-side Supabase configuration is missing.');
   }
   
-  // Debug-Ausgabe der Cookies
-  console.log('Server createClient: Verfügbare Cookies:', context.req.cookies);
-  const authCookie = context.req.cookies['contact-tables-auth'];
+  // Debug-Ausgabe der Cookies (robust gegen fehlende req.cookies)
+  const reqAny: any = context as any;
+  const cookiesObj: Record<string, string> = (reqAny?.req?.cookies as Record<string, string>) || {};
+  console.log('Server createClient: Verfügbare Cookies:', cookiesObj);
+  const authCookie = cookiesObj['contact-tables-auth'];
   console.log('Server createClient: Auth-Cookie vorhanden?', !!authCookie);
 
   // Protokolliere Domain-Informationen für Debugging
@@ -150,10 +152,9 @@ export function createClient(context: SupabaseServerContext) {
         get(name: string) {
           // Prüfe alle Cookies für Debugging
           if (name === 'contact-tables-auth') {
-            console.log('Alle verfügbaren Cookies:', Object.keys(context.req.cookies));
+            console.log('Alle verfügbaren Cookies:', Object.keys(cookiesObj));
           }
-          
-          const cookie = context.req.cookies[name];
+          const cookie = cookiesObj[name];
           console.log(`Server cookie get: ${name} = ${cookie ? 'vorhanden' : 'nicht vorhanden'}`);
           return cookie;
         },
