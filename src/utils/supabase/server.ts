@@ -175,12 +175,13 @@ export function createClient(context: SupabaseServerContext) {
           const isNetlifyDomain = host.includes('netlify.app');
           
           // Cookie-Teile zusammenstellen
-          const cookieParts = [
-            `${name}=${value}`,
-            `Path=${options.path || '/'}`,
-            `Max-Age=${options.maxAge}`,
-            `SameSite=${options.sameSite || 'Lax'}`,
-          ];
+          const cookieParts: string[] = [];
+          cookieParts.push(`${name}=${value}`);
+          cookieParts.push(`Path=${options.path || '/'}`);
+          if (typeof options.maxAge === 'number') {
+            cookieParts.push(`Max-Age=${options.maxAge}`);
+          }
+          cookieParts.push(`SameSite=${options.sameSite || 'Lax'}`);
           
           // Domain-Logik für verschiedene Umgebungen
           if (isProduction) {

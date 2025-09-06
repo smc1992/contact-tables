@@ -7,7 +7,7 @@ export async function getServerSideProps(ctx: GetServerSidePropsContext) {
     const getParam = (v: string | string[] | undefined) => Array.isArray(v) ? v[0] : (v || '')
     const token_hash = getParam(q.token_hash)
     const rawType = getParam(q.type)
-    const next = getParam(q.next) || '/'
+    const rawNext = getParam(q.next) || '/'
 
     if (token_hash && rawType) {
       const supabase = createClient({ req: ctx.req as any, res: ctx.res as any })
@@ -17,11 +17,24 @@ export async function getServerSideProps(ctx: GetServerSidePropsContext) {
       const { error } = await supabase.auth.verifyOtp({ type: verifyType as any, token_hash })
 
       if (!error) {
+        // Ziel-URL sicher bestimmen
+        let destination = '/'
+        try {
+          const decoded = decodeURIComponent(rawNext)
+          // Nur unsere eigene Domain erlauben oder interne Pfade
+          if (
+            decoded.startsWith('/') ||
+            decoded.startsWith('https://contact-tables.org')
+          ) {
+            destination = decoded
+          }
+        } catch {
+          destination = '/'
+        }
         return {
           redirect: {
-            destination: next,
+            destination,
             permanent: false,
-            statusCode: 303,
           },
         }
       }
@@ -29,17 +42,15 @@ export async function getServerSideProps(ctx: GetServerSidePropsContext) {
 
     return {
       redirect: {
-        destination: '/auth/login?error=auth_code',
+        destination: `/auth/login?error=auth_code&reason=${encodeURIComponent('verify_failed_or_missing_params')}`,
         permanent: false,
-        statusCode: 303,
       },
     }
   } catch (e) {
     return {
       redirect: {
-        destination: '/auth/login?error=unexpected',
+        destination: `/auth/login?error=unexpected&reason=${encodeURIComponent((e as Error)?.message || 'unknown')}`,
         permanent: false,
-        statusCode: 303,
       },
     }
   }
