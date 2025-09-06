@@ -16,6 +16,27 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.stripe.com; frame-src https://js.stripe.com;"
 
+# Verhindere Caching für Auth-Bestätigungsrouten (stets SSR)
+[[headers]]
+  for = "/auth/confirm"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/auth/confirm/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/auth/callback"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+
+[[headers]]
+  for = "/auth/callback/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate, max-age=0"
+
 # Cache-Control für statische Assets
 [[headers]]
   for = "/_next/static/*"
