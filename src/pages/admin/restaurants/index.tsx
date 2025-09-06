@@ -65,8 +65,17 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
 
       const formattedData = (data || []).map((restaurant: any) => {
         const profile = restaurant.profiles as unknown as { first_name: string | null; last_name: string | null };
+        const rating = typeof restaurant.rating === 'number' && !isNaN(restaurant.rating)
+          ? restaurant.rating
+          : 0;
+        const review_count = typeof restaurant.review_count === 'number' && !isNaN(restaurant.review_count)
+          ? restaurant.review_count
+          : 0;
         return {
           ...restaurant,
+          rating,
+          review_count,
+          description: restaurant.description || '',
           owner_name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'Unbekannt'
         };
       });
@@ -146,6 +155,7 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
 
   // Kürzen des Textes
   const truncateText = (text: string, maxLength: number) => {
+    if (!text) return '';
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
@@ -273,12 +283,20 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <span className="text-sm text-gray-900 mr-2">{restaurant.rating.toFixed(1)}</span>
-                              <div className="text-yellow-400">
-                                {'★'.repeat(Math.round(restaurant.rating))}
-                                {'☆'.repeat(5 - Math.round(restaurant.rating))}
-                              </div>
-                              <span className="text-xs text-gray-500 ml-2">({restaurant.review_count})</span>
+                              {(() => {
+                                const r = Number(restaurant.rating ?? 0);
+                                const rounded = Math.max(0, Math.min(5, Math.round(isNaN(r) ? 0 : r)));
+                                return (
+                                  <>
+                                    <span className="text-sm text-gray-900 mr-2">{(isNaN(r) ? 0 : r).toFixed(1)}</span>
+                                    <div className="text-yellow-400">
+                                      {'★'.repeat(rounded)}
+                                      {'☆'.repeat(5 - rounded)}
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                              <span className="text-xs text-gray-500 ml-2">({Number(restaurant.review_count ?? 0)})</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
