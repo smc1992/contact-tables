@@ -2,14 +2,14 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { withAdminAuth } from '../../middleware/withAdminAuth';
 
-const prisma = new PrismaClient();
-
 async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let prisma: PrismaClient | null = null;
   try {
+    prisma = new PrismaClient();
     // Authentifizierung und Rollenprüfung bereits durch withAdminAuth durchgeführt
     console.log('Prüfe, ob user_tags Tabelle existiert...');
     
@@ -27,6 +27,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
     if (!exists) {
       console.log('user_tags Tabelle existiert nicht, erstelle sie...');
       // Tabelle existiert nicht, erstelle sie
+      try {
+        await prisma.$executeRaw`CREATE EXTENSION IF NOT EXISTS pgcrypto;`;
+      } catch (e) {
+        console.warn('Konnte Extension pgcrypto nicht erstellen (evtl. bereits vorhanden oder keine Berechtigung):', e);
+      }
+      try {
+        await prisma.$executeRaw`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
+      } catch (e) {
+        console.warn('Konnte Extension uuid-ossp nicht erstellen (evtl. bereits vorhanden oder keine Berechtigung):', e);
+      }
       await prisma.$executeRaw`
         CREATE TABLE IF NOT EXISTS public.user_tags (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -105,7 +115,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
     console.error('Fehler beim Abrufen der Tags:', error);
     return res.status(200).json({ tags: [], error: 'Interner Serverfehler' });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) {
+      await prisma.$disconnect().catch(() => {});
+    }
   }
 }
 
