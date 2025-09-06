@@ -105,14 +105,18 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             <div className="flex items-center">
               <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md">
                 <FiStar className="text-yellow-500 mr-1" size={16} />
-                {avg_rating && avg_rating > 0 ? (
-                  <>
-                    <span className="font-bold">{avg_rating.toFixed(1).replace('.', ',')}</span>
-                    <span className="text-xs text-secondary-600 ml-1">({total_ratings})</span>
-                  </>
-                ) : (
-                  <span className="text-sm text-secondary-600">Neu</span>
-                )}
+                {(() => {
+                  const r = Number(avg_rating ?? 0);
+                  const has = !isNaN(r) && r > 0;
+                  return has ? (
+                    <>
+                      <span className="font-bold">{r.toFixed(1).replace('.', ',')}</span>
+                      <span className="text-xs text-secondary-600 ml-1">({Number(total_ratings ?? 0)})</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-secondary-600">Neu</span>
+                  );
+                })()}
               </div>
 
               {showDistance && distance_in_meters != null && (
@@ -182,14 +186,18 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
               <div className="flex items-center">
                 <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md">
                   <FiStar className="text-yellow-500 mr-1" size={16} />
-                  {avg_rating && avg_rating > 0 ? (
-                    <>
-                      <span className="font-bold">{avg_rating.toFixed(1).replace('.', ',')}</span>
-                      <span className="text-xs text-secondary-600 ml-1">({total_ratings})</span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-secondary-600">Neu</span>
-                  )}
+                  {(() => {
+                    const r = Number(avg_rating ?? 0);
+                    const has = !isNaN(r) && r > 0;
+                    return has ? (
+                      <>
+                        <span className="font-bold">{r.toFixed(1).replace('.', ',')}</span>
+                        <span className="text-xs text-secondary-600 ml-1">({Number(total_ratings ?? 0)})</span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-secondary-600">Neu</span>
+                    );
+                  })()}
                 </div>
                 {showDistance && distance_in_meters != null && (
                   <div className="bg-white text-secondary-900 rounded-lg px-2 py-1 flex items-center shadow-md ml-2">

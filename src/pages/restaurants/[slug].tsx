@@ -70,8 +70,16 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                 </div>
                 <div className="flex items-center mt-2 md:mt-0">
                   <FiStar className="text-yellow-500 mr-1" />
-                  <span className="text-lg font-semibold text-gray-700">{restaurant.avg_rating.toFixed(1)}</span>
-                  <span className="text-sm text-gray-500 ml-2">({restaurant.total_ratings} Bewertungen)</span>
+                  {(() => {
+                    const r = Number(restaurant.avg_rating ?? 0);
+                    const t = Number(restaurant.total_ratings ?? 0);
+                    return (
+                      <>
+                        <span className="text-lg font-semibold text-gray-700">{(isNaN(r) ? 0 : r).toFixed(1)}</span>
+                        <span className="text-sm text-gray-500 ml-2">({isNaN(t) ? 0 : t} Bewertungen)</span>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -102,9 +110,12 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                       <div className="flex items-center mb-2">
                         <p className="font-semibold mr-2">{review.profile.name || 'Anonym'}</p>
                         <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <FiStar key={i} className={i < review.value ? 'text-yellow-500' : 'text-gray-300'} />
-                          ))}
+                          {(() => {
+                            const val = Math.max(0, Math.min(5, Number(review.value ?? 0)));
+                            return [...Array(5)].map((_, i) => (
+                              <FiStar key={i} className={i < val ? 'text-yellow-500' : 'text-gray-300'} />
+                            ));
+                          })()}
                         </div>
                       </div>
                       <p className="text-gray-600">{review.comment}</p>

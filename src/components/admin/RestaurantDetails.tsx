@@ -422,7 +422,10 @@ export default function RestaurantDetails({ restaurantId }: RestaurantDetailsPro
                           <dt className="text-sm font-medium text-gray-500 truncate">Bewertung</dt>
                           <dd className="flex items-baseline">
                             <div className="text-2xl font-semibold text-gray-900">
-                              {restaurant.statistics.averageRating.toFixed(1)}
+                              {(() => {
+                                const r = Number(restaurant.statistics.averageRating ?? 0);
+                                return (isNaN(r) ? 0 : r).toFixed(1);
+                              })()}
                             </div>
                           </dd>
                         </dl>
@@ -442,7 +445,11 @@ export default function RestaurantDetails({ restaurantId }: RestaurantDetailsPro
                           <dt className="text-sm font-medium text-gray-500 truncate">Erfolgsrate</dt>
                           <dd className="flex items-baseline">
                             <div className="text-2xl font-semibold text-gray-900">
-                              {restaurant.statistics.successRate.toFixed(0)}%
+                              {(() => {
+                                const s = Number(restaurant.statistics.successRate ?? 0);
+                                const v = Math.max(0, Math.min(100, isNaN(s) ? 0 : s));
+                                return `${v.toFixed(0)}%`;
+                              })()}
                             </div>
                           </dd>
                         </dl>
@@ -588,7 +595,10 @@ export default function RestaurantDetails({ restaurantId }: RestaurantDetailsPro
                 <h3 className="text-lg font-medium text-gray-900">Bewertungen</h3>
                 <div className="flex items-center">
                   <FiStar className="text-yellow-400 mr-1" />
-                  <span className="font-medium">{restaurant.statistics.averageRating.toFixed(1)}</span>
+                  <span className="font-medium">{(() => {
+                    const r = Number(restaurant.statistics.averageRating ?? 0);
+                    return (isNaN(r) ? 0 : r).toFixed(1);
+                  })()}</span>
                   <span className="text-gray-500 ml-1">({restaurant.reviews.length} Bewertungen)</span>
                 </div>
               </div>
@@ -612,12 +622,15 @@ export default function RestaurantDetails({ restaurantId }: RestaurantDetailsPro
                           </div>
                         </div>
                         <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <FiStar 
-                              key={i} 
-                              className={i < review.rating ? "text-yellow-400" : "text-gray-300"} 
-                            />
-                          ))}
+                          {(() => {
+                            const val = Math.max(0, Math.min(5, Number(review.rating ?? 0)));
+                            return [...Array(5)].map((_, i) => (
+                              <FiStar
+                                key={i}
+                                className={i < val ? "text-yellow-400" : "text-gray-300"}
+                              />
+                            ));
+                          })()}
                         </div>
                       </div>
                       <p className="mt-3 text-sm text-gray-600">{review.comment}</p>
