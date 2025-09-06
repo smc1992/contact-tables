@@ -9,7 +9,8 @@ import { createBrowserClient } from '@supabase/ssr';
 import PasswordInput from '../../components/PasswordInput';
 
 export default function RegisterPage() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export default function RegisterPage() {
     setSuccess(null);
     setLoading(true);
 
-    if (!name || !email || !password) {
+    if (!firstName || !lastName || !email || !password) {
       setError('Bitte füllen Sie alle Felder aus.');
       setLoading(false);
       return;
@@ -41,16 +42,24 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
+          firstName,
+          lastName,
           email,
           password,
-          role: 'CUSTOMER', // Immer als Gast registrieren
+          restaurantName: `${firstName} ${lastName}`, // Für Gäste verwenden wir den Namen als Restaurant-Name
+          role: 'CUSTOMER' // Immer als Gast registrieren
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler bei der Registrierung.');
+        
+        // Spezifische Fehlermeldung für bereits existierende Benutzer
+        if (response.status === 409) {
+          throw new Error(errorData.details || 'Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.');
+        }
+        
+        throw new Error(errorData.details || errorData.error || 'Fehler bei der Registrierung.');
       }
       
       // Nach erfolgreicher Registrierung eine Erfolgsmeldung anzeigen
@@ -97,20 +106,39 @@ export default function RegisterPage() {
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div className="mb-4">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FiUser className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    id="name"
-                    name="name"
+                    id="firstName"
+                    name="firstName"
                     type="text"
                     required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                    placeholder="Vollständiger Name"
+                    placeholder="Vorname"
+                  />
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiUser className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                    placeholder="Nachname"
                   />
                 </div>
               </div>

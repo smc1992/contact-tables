@@ -65,7 +65,7 @@ export default function RestaurantRegister() {
     }
 
     try {
-      const response = await fetch('/api/auth/register-user/', {
+      const response = await fetch('/api/auth/register-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
