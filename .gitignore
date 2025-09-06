@@ -6,6 +6,15 @@
 
 # Local environment variables
 .env.local
+.env
+.env.load-test
+!.env.local.example
+
+# Supabase auth config/patch temp files
+supa_auth_config.json
+supa_patch.json
+supa_patch_response.json
+supabase/.temp/
 
 # Log files
 npm-debug.log*

@@ -27,7 +27,7 @@ export default function AuthCallback() {
             switch (roleUpper) {
               case 'ADMIN':
                 console.log('Admin-Benutzer erkannt, Weiterleitung zum Admin-Dashboard...');
-                router.push('/dashboard/admin');
+                router.push('/admin/dashboard');
                 break;
               case 'RESTAURANT':
                 console.log('Restaurant-Benutzer erkannt, Weiterleitung zum Restaurant-Dashboard...');
