@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { createClient } from '../utils/supabase/client';
+import { createClient, clearClientAuthCache } from '../utils/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
 // Typdefinitionen für den Auth-Kontext
@@ -171,6 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (e) {
         // ignorieren und trotzdem fortfahren
       } finally {
+        try { clearClientAuthCache(); } catch {}
         // Serverseitige Abmeldung und Cookie-Invalidierung erzwingen
         if (typeof window !== 'undefined') {
           window.location.assign('/auth/logout');

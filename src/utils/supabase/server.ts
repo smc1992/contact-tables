@@ -230,21 +230,30 @@ export function createClient(context: SupabaseServerContext) {
           }
         },
         remove(name: string, options: CookieOptions) {
-          const cookieParts = [
+          // Mirror cookie removal to how we set it, including Domain/Secure flags
+          const host = context.req.headers.host || '';
+          const isProduction = process.env.NODE_ENV === 'production';
+          const isCustomDomain = host.includes('contact-tables.org');
+          const protocol = context.req.headers['x-forwarded-proto'] || 'http';
+          const useSecure = isProduction || protocol === 'https' || options.secure;
+
+          const baseParts = [
             `${name}=`,
             `Path=${options.path || '/'}`,
             `Max-Age=0`,
             `SameSite=${options.sameSite || 'Lax'}`,
           ];
+          if (options.httpOnly !== false) baseParts.push('HttpOnly');
+          if (useSecure) baseParts.push('Secure');
 
-          if (options.httpOnly !== false) {
-            cookieParts.push('HttpOnly');
+          const cookiesToSet: string[] = [];
+          // Host-only deletion (no Domain attribute)
+          cookiesToSet.push(baseParts.join('; '));
+          // Domain-wide deletion for primary domain
+          if (isProduction && isCustomDomain) {
+            cookiesToSet.push(baseParts.concat(['Domain=.contact-tables.org']).join('; '));
           }
-          if (options.secure) {
-            cookieParts.push('Secure');
-          }
-          
-          const cookieString = cookieParts.join('; ');
+
           if (context.res) {
             const existingCookies = context.res.getHeader('Set-Cookie');
             let newCookies: string[] = [];
@@ -253,8 +262,10 @@ export function createClient(context: SupabaseServerContext) {
             } else if (Array.isArray(existingCookies)) {
               newCookies = [...existingCookies];
             }
-            newCookies.push(cookieString);
+            newCookies.push(...cookiesToSet);
             context.res.setHeader('Set-Cookie', newCookies);
+          } else {
+            console.warn('Server: context.res ist nicht verfügbar, kann Cookie nicht entfernen');
           }
         },
       },

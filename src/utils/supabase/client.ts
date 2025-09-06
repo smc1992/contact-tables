@@ -57,6 +57,32 @@ const refreshState = {
   rateLimitedUntil: 0,
 };
 
+/**
+ * Löscht alle zwischengespeicherten Auth-Daten (z.B. nach Logout aufrufen),
+ * damit getSession nicht versehentlich eine veraltete Session zurückgibt.
+ */
+export function clearClientAuthCache() {
+  try {
+    refreshState.isRefreshing = false;
+    refreshState.lastRefreshTime = 0;
+    refreshState.refreshCount = 0;
+    refreshState.consecutiveErrors = 0;
+    refreshState.backoffTime = INITIAL_BACKOFF;
+    refreshState.lastSessionData = null;
+    refreshState.lastSessionTime = 0;
+    refreshState.pendingPromise = null;
+    refreshState.retryQueue = [];
+    refreshState.isRateLimited = false;
+    refreshState.rateLimitedUntil = 0;
+    // Optional: kleine Log-Nachricht im Debug
+    if (typeof window !== 'undefined') {
+      console.log('Auth-Cache im Client geleert.');
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 export function createClient(): SupabaseClient<Database> {
   console.log('Client createClient: Erstelle Browser-Client');
   
