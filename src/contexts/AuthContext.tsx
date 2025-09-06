@@ -166,11 +166,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     signOut: async () => {
       try {
-        const { error } = await supabase.auth.signOut();
-        return { error };
-      } catch (error) {
-        return { error };
+        // Clientseitig abmelden (entfernt Browser-Cookies/State)
+        await supabase.auth.signOut();
+      } catch (e) {
+        // ignorieren und trotzdem fortfahren
+      } finally {
+        // Serverseitige Abmeldung und Cookie-Invalidierung erzwingen
+        if (typeof window !== 'undefined') {
+          window.location.assign('/auth/logout');
+        }
       }
+      return { error: null };
     },
     resetPassword: async (email: string) => {
       try {
