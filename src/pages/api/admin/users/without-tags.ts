@@ -3,14 +3,14 @@ import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 import { withAdminAuth } from '../../middleware/withAdminAuth';
 
-const prisma = new PrismaClient();
-
 async function handler(req: NextApiRequest, res: NextApiResponse, userId: string) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let prisma: PrismaClient | null = null;
   try {
+    prisma = new PrismaClient();
     // Authentifizierung und Rollenprüfung bereits durch withAdminAuth durchgeführt
     const adminSupabase = createAdminClient();
 
@@ -22,15 +22,27 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
     // Benutzer-IDs mit Tags extrahieren
     const userIdsWithTags = usersWithTags.map((assignment: { userId: string }) => assignment.userId);
 
-    // Benutzerinformationen aus Supabase abrufen mit Admin-Client
-    const { data: users, error: usersError } = await adminSupabase.auth.admin.listUsers();
-    
-    if (usersError) {
-      throw usersError;
+    // Alle Benutzer über Admin-API paginiert abrufen, um keine zu verpassen
+    const allUsers: any[] = [];
+    try {
+      let page = 1;
+      const perPage = 1000;
+      // loop with a safeguard of max 50 pages
+      for (let i = 0; i < 50; i++) {
+        const { data, error } = await adminSupabase.auth.admin.listUsers({ perPage, page });
+        if (error) throw error;
+        const batch = data?.users || [];
+        allUsers.push(...batch);
+        if (batch.length < perPage) break;
+        page += 1;
+      }
+    } catch (e) {
+      console.error('Fehler beim paginierten Abrufen der Benutzer:', e);
+      return res.status(200).json({ users: [], error: 'Fehler beim Laden der Benutzerdaten' });
     }
 
     // Nur Benutzer ohne Tags filtern und formatieren
-    const filteredUsers = users.users
+    const filteredUsers = allUsers
       .filter(user => !userIdsWithTags.includes(user.id))
       .map(user => ({
         id: user.id,
@@ -42,9 +54,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
     return res.status(200).json({ users: filteredUsers });
   } catch (error) {
     console.error('Fehler beim Abrufen der Benutzer ohne Tags:', error);
-    return res.status(500).json({ error: 'Interner Serverfehler' });
+    return res.status(200).json({ users: [], error: 'Interner Serverfehler' });
   } finally {
-    await prisma.$disconnect();
+    if (prisma) {
+      await prisma.$disconnect().catch(() => {});
+    }
   }
 }
 
