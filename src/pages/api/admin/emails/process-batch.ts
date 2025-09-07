@@ -25,16 +25,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    // Auth check: only admins may process batches
-    const supabase = createClient({ req, res });
-    const { data: userData } = await supabase.auth.getUser();
-    const currentUser = userData?.user;
-    if (!currentUser) {
-      return res.status(401).json({ ok: false, message: 'Unauthorized' });
-    }
-    const role = (currentUser.user_metadata as any)?.role;
-    if (role !== 'admin' && role !== 'ADMIN') {
-      return res.status(403).json({ ok: false, message: 'Forbidden' });
+    // Allow internal/scheduled invocations via secret header
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = (req.headers['authorization'] || req.headers['x-internal-secret'] || req.headers['x-cron-secret'] || '') as string;
+    const provided = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : authHeader.trim();
+    const isInternal = Boolean(cronSecret && provided && provided === cronSecret);
+
+    if (!isInternal) {
+      // Auth check: only admins may process batches
+      const supabase = createClient({ req, res });
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUser = userData?.user;
+      if (!currentUser) {
+        return res.status(401).json({ ok: false, message: 'Unauthorized' });
+      }
+      const role = (currentUser.user_metadata as any)?.role;
+      if (role !== 'admin' && role !== 'ADMIN') {
+        return res.status(403).json({ ok: false, message: 'Forbidden' });
+      }
     }
 
     const { batchId } = req.body;
@@ -86,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const websiteUrl = settings?.website_url || process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://contact-tables.com';
 
     if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromAddress) {
-      await prisma.emailBatch.update({
+      await prisma.email_batches.update({
         where: { id: batchId },
         data: { status: EmailBatchStatus.FAILED }
       });
@@ -114,12 +124,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { data: recipients } = await adminSupabase
       .from('email_recipients')
       .select('id, recipient_id, recipient_email, unsubscribe_token, status')
-      .eq('campaign_id', batch.campaignId)
+      .eq('campaign_id', batch.campaign_id)
       .eq('status', 'pending')
       .limit(50); // Process in batches of 50
 
     if (!recipients || recipients.length === 0) {
-      await prisma.emailBatch.update({
+      await prisma.email_batches.update({
         where: { id: batchId },
         data: { status: EmailBatchStatus.COMPLETED }
       });
@@ -178,8 +188,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       // Try sending with retries
       while (retryCount < maxRetries && !success) {
         try {
+          // Ensure unsubscribe token exists (generate if missing)
+          let unsubscribeToken = recipient.unsubscribe_token;
+          if (!unsubscribeToken) {
+            const token = crypto.randomBytes(32).toString('hex');
+            await adminSupabase
+              .from('unsubscribe_tokens')
+              .insert({
+                token,
+                email: recipient.recipient_email,
+                expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString(),
+              });
+            unsubscribeToken = token;
+            // Try to store it on the recipient row for reference
+            await adminSupabase
+              .from('email_recipients')
+              .update({ unsubscribe_token: token })
+              .eq('id', recipient.id);
+          }
+
           // Replace placeholders in content
-          let personalizedContent = batch.campaign.content;
+          let personalizedContent = batch.content;
           if (recipientName) {
             personalizedContent = personalizedContent.replace(/{name}/g, recipientName);
           } else {
@@ -187,7 +216,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           }
           
           // Add unsubscribe link
-          const unsubscribeUrl = `${websiteUrl}/unsubscribe?token=${recipient.unsubscribe_token}`;
+          const unsubscribeUrl = `${websiteUrl}/unsubscribe?token=${unsubscribeToken}`;
           const unsubscribeHtml = `
             <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
               Wenn Sie keine weiteren E-Mails erhalten möchten, 
@@ -196,7 +225,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           `;
           
           // Add tracking pixel
-          const trackingUrl = `${websiteUrl}/api/tracking/open?rid=${recipient.id}&cid=${batch.campaignId}`;
+          const trackingUrl = `${websiteUrl}/api/tracking/open?rid=${recipient.id}&cid=${batch.campaign_id}`;
           const trackingPixel = `<img src="${trackingUrl}" width="1" height="1" alt="" style="display:none;" />`;
           
           // Add tracking and unsubscribe to content
@@ -205,7 +234,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
           await transporter.sendMail({
             from: `Contact Tables <${fromAddress}>`,
             to: recipient.recipient_email,
-            subject: batch.campaign.subject,
+            subject: batch.subject,
             html: personalizedContent,
             headers: {
               'List-Unsubscribe': `<${unsubscribeUrl}>`,
@@ -261,7 +290,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       SET 
         sent_count = sent_count + ${sent},
         failed_count = failed_count + ${failed},
-        status = ${newStatus}::"public"."EmailBatchStatus"
+        status = ${newStatus}
       WHERE id = ${batchId}::uuid
     `;
 
@@ -278,7 +307,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       await prisma.$executeRaw`
         UPDATE email_campaigns 
         SET 
-          status = ${finalStatus}::"public"."EmailCampaignStatus",
+          status = ${finalStatus},
           completed_at = ${new Date()}
         WHERE id = ${batch.campaign_id}::uuid
       `;

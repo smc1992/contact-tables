@@ -50,3 +50,7 @@
 # Spezifische Konfiguration für Next.js 14
 [functions]
   node_bundler = "esbuild"
+
+[functions."process-email-batches"]
+  # Run every 5 minutes
+  schedule = "*/5 * * * *"
