@@ -397,6 +397,9 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
           content,
           recipients: selectedCustomerEmails,
           templateId: selectedTemplate || undefined,
+          // Enable batching and respect server limits
+          allowBatching: true,
+          batchSize: 50,
           attachments: attachments.length > 0 ? attachments.map(att => ({
             filename: att.filename,
             content: att.content,
