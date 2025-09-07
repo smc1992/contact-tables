@@ -508,8 +508,12 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
     }
   };
   
-  // Filtere Benutzer basierend auf dem aktiven Tab
-  const filteredUsers = activeTab === 'all' ? users : groupedUsers[activeTab] || [];
+  // Filtere Benutzer basierend auf aktivem Tab
+  // Wenn ein Tagfilter aktiv ist (nicht 'all'), immer aus allen Benutzern filtern,
+  // damit Nutzer mit dem Tag auch dann sichtbar sind, wenn ihre Rolle nicht zum aktiven Tab passt
+  const filteredUsers = tagFilter !== 'all'
+    ? users
+    : (activeTab === 'all' ? users : groupedUsers[activeTab] || []);
   
   // Zusätzliche Filter: Suche, E-Mail, Status, Telefon vorhanden, Tag
   const visibleUsers = (filteredUsers || []).filter((u) => {
@@ -878,6 +882,10 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   const handleTagFilterChange = async (value: string) => {
     console.log(`Tag-Filter geändert auf: ${value}`);
     setTagFilter(value);
+    // Bei spezifischem Tag automatisch den Tab auf "all" setzen, damit alle Treffer sichtbar sind
+    if (value !== 'all') {
+      setActiveTab('all');
+    }
     
     if (value === 'all') {
       // Alle Benutzer anzeigen (kein Filter)
@@ -910,6 +918,33 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
       console.log('API-Antwort erhalten:', result);
       
       if (Array.isArray(result.users)) {
+        // Stelle sicher, dass alle gefilterten Benutzer in der Tabelle verfügbar sind
+        // (falls /api/admin/users einige Benutzer nicht geliefert hat)
+        const existingIds = new Set(users.map((u) => u.id));
+        const toAdd = result.users
+          .filter((u: any) => !existingIds.has(u.id))
+          .map((u: any) => {
+            const fullName = (u.name || '').trim();
+            const [first, ...rest] = fullName.split(' ');
+            const last = rest.join(' ');
+            return {
+              id: u.id,
+              email: u.email || '',
+              role: (u.role || 'user').toString().toLowerCase(),
+              name: fullName,
+              first_name: first || '',
+              last_name: last || '',
+              phone: '',
+              created_at: u.created_at || '',
+              last_sign_in_at: undefined,
+              is_active: true,
+              tags: []
+            } as any;
+          });
+        if (toAdd.length > 0) {
+          console.log('Füge fehlende Benutzer aus Tag-Ergebnis hinzu:', toAdd.length);
+          setUsers((prev) => [...prev, ...toAdd]);
+        }
         const userIds = result.users.map((user: any) => user.id);
         console.log(`${userIds.length} Benutzer mit diesem Tag gefunden:`, userIds);
         setUsersWithSelectedTag(userIds);

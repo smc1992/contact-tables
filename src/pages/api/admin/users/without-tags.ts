@@ -48,7 +48,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
         id: user.id,
         email: user.email,
         name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim(),
-        created_at: user.created_at
+        created_at: user.created_at,
+        role: user.user_metadata?.role || 'customer'
       }));
 
     return res.status(200).json({ users: filteredUsers });
