@@ -40,25 +40,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
       // Wir setzen fort, auch wenn die Tag-Prüfung fehlschlägt
     }
 
-    // Benutzer mit dem angegebenen Tag abrufen
+    // Benutzer mit dem angegebenen Tag abrufen (Prisma ORM statt Raw SQL)
     let userIds: string[] = [];
     try {
-      const usersWithTag = await prisma.$queryRaw<Array<{userId: string}>>`
-        SELECT "user_id" as "userId" FROM "user_tag_assignments"
-        WHERE "tag_id" = ${tagId}
-      `;
-      
-      console.log(`Gefundene Zuweisungen: ${usersWithTag.length}`);
-      
-      // Benutzer-IDs extrahieren
-      userIds = usersWithTag.map((assignment: { userId: string }) => assignment.userId);
-      
-      // Wenn keine Benutzer mit diesem Tag gefunden wurden, leere Liste zurückgeben
+      const assignments = await prisma.userTagAssignment.findMany({
+        where: { tagId: tagId },
+        select: { userId: true },
+      });
+      console.log(`Gefundene Zuweisungen: ${assignments.length}`);
+      userIds = Array.from(new Set(assignments.map(a => a.userId)));
       if (userIds.length === 0) {
         return res.status(200).json({ users: [] });
       }
-    } catch (assignmentError) {
-      console.error('Fehler beim Abrufen der Tag-Zuweisungen:', assignmentError);
+    } catch (assignmentError: any) {
+      console.error('Fehler beim Abrufen der Tag-Zuweisungen (ORM):', assignmentError?.message || assignmentError);
       return res.status(200).json({ users: [], error: 'Fehler beim Abrufen der Tag-Zuweisungen' });
     }
 
