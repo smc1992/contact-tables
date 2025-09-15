@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import LaunchPopup from '../components/LaunchPopup';
 import SEO from '../components/SEO';
+import { createClient as createSupabaseClient } from '@/utils/supabase/client';
 
 // Sprachvariationen für das Banner
 const languageVariations = [
@@ -71,7 +72,6 @@ const LanguageSlider = () => {
 const prisma = new PrismaClient();
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const fallbackValues = { memberCount: 15, restaurantCount: 5 };
 
   try {
     const memberCount = await prisma.profile.count({
@@ -88,15 +88,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
     return {
       props: {
-        memberCount: memberCount > 0 ? memberCount : fallbackValues.memberCount,
-        restaurantCount: restaurantCount > 0 ? restaurantCount : fallbackValues.restaurantCount,
+        memberCount,
+        restaurantCount,
       },
     };
   } catch (error) {
     console.error("Error fetching stats for homepage:", error);
     // Fallback values in case of a database error
     return {
-      props: fallbackValues,
+      props: { memberCount: 0, restaurantCount: 0 },
     };
   }
 };
@@ -105,9 +105,12 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
   const router = useRouter();
   const { session, user, loading } = useAuth();
   const [popularRestaurants, setPopularRestaurants] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchLocation, setSearchLocation] = useState('');
   const [searchCuisine, setSearchCuisine] = useState('');
+  // Live counters updated via Supabase Realtime
+  const [liveMemberCount, setLiveMemberCount] = useState<number>(memberCount);
+  const [liveRestaurantCount, setLiveRestaurantCount] = useState<number>(restaurantCount);
   
   // Benutzerrolle bestimmen
   const userRole = user?.user_metadata?.role || 'GUEST';
@@ -148,6 +151,62 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
     fetchPopularRestaurants();
   }, []);
 
+  // Subscribe to realtime inserts/updates to keep counters fresh without reload
+  useEffect(() => {
+    try {
+      const supabase = createSupabaseClient();
+      const channel = supabase.channel('homepage-counters');
+
+      // Increment on new profile (new registered user)
+      channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'profiles' },
+        () => setLiveMemberCount((c) => c + 1)
+      );
+
+      // Increment on new restaurant row
+      channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'restaurants' },
+        (payload) => {
+          const row: any = payload.new || {};
+          // If is_visible exists and true OR status becomes ACTIVE, count it
+          if (row.is_visible === true || row.isVisible === true || row.status === 'ACTIVE') {
+            setLiveRestaurantCount((c) => c + 1);
+          }
+        }
+      );
+
+      // Increment when a restaurant becomes visible/active
+      channel.on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'restaurants' },
+        (payload) => {
+          const oldV: any = payload.old || {};
+          const newV: any = payload.new || {};
+          const becameVisible =
+            (oldV.is_visible !== true && newV.is_visible === true) ||
+            (oldV.isVisible !== true && newV.isVisible === true) ||
+            (oldV.status !== 'ACTIVE' && newV.status === 'ACTIVE');
+          if (becameVisible) {
+            setLiveRestaurantCount((c) => c + 1);
+          }
+        }
+      );
+
+      channel.subscribe();
+
+      return () => {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      };
+    } catch (e) {
+      // Realtime optional – bei Fehlern einfach ignorieren
+      console.warn('Realtime subscription failed (optional):', (e as Error)?.message || e);
+    }
+  }, []);
+
   // Suchfunktion
     const handleHomepageSearch = () => {
     const params = new URLSearchParams();
@@ -165,7 +224,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
     <>
       <SEO 
         title="Contact Tables - Authentische Begegnungen am Restauranttisch" 
-        description="Contact Tables verbindet Menschen anonym am Restauranttisch – für authentische Gespräche und neue Begegnungen in entspannter Atmosphäre."
+        description="Contact Tables verbindet Menschen am Restaruant - Für echte Begegnungen und inspirierende Gespräche."
         image="/images/og-image.jpg"
       />
       <div className="flex flex-col min-h-screen bg-gray-50">
@@ -461,7 +520,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
               transition={{ duration: 0.5, delay: 0.0 }}
               className="bg-white p-8 rounded-xl shadow-md text-center"
             >
-              <div className="text-4xl font-bold text-primary-600 mb-2">{memberCount}+</div>
+              <div className="text-4xl font-bold text-primary-600 mb-2">{liveMemberCount}+</div>
               <div className="text-gray-600">Aktive Mitglieder</div>
             </motion.div>
             
@@ -472,7 +531,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
               transition={{ duration: 0.5, delay: 0.1 }}
               className="bg-white p-8 rounded-xl shadow-md text-center"
             >
-              <div className="text-4xl font-bold text-primary-600 mb-2">{restaurantCount}+</div>
+              <div className="text-4xl font-bold text-primary-600 mb-2">{liveRestaurantCount}+</div>
               <div className="text-gray-600">Teilnehmende Restaurants</div>
             </motion.div>
           </div>
