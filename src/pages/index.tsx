@@ -80,11 +80,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       },
     });
 
-    const restaurantCount = await prisma.restaurant.count({
-      where: {
-        isVisible: true,
-      },
-    });
+    // Restaurants: alle Restaurants zählen, unabhängig von Sichtbarkeit
+    const restaurantCount = await prisma.restaurant.count();
 
     return {
       props: {
@@ -151,7 +148,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
     fetchPopularRestaurants();
   }, []);
 
-  // Subscribe to realtime inserts/updates to keep counters fresh without reload
+  // Subscribe to realtime inserts to keep counters fresh without reload
   useEffect(() => {
     try {
       const supabase = createSupabaseClient();
@@ -164,34 +161,11 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
         () => setLiveMemberCount((c) => c + 1)
       );
 
-      // Increment on new restaurant row
+      // Increment on new restaurant row (alle Restaurants, keine Sichtbarkeitsbedingung)
       channel.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'restaurants' },
-        (payload) => {
-          const row: any = payload.new || {};
-          // If is_visible exists and true OR status becomes ACTIVE, count it
-          if (row.is_visible === true || row.isVisible === true || row.status === 'ACTIVE') {
-            setLiveRestaurantCount((c) => c + 1);
-          }
-        }
-      );
-
-      // Increment when a restaurant becomes visible/active
-      channel.on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'restaurants' },
-        (payload) => {
-          const oldV: any = payload.old || {};
-          const newV: any = payload.new || {};
-          const becameVisible =
-            (oldV.is_visible !== true && newV.is_visible === true) ||
-            (oldV.isVisible !== true && newV.isVisible === true) ||
-            (oldV.status !== 'ACTIVE' && newV.status === 'ACTIVE');
-          if (becameVisible) {
-            setLiveRestaurantCount((c) => c + 1);
-          }
-        }
+        () => setLiveRestaurantCount((c) => c + 1)
       );
 
       channel.subscribe();
