@@ -198,7 +198,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
     <>
       <SEO 
         title="Contact Tables - Authentische Begegnungen am Restauranttisch" 
-        description="Contact Tables verbindet Menschen am Restaruant - Für echte Begegnungen und inspirierende Gespräche."
+        description="Contact Tables verbindet Menschen am Restaurant - Für echte Begegnungen und inspirierende Gespräche."
         image="/images/og-image.jpg"
       />
       <div className="flex flex-col min-h-screen bg-gray-50">
