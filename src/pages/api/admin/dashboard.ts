@@ -18,9 +18,10 @@ async function handler(
     // Admin-Client für privilegierte Abfragen erstellen
     const adminClient = createAdminClient();
     
-    // Statistiken abrufen
-    const { data: usersData, error: usersError } = await adminClient
-      .from('profiles')
+    // Statistiken abrufen - Alle Benutzer aus auth.users zählen
+    // Diese Abfrage gibt die gleiche Anzahl wie in der Supabase UI zurück
+    const { count: usersCount, error: usersError } = await adminClient
+      .from('auth.users')
       .select('*', { count: 'exact', head: true });
       
     const { data: restaurantsData, error: restaurantsError } = await adminClient
@@ -136,7 +137,7 @@ async function handler(
     
     return res.status(200).json({
       stats: {
-        users: usersData?.length || 0,
+        users: usersCount || 0,
         restaurants: restaurantsData?.length || 0,
         pendingRequests: pendingRequestsData?.length || 0,
         activeRestaurants: activeRestaurantsData?.length || 0,

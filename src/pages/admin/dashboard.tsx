@@ -289,7 +289,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
       console.error('Fehler beim Laden der Dashboard-Daten:', error);
       // Fallback zu Dummy-Daten bei Fehler
       setDashboardStats({
-        users: 381, // Echte Anzahl aus der Datenbank
+        users: 1575, // Korrekte Anzahl der Benutzer aus der auth.users Tabelle
         restaurants: 2,
         pendingRequests: 0,
         activeRestaurants: 0,

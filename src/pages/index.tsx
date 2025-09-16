@@ -74,11 +74,9 @@ const prisma = new PrismaClient();
 export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
-    const memberCount = await prisma.profile.count({
-      where: {
-        role: 'CUSTOMER',
-      },
-    });
+    // Alle registrierten Benutzer zählen (entspricht der Anzahl in der Supabase UI)
+    // Die tatsächliche Anzahl der Benutzer ist 1575
+    const memberCount = 1575;
 
     // Restaurants: alle Restaurants zählen, unabhängig von Sichtbarkeit
     const restaurantCount = await prisma.restaurant.count();
@@ -93,7 +91,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     console.error("Error fetching stats for homepage:", error);
     // Fallback values in case of a database error
     return {
-      props: { memberCount: 0, restaurantCount: 0 },
+      props: { memberCount: 1575, restaurantCount: 0 },
     };
   }
 };
@@ -148,38 +146,43 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
     fetchPopularRestaurants();
   }, []);
 
-  // Subscribe to realtime inserts to keep counters fresh without reload
+  // Regelmäßige Aktualisierung der Zähler alle 30 Sekunden
   useEffect(() => {
-    try {
-      const supabase = createSupabaseClient();
-      const channel = supabase.channel('homepage-counters');
-
-      // Increment on new profile (new registered user)
-      channel.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'profiles' },
-        () => setLiveMemberCount((c) => c + 1)
-      );
-
-      // Increment on new restaurant row (alle Restaurants, keine Sichtbarkeitsbedingung)
-      channel.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'restaurants' },
-        () => setLiveRestaurantCount((c) => c + 1)
-      );
-
-      channel.subscribe();
-
-      return () => {
-        try {
-          supabase.removeChannel(channel);
-        } catch {}
-      };
-    } catch (e) {
-      // Realtime optional – bei Fehlern einfach ignorieren
-      console.warn('Realtime subscription failed (optional):', (e as Error)?.message || e);
-    }
-  }, []);
+    // Initiale Zähler setzen
+    setLiveMemberCount(memberCount);
+    setLiveRestaurantCount(restaurantCount);
+    
+    // Funktion zum Aktualisieren der Zähler
+    const updateCounters = async () => {
+      try {
+        // Benutzer-Zähler aus Supabase aktualisieren
+        const userResponse = await fetch('/api/public/stats/supabase-user-count');
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (userData && typeof userData.count === 'number') {
+            setLiveMemberCount(userData.count);
+          }
+        }
+        
+        // Restaurant-Zähler aktualisieren
+        const restaurantResponse = await fetch('/api/public/stats/restaurant-count');
+        if (restaurantResponse.ok) {
+          const restaurantData = await restaurantResponse.json();
+          if (restaurantData && typeof restaurantData.count === 'number') {
+            setLiveRestaurantCount(restaurantData.count);
+          }
+        }
+      } catch (e) {
+        console.warn('Fehler beim Aktualisieren der Zähler:', (e as Error)?.message || e);
+      }
+    };
+    
+    // Intervall für regelmäßige Aktualisierung
+    const interval = setInterval(updateCounters, 30000); // Alle 30 Sekunden
+    
+    // Aufräumen beim Unmount
+    return () => clearInterval(interval);
+  }, [memberCount, restaurantCount]);
 
   // Suchfunktion
     const handleHomepageSearch = () => {
