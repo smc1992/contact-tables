@@ -74,9 +74,22 @@ const prisma = new PrismaClient();
 export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
-    // Alle registrierten Benutzer zählen (entspricht der Anzahl in der Supabase UI)
-    // Die tatsächliche Anzahl der Benutzer ist 1575
-    const memberCount = 1575;
+    // Aktuelle Benutzerzahl von der API abrufen
+    let memberCount;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/public/stats/supabase-user-count`);
+      if (response.ok) {
+        const data = await response.json();
+        memberCount = data.count;
+      }
+    } catch (error) {
+      console.error('Fehler beim Abrufen der Benutzerzahl:', error);
+    }
+    
+    // Fallback-Wert, falls die API-Anfrage fehlschlägt
+    if (!memberCount) {
+      memberCount = 1575;
+    }
 
     // Restaurants: alle Restaurants zählen, unabhängig von Sichtbarkeit
     const restaurantCount = await prisma.restaurant.count();
@@ -90,8 +103,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   } catch (error) {
     console.error("Error fetching stats for homepage:", error);
     // Fallback values in case of a database error
+    // Versuche die Benutzerzahl direkt von der API zu holen
+    let memberCount = 1575; // Fallback-Wert
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/public/stats/supabase-user-count`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.count) {
+          memberCount = data.count;
+        }
+      }
+    } catch (fetchError) {
+      console.error('Fehler beim Abrufen der Benutzerzahl im Fehlerfall:', fetchError);
+    }
+    
     return {
-      props: { memberCount: 1575, restaurantCount: 0 },
+      props: { memberCount, restaurantCount: 0 },
     };
   }
 };

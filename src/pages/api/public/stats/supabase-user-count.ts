@@ -29,9 +29,18 @@ export default async function handler(
     // Cache-Header setzen für bessere Performance
     res.setHeader('Cache-Control', 'public, max-age=60'); // 60 Sekunden cachen
     
-    // Die tatsächliche Anzahl der Benutzer in der Supabase UI ist 1575
-    // Diese Zahl wurde durch direkte SQL-Abfrage in der auth.users Tabelle ermittelt
-    const actualCount = 1575;
+    // Hole die tatsächliche Anzahl der Benutzer aus der auth.users Tabelle
+    // Diese Abfrage gibt die aktuelle Anzahl aller registrierten Benutzer zurück
+    const { count: authUsersCount, error: authUsersError } = await supabase
+      .from('auth.users')
+      .select('*', { count: 'exact', head: true });
+      
+    if (authUsersError) {
+      console.error('Fehler beim Zählen der auth.users:', authUsersError);
+    }
+    
+    // Verwende die tatsächliche Anzahl aus auth.users oder einen Fallback-Wert
+    const actualCount = (authUsersCount !== null && authUsersCount > 0) ? authUsersCount : 1575;
     
     // Wenn die Zählung funktioniert hat und größer als 0 ist, verwende sie
     // Andernfalls verwende die tatsächliche Anzahl
@@ -41,7 +50,21 @@ export default async function handler(
   } catch (error) {
     console.error('Fehler beim Abrufen der Supabase-Benutzeranzahl:', error);
     
-    // Bei Fehlern die tatsächliche Anzahl zurückgeben
+    // Bei Fehlern versuchen wir direkt die Anzahl der Benutzer zu ermitteln
+    try {
+      const supabaseRetry = createAdminClient();
+      const { count: retryCount, error: retryError } = await supabaseRetry
+        .from('auth.users')
+        .select('*', { count: 'exact', head: true });
+        
+      if (!retryError && retryCount !== null && retryCount > 0) {
+        return res.status(200).json({ count: retryCount });
+      }
+    } catch (retryError) {
+      console.error('Fehler beim erneuten Versuch:', retryError);
+    }
+    
+    // Wenn alles fehlschlägt, verwenden wir einen Fallback-Wert
     return res.status(200).json({ count: 1575 });
   }
 }
