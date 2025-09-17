@@ -33,12 +33,12 @@ const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 /**
  * Konfigurationskonstanten für Rate-Limiting
  */
-const MIN_REFRESH_INTERVAL = 60000; // 60 Sekunden zwischen Refreshes (erhöht von 30s)
-const MAX_REFRESH_COUNT = 2; // Maximal 2 Refreshes im Zeitfenster (reduziert von 3)
-const REFRESH_COUNT_WINDOW = 180000; // 3 Minuten Zeitfenster (erhöht von 2min)
-const SESSION_CACHE_DURATION = 120000; // 2 Minuten Session-Cache-Dauer (erhöht von 1min)
-const INITIAL_BACKOFF = 5000; // 5 Sekunden initiale Backoff-Zeit (erhöht von 2s)
-const MAX_BACKOFF = 300000; // 5 Minuten maximale Backoff-Zeit
+const MIN_REFRESH_INTERVAL = 120000; // 120 Sekunden (2 Minuten) zwischen Refreshes (erhöht von 60s)
+const MAX_REFRESH_COUNT = 1; // Maximal 1 Refresh im Zeitfenster (reduziert von 2)
+const REFRESH_COUNT_WINDOW = 300000; // 5 Minuten Zeitfenster (erhöht von 3min)
+const SESSION_CACHE_DURATION = 180000; // 3 Minuten Session-Cache-Dauer (erhöht von 2min)
+const INITIAL_BACKOFF = 10000; // 10 Sekunden initiale Backoff-Zeit (erhöht von 5s)
+const MAX_BACKOFF = 600000; // 10 Minuten maximale Backoff-Zeit (erhöht von 5min)
 
 /**
  * Globaler Status für Token-Refresh-Versuche und Session-Caching

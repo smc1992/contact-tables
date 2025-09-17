@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createAdminClient, createClient } from '@/utils/supabase/server';
-import { withAdminAuth } from '../../../middleware/withAdminAuth';
+import { withAdminAuth } from '@/pages/api/middleware/withAdminAuth';
 
 interface EmailTemplate {
   id: string;
@@ -18,9 +18,17 @@ interface ApiResponse {
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>, userId: string) {
-  // Benutzer ist bereits durch withAdminAuth authentifiziert und autorisiert
-
-  const adminSupabase = createAdminClient();
+  // Auth is already checked by withAdminAuth middleware
+  let adminSupabase;
+  try {
+    adminSupabase = createAdminClient();
+  } catch (error) {
+    console.error('Fehler beim Erstellen des Admin-Clients:', error);
+    return res.status(500).json({ 
+      ok: false, 
+      message: `Fehler bei der Serververbindung: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}` 
+    });
+  }
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
@@ -68,17 +76,47 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>, u
           });
         }
         
+        // Prüfe zuerst, ob die Vorlage existiert
+        const { data: existingTemplate, error: checkError } = await adminSupabase
+          .from('email_templates')
+          .select('id')
+          .eq('id', id)
+          .single();
+        
+        if (checkError) {
+          console.error('Fehler beim Prüfen der Vorlage:', checkError);
+          
+          if (checkError.code === 'PGRST116') { // No rows returned
+            return res.status(404).json({ ok: false, message: 'Template not found' });
+          }
+          
+          throw checkError;
+        }
+        
+        if (!existingTemplate) {
+          return res.status(404).json({ ok: false, message: 'Template not found' });
+        }
+        
+        // Aktualisiere die Vorlage
         const { data, error } = await adminSupabase
           .from('email_templates')
-          .update({ name, subject, content })
+          .update({ 
+            name, 
+            subject, 
+            content,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', id)
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Fehler beim Aktualisieren der Vorlage:', error);
+          throw error;
+        }
         
         if (!data) {
-          return res.status(404).json({ ok: false, message: 'Template not found' });
+          return res.status(404).json({ ok: false, message: 'Template not found after update' });
         }
         
         return res.status(200).json({ 
@@ -96,12 +134,37 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>, u
       
     case 'DELETE':
       try {
+        // Prüfe zuerst, ob die Vorlage existiert
+        const { data: existingTemplate, error: checkError } = await adminSupabase
+          .from('email_templates')
+          .select('id')
+          .eq('id', id)
+          .single();
+        
+        if (checkError) {
+          console.error('Fehler beim Prüfen der Vorlage:', checkError);
+          
+          if (checkError.code === 'PGRST116') { // No rows returned
+            return res.status(404).json({ ok: false, message: 'Template not found' });
+          }
+          
+          throw checkError;
+        }
+        
+        if (!existingTemplate) {
+          return res.status(404).json({ ok: false, message: 'Template not found' });
+        }
+        
+        // Lösche die Vorlage
         const { error } = await adminSupabase
           .from('email_templates')
           .delete()
           .eq('id', id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Fehler beim Löschen der Vorlage:', error);
+          throw error;
+        }
         
         return res.status(200).json({ 
           ok: true, 

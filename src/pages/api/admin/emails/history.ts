@@ -32,39 +32,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
 
-        // Fetch email campaigns with count
+        // Fetch email campaigns with count - vereinfachte Abfrage ohne verschachtelte Selektionen
         const { data, error, count } = await adminSupabase
           .from('email_campaigns')
-          .select(`
-            id, 
-            subject, 
-            created_at, 
-            sent_by,
-            template_id,
-            status,
-            profiles!email_campaigns_sent_by_fkey (email, user_metadata),
-            email_recipients (id, status)
-          `, { count: 'exact' })
+          .select('*', { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(from, to);
         
         if (error) throw error;
         
-        // Process the data to calculate stats
-        const processedData = data?.map(campaign => {
-          const recipients = campaign.email_recipients || [];
-          const sent = recipients.filter(r => r.status === 'sent').length;
-          const failed = recipients.filter(r => r.status === 'failed').length;
-          const pending = recipients.filter(r => r.status === 'pending').length;
+        // Hole die Empfänger für jede Kampagne separat
+        const processedData = await Promise.all(data?.map(async (campaign) => {
+          // Hole die Empfänger für diese Kampagne
+          const { data: recipientsData } = await adminSupabase
+            .from('email_recipients')
+            .select('status')
+            .eq('campaign_id', campaign.id);
+            
+          const recipients = recipientsData || [];
+          const sent = recipients.filter((r: { status: string }) => r.status === 'sent').length;
+          const failed = recipients.filter((r: { status: string }) => r.status === 'failed').length;
+          const pending = recipients.filter((r: { status: string }) => r.status === 'pending').length;
+          const opened = recipients.filter((r: { status: string }) => r.status === 'opened').length;
           const total = recipients.length;
           
-          // Format sender info
-          const sender = campaign.profiles && Array.isArray(campaign.profiles) && campaign.profiles.length > 0 ? {
-            email: campaign.profiles[0].email,
-            name: campaign.profiles[0].user_metadata?.first_name 
-              ? `${campaign.profiles[0].user_metadata.first_name} ${campaign.profiles[0].user_metadata.last_name || ''}`
-              : 'Admin'
-          } : { email: 'Unknown', name: 'Unknown' };
+          // Hole Sender-Informationen, falls vorhanden
+          let sender = { email: 'Unknown', name: 'Unknown' };
+          if (campaign.sent_by) {
+            const { data: senderData } = await adminSupabase
+              .from('profiles')
+              .select('email')
+              .eq('id', campaign.sent_by)
+              .single();
+              
+            if (senderData) {
+              sender = {
+                email: senderData.email || 'Unknown',
+                name: 'Admin'
+              };
+            }
+          }
           
           return {
             id: campaign.id,
@@ -78,10 +85,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
               sent,
               failed,
               pending,
-              openRate: sent > 0 ? Math.round((recipients.filter(r => r.status === 'opened').length / sent) * 100) : 0
+              openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0
             }
           };
-        });
+        }) || []);
         
         return res.status(200).json({ 
           ok: true, 
