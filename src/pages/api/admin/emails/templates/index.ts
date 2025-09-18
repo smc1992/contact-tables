@@ -34,20 +34,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>, u
   switch (req.method) {
     case 'GET':
       try {
-        // Prüfe zuerst, ob die Tabelle existiert
-        const { data: tablesData, error: tablesError } = await adminSupabase
-          .from('information_schema.tables')
-          .select('table_name')
-          .eq('table_name', 'email_templates')
-          .eq('table_schema', 'public');
+        // Prüfe zuerst, ob die Tabelle existiert mit der table_exists Funktion
+        const { data: tableExists, error: tableExistsError } = await adminSupabase
+          .rpc('table_exists', { table_name: 'email_templates' });
         
-        if (tablesError) {
-          console.error('Fehler beim Prüfen der Tabelle:', tablesError);
-          throw new Error('Fehler beim Prüfen der Datenbanktabellen');
+        if (tableExistsError) {
+          console.error('Fehler beim Prüfen der Tabelle:', tableExistsError);
+          // Fallback: Versuche trotzdem die Tabelle zu erstellen
+          console.log('Versuche trotzdem, die Tabelle zu erstellen...');
         }
         
-        // Wenn die Tabelle nicht existiert, erstelle sie
-        if (!tablesData || tablesData.length === 0) {
+        // Wenn die Tabelle nicht existiert oder ein Fehler aufgetreten ist, erstelle sie
+        if (tableExistsError || !tableExists) {
           console.log('Tabelle email_templates existiert nicht, erstelle sie...');
           
           const { error: createError } = await adminSupabase.rpc('create_email_templates_if_not_exists');
@@ -142,20 +140,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>, u
           });
         }
         
-        // Prüfe zuerst, ob die Tabelle existiert
-        const { data: tablesData, error: tablesError } = await adminSupabase
-          .from('information_schema.tables')
-          .select('table_name')
-          .eq('table_name', 'email_templates')
-          .eq('table_schema', 'public');
+        // Prüfe zuerst, ob die Tabelle existiert mit der table_exists Funktion
+        const { data: tableExists, error: tableExistsError } = await adminSupabase
+          .rpc('table_exists', { table_name: 'email_templates' });
         
-        if (tablesError) {
-          console.error('Fehler beim Prüfen der Tabelle:', tablesError);
-          throw new Error('Fehler beim Prüfen der Datenbanktabellen');
+        if (tableExistsError) {
+          console.error('Fehler beim Prüfen der Tabelle:', tableExistsError);
+          // Fallback: Versuche trotzdem die Tabelle zu erstellen
+          console.log('Versuche trotzdem, die Tabelle zu erstellen...');
         }
         
-        // Wenn die Tabelle nicht existiert, erstelle sie
-        if (!tablesData || tablesData.length === 0) {
+        // Wenn die Tabelle nicht existiert oder ein Fehler aufgetreten ist, erstelle sie
+        if (tableExistsError || !tableExists) {
           console.log('Tabelle email_templates existiert nicht, erstelle sie...');
           
           try {
