@@ -31,13 +31,16 @@ export default async function handler(
     
     // Hole die tatsächliche Anzahl der Benutzer aus der auth.users Tabelle
     // Diese Abfrage gibt die aktuelle Anzahl aller registrierten Benutzer zurück
-    const { count: authUsersCount, error: authUsersError } = await supabase
-      .from('auth.users')
-      .select('*', { count: 'exact', head: true });
+    // Verwende direktes SQL, da auth.users eine Systemtabelle ist
+    const { data: authUsersData, error: authUsersError } = await supabase
+      .rpc('get_user_count');
       
     if (authUsersError) {
       console.error('Fehler beim Zählen der auth.users:', authUsersError);
     }
+    
+    // Die Anzahl aus dem Ergebnis extrahieren
+    const authUsersCount = authUsersData || 0;
     
     // Verwende die tatsächliche Anzahl aus auth.users oder einen Fallback-Wert
     const actualCount = (authUsersCount !== null && authUsersCount > 0) ? authUsersCount : 1575;
@@ -53,9 +56,8 @@ export default async function handler(
     // Bei Fehlern versuchen wir direkt die Anzahl der Benutzer zu ermitteln
     try {
       const supabaseRetry = createAdminClient();
-      const { count: retryCount, error: retryError } = await supabaseRetry
-        .from('auth.users')
-        .select('*', { count: 'exact', head: true });
+      const { data: retryCount, error: retryError } = await supabaseRetry
+        .rpc('get_user_count');
         
       if (!retryError && retryCount !== null && retryCount > 0) {
         return res.status(200).json({ count: retryCount });
