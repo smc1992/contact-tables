@@ -419,7 +419,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
           templateId: selectedTemplate || undefined,
           // Enable batching and respect server limits
           allowBatching: true,
-          batchSize: 50,
+          batchSize: 200, // Angepasst auf 200 E-Mails pro Batch
           attachments: attachments.length > 0 ? attachments.map(att => ({
             filename: att.filename,
             content: att.content,
@@ -430,11 +430,29 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
 
       const result = await response.json();
 
-      if (!response.ok) {
+      // Prüfe auf Batch-Scheduling (Status 202)
+      if (response.status === 202 && result.batchScheduled) {
+        // Erfolgreiche Batch-Planung
+        Modal.success({
+          title: 'E-Mail-Kampagne geplant',
+          content: (
+            <div>
+              <p>{result.message}</p>
+              <p>Erster Batch wird gesendet um: {new Date(result.estimatedSendTime).toLocaleString()}</p>
+              {result.totalBatches > 1 && (
+                <p>Voraussichtliche Fertigstellung: {new Date(result.estimatedCompletionTime).toLocaleString()}</p>
+              )}
+              <p>Sie können den Fortschritt im E-Mail-Verlauf verfolgen.</p>
+            </div>
+          ),
+          okText: 'Verstanden',
+        });
+      } else if (!response.ok) {
         throw new Error(result.message || 'Fehler beim Senden der E-Mails');
+      } else {
+        // Normale erfolgreiche Sendung
+        message.success(`E-Mails wurden erfolgreich gesendet! Erfolgreich: ${result.sent || 0}, Fehlgeschlagen: ${result.failed || 0}`);
       }
-
-      alert(`E-Mails wurden erfolgreich gesendet! Erfolgreich: ${result.sent}, Fehlgeschlagen: ${result.failed}`);
       
       // Reset form after successful send
       setSubject('');
@@ -446,7 +464,28 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
       
     } catch (error) {
       console.error('Fehler beim Senden der E-Mails:', error);
-      alert(`Fehler beim Senden der E-Mails: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      
+      // Spezielle Behandlung für Rate-Limit-Fehler
+      if (error instanceof Error && error.message.includes('rate limit exceeded')) {
+        // Zeige einen benutzerfreundlicheren Dialog mit mehr Informationen
+        Modal.error({
+          title: 'E-Mail-Versand-Limit erreicht',
+          content: (
+            <div>
+              <p>Das E-Mail-Versand-Limit wurde erreicht. Dies dient zum Schutz vor Spam und zur Sicherstellung der Zustellbarkeit.</p>
+              <p>Große E-Mail-Kampagnen werden automatisch in Batches von 200 E-Mails pro Stunde versendet.</p>
+              <p>Bei 1500 Empfängern würde der Versand etwa 8 Stunden dauern (200 E-Mails pro Stunde).</p>
+            </div>
+          ),
+          okText: 'Verstanden',
+        });
+      } else {
+        // Standard-Fehlerbehandlung für andere Fehler
+        Modal.error({
+          title: 'Fehler beim Senden der E-Mails',
+          content: error instanceof Error ? error.message : 'Unbekannter Fehler'
+        });
+      }
     } finally {
       setSending(false);
     }

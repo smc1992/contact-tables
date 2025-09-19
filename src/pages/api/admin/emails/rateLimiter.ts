@@ -3,10 +3,11 @@ import { createAdminClient } from '@/utils/supabase/server';
 
 // Rate limiter configuration
 const WINDOW_SIZE_MS = 60 * 60 * 1000; // 1 hour window
-const MAX_EMAILS_PER_WINDOW = 400; // Max emails per hour (reduziert auf 400)
-const MAX_EMAILS_PER_USER_WINDOW = 100; // Max emails per user per hour
-const BATCH_SIZE = 50; // Anzahl der E-Mails pro Batch
-const BATCH_INTERVAL_MS = 5 * 60 * 1000; // 5 Minuten zwischen Batches
+const MAX_EMAILS_PER_WINDOW = 200; // Max emails per hour (200 E-Mails pro Stunde)
+const MAX_EMAILS_PER_USER_WINDOW = 200; // Max emails per user per hour (200 E-Mails pro Benutzer pro Stunde)
+const BATCH_SIZE = 200; // Anzahl der E-Mails pro Batch (200 E-Mails pro Batch)
+const BATCH_INTERVAL_MS = 60 * 60 * 1000; // 1 Stunde zwischen Batches (genau 1 Stunde)
+const MAX_BATCH_COUNT = 10; // Maximale Anzahl von Batches pro Kampagne (für bis zu 2000 E-Mails)
 
 interface RateLimitResponse {
   ok: boolean;
@@ -16,6 +17,10 @@ interface RateLimitResponse {
   batchScheduled?: boolean;
   batchId?: string;
   estimatedSendTime?: string;
+  totalBatches?: number;
+  estimatedCompletionTime?: string;
+  batchSize?: number;
+  batchInterval?: string;
 }
 
 interface EmailBatch {
@@ -70,35 +75,57 @@ export async function checkEmailQuota(
 }
 
 /**
- * Erstellt einen neuen Batch für verzögerten E-Mail-Versand
+ * Erstellt mehrere Batches für verzögerten E-Mail-Versand
  */
 export async function createEmailBatch(
   campaignId: string,
   recipientCount: number
-): Promise<{ batchId: string; scheduledTime: Date } | null> {
+): Promise<{ batchId: string; scheduledTime: Date; totalBatches: number; estimatedCompletionTime: Date } | null> {
   try {
     const adminSupabase = createAdminClient();
     const now = new Date();
     
-    // Finde den letzten geplanten Batch
-    const { data: lastBatch } = await adminSupabase
-      .from('email_batches')
-      .select('scheduled_time')
-      .order('scheduled_time', { ascending: false })
-      .limit(1)
-      .single();
+    // Berechne die Anzahl der benötigten Batches
+    const totalBatches = Math.ceil(recipientCount / BATCH_SIZE);
+    console.log(`Erstelle ${totalBatches} Batches für ${recipientCount} Empfänger (${BATCH_SIZE} pro Batch)`);
     
-    // Berechne die Zeit für den neuen Batch
-    let scheduledTime: Date;
-    if (lastBatch) {
+    if (totalBatches > MAX_BATCH_COUNT) {
+      console.warn(`Warnung: Die Anzahl der benötigten Batches (${totalBatches}) überschreitet das Maximum (${MAX_BATCH_COUNT})`);
+    }
+    
+    // Finde den letzten geplanten Batch
+    const { data: existingBatches, error: batchError } = await adminSupabase
+      .from('email_batches')
+      .select('scheduled_time, batch_number')
+      .eq('campaign_id', campaignId)
+      .order('batch_number', { ascending: false })
+      .limit(1);
+    
+    // Bestimme die Startzeit für den ersten Batch
+    let startTime: Date;
+    let batchNumber = 1;
+    
+    if (batchError) {
+      console.error('Fehler beim Abrufen bestehender Batches:', batchError);
+      startTime = new Date(now.getTime() + BATCH_INTERVAL_MS);
+    } else if (existingBatches && existingBatches.length > 0) {
+      const lastBatch = existingBatches[0];
       const lastScheduledTime = new Date(lastBatch.scheduled_time);
-      scheduledTime = new Date(Math.max(
+      startTime = new Date(Math.max(
         now.getTime() + BATCH_INTERVAL_MS,
         lastScheduledTime.getTime() + BATCH_INTERVAL_MS
       ));
+      batchNumber = (lastBatch.batch_number || 0) + 1;
     } else {
-      scheduledTime = new Date(now.getTime() + BATCH_INTERVAL_MS);
+      startTime = new Date(now.getTime() + BATCH_INTERVAL_MS);
     }
+    
+    // Erstelle den ersten Batch
+    const scheduledTime = startTime;
+    const estimatedCompletionTime = new Date(startTime.getTime() + (totalBatches - 1) * BATCH_INTERVAL_MS);
+    
+    console.log(`Erstelle ersten Batch für ${campaignId}, geplant für ${scheduledTime.toISOString()}`);
+    console.log(`Geschätzte Fertigstellung aller Batches: ${estimatedCompletionTime.toISOString()}`);
     
     // Erstelle den neuen Batch
     const { data: batch, error } = await adminSupabase
@@ -107,24 +134,38 @@ export async function createEmailBatch(
         campaign_id: campaignId,
         scheduled_time: scheduledTime.toISOString(),
         status: 'PENDING',
-        recipient_count: recipientCount,
+        recipient_count: Math.min(recipientCount, BATCH_SIZE),
         sent_count: 0,
-        failed_count: 0
+        failed_count: 0,
+        batch_number: batchNumber,
+        total_batches: totalBatches,
+        estimated_completion_time: estimatedCompletionTime.toISOString()
       })
       .select('id')
       .single();
     
     if (error) {
-      console.error('Error creating email batch:', error);
+      console.error('Fehler beim Erstellen des E-Mail-Batches:', error);
       return null;
     }
     
+    // Aktualisiere die Kampagne mit der Gesamtzahl der Batches
+    await adminSupabase
+      .from('email_campaigns')
+      .update({
+        total_batches: totalBatches,
+        estimated_completion_time: estimatedCompletionTime.toISOString()
+      })
+      .eq('id', campaignId);
+    
     return {
       batchId: batch.id,
-      scheduledTime
+      scheduledTime,
+      totalBatches,
+      estimatedCompletionTime
     };
   } catch (error) {
-    console.error('Error creating email batch:', error);
+    console.error('Fehler beim Erstellen des E-Mail-Batches:', error);
     return null;
   }
 }
@@ -162,20 +203,37 @@ export async function emailRateLimiter(
       
       // Wenn die Kampagne zu groß ist, biete die Möglichkeit, sie in Batches zu senden
       if (req.body?.allowBatching && req.body?.campaignId) {
-        const batchInfo = await createEmailBatch(req.body.campaignId, recipientCount);
+        console.log(`Rate-Limit erreicht. Versuche Batch-Verarbeitung für Kampagne ${req.body.campaignId} mit ${recipientCount} Empfängern...`);
         
-        if (batchInfo) {
-          res.status(202).json({
-            ok: true,
-            message: 'Email campaign scheduled for batch processing due to rate limits.',
-            remainingLimit: MAX_EMAILS_PER_WINDOW - (globalCount || 0),
-            resetTime: resetTime.toISOString(),
-            batchScheduled: true,
-            batchId: batchInfo.batchId,
-            estimatedSendTime: batchInfo.scheduledTime.toISOString()
-          });
-          return false; // Nicht sofort senden, sondern in Batches
+        try {
+          const batchInfo = await createEmailBatch(req.body.campaignId, recipientCount);
+          
+          if (batchInfo) {
+            console.log(`Batch erfolgreich erstellt: ${batchInfo.batchId}, geplant für ${batchInfo.scheduledTime.toISOString()}`);
+            
+            res.status(202).json({
+              ok: true,
+              message: `E-Mail-Kampagne wurde für die Batch-Verarbeitung geplant. Insgesamt ${batchInfo.totalBatches} Batches mit je ${BATCH_SIZE} E-Mails werden stündlich versendet.`,
+              remainingLimit: MAX_EMAILS_PER_WINDOW - (globalCount || 0),
+              resetTime: resetTime.toISOString(),
+              batchScheduled: true,
+              batchId: batchInfo.batchId,
+              estimatedSendTime: batchInfo.scheduledTime.toISOString(),
+              totalBatches: batchInfo.totalBatches,
+              estimatedCompletionTime: batchInfo.estimatedCompletionTime.toISOString(),
+              batchSize: BATCH_SIZE,
+              batchInterval: 'stündlich'
+            });
+            return false; // Nicht sofort senden, sondern in Batches
+          } else {
+            console.error('Batch-Erstellung fehlgeschlagen, aber keine Exception wurde geworfen');
+          }
+        } catch (batchError) {
+          console.error('Fehler bei der Batch-Erstellung:', batchError);
+          // Wir geben hier keinen Fehler zurück, sondern lassen den Code weiterlaufen zum normalen Rate-Limit-Fehler
         }
+      } else {
+        console.log(`Rate-Limit erreicht, aber Batch-Verarbeitung nicht aktiviert oder keine Kampagnen-ID vorhanden. allowBatching=${req.body?.allowBatching}, campaignId=${req.body?.campaignId}`);
       }
       
       res.status(429).json({
