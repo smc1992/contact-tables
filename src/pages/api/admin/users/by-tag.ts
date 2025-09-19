@@ -23,37 +23,37 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
 
     console.log(`Suche Benutzer mit Tag ID: ${tagId}`);
 
-    // Prüfen, ob der Tag existiert
+    // Prüfen, ob der Tag existiert mit Raw SQL, da Prisma-Modelle möglicherweise nicht korrekt funktionieren
     try {
-      const tagExists = await prisma.userTag.findUnique({
-        where: { id: tagId }
-      });
+      const tagResult = await prisma.$queryRaw<Array<{id: string, name: string}>>`
+        SELECT id, name FROM user_tags WHERE id = ${tagId}::uuid
+      `;
 
-      if (!tagExists) {
+      if (!tagResult || tagResult.length === 0) {
         console.log(`Tag mit ID ${tagId} nicht gefunden`);
         return res.status(200).json({ users: [], message: 'Tag nicht gefunden' });
       }
       
-      console.log(`Tag gefunden: ${tagExists.name}`);
+      console.log(`Tag gefunden: ${tagResult[0].name}`);
     } catch (tagError) {
       console.error('Fehler beim Prüfen des Tags:', tagError);
       // Wir setzen fort, auch wenn die Tag-Prüfung fehlschlägt
     }
 
-    // Benutzer mit dem angegebenen Tag abrufen (Prisma ORM statt Raw SQL)
+    // Benutzer mit dem angegebenen Tag abrufen mit Raw SQL
     let userIds: string[] = [];
     try {
-      const assignments = await prisma.userTagAssignment.findMany({
-        where: { tagId: tagId },
-        select: { userId: true },
-      });
+      const assignments = await prisma.$queryRaw<Array<{user_id: string}>>`
+        SELECT user_id FROM user_tag_assignments WHERE tag_id = ${tagId}::uuid
+      `;
+      
       console.log(`Gefundene Zuweisungen: ${assignments.length}`);
-      userIds = Array.from(new Set(assignments.map(a => a.userId)));
+      userIds = Array.from(new Set(assignments.map(a => a.user_id)));
       if (userIds.length === 0) {
         return res.status(200).json({ users: [] });
       }
     } catch (assignmentError: any) {
-      console.error('Fehler beim Abrufen der Tag-Zuweisungen (ORM):', assignmentError?.message || assignmentError);
+      console.error('Fehler beim Abrufen der Tag-Zuweisungen (SQL):', assignmentError?.message || assignmentError);
       return res.status(200).json({ users: [], error: 'Fehler beim Abrufen der Tag-Zuweisungen' });
     }
 
