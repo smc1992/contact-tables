@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { FiUserPlus, FiMail, FiLock, FiUser } from 'react-icons/fi';
 import { createBrowserClient } from '@supabase/ssr';
 import PasswordInput from '../../components/PasswordInput';
+import EmailVerificationPopup from '../../components/EmailVerificationPopup';
 
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
@@ -16,6 +17,8 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showVerificationPopup, setShowVerificationPopup] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const router = useRouter();
 
   // Konsistente Supabase-Client-Initialisierung
@@ -65,6 +68,10 @@ export default function RegisterPage() {
       // Nach erfolgreicher Registrierung eine Erfolgsmeldung anzeigen
       setSuccess('Registrierung erfolgreich! Bitte überprüfen Sie Ihren E-Mail-Posteingang und bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.');
       // Kein automatischer Anmeldeversuch mehr, da E-Mail-Bestätigung erforderlich ist
+      
+      // E-Mail-Adresse speichern und Popup anzeigen
+      setRegisteredEmail(email);
+      setShowVerificationPopup(true);
 
     } catch (err: any) {
       setError(err.message);
@@ -228,6 +235,13 @@ export default function RegisterPage() {
         </motion.div>
       </main>
       <Footer />
+      
+      {/* E-Mail-Bestätigungs-Popup */}
+      <EmailVerificationPopup 
+        isOpen={showVerificationPopup} 
+        onClose={() => setShowVerificationPopup(false)}
+        email={registeredEmail}
+      />
     </div>
   );
 }
