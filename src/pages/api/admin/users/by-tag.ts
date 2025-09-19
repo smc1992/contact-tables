@@ -59,28 +59,55 @@ async function handler(req: NextApiRequest, res: NextApiResponse, userId: string
 
     // Benutzerinformationen gezielt per ID aus Supabase abrufen (vermeidet Pagination-Probleme)
     try {
-      const users = await Promise.all(
-        userIds.map(async (id) => {
+      console.log(`Versuche, ${userIds.length} Benutzer aus Supabase zu laden...`);
+      
+      // Batch-Verarbeitung für große Mengen an Benutzer-IDs
+      const batchSize = 50;
+      let allUsers: Array<{ id: string; email: string | null; name: string; created_at: string; role: string }> = [];
+      
+      for (let i = 0; i < userIds.length; i += batchSize) {
+        const batchIds = userIds.slice(i, i + batchSize);
+        console.log(`Verarbeite Batch ${Math.floor(i/batchSize) + 1} mit ${batchIds.length} Benutzern...`);
+        
+        const batchUsersPromises = batchIds.map(async (id) => {
           try {
             const { data, error } = await adminSupabase.auth.admin.getUserById(id);
-            if (error || !data?.user) return null;
+            if (error) {
+              console.error(`Fehler beim Laden des Benutzers ${id}:`, error.message);
+              return null;
+            }
+            if (!data?.user) {
+              console.warn(`Kein Benutzer mit ID ${id} gefunden`);
+              return null;
+            }
+            
             const user = data.user;
             return {
               id: user.id,
-              email: user.email,
+              email: user.email as string | null, // Explizite Typisierung
               name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim(),
               created_at: user.created_at,
-              role: user.user_metadata?.role || 'customer'
+              role: user.user_metadata?.role as string || 'customer'
             };
           } catch (e) {
-            console.warn('Konnte Benutzer nicht laden:', id, e);
+            console.error(`Fehler beim Laden des Benutzers ${id}:`, e);
             return null;
           }
-        })
-      );
+        });
+        
+        const batchResults = await Promise.all(batchUsersPromises);
+        const validBatchUsers = batchResults.filter((user): user is { id: string; email: string | null; name: string; created_at: string; role: string } => user !== null);
+        
+        allUsers = [...allUsers, ...validBatchUsers];
+      }
 
-      const filteredUsers = users.filter(Boolean) as Array<{ id: string; email: string | null; name: string; created_at: string; role: string }>;
-      console.log(`Gefilterte Benutzer zurückgegeben: ${filteredUsers.length}`);
+      const filteredUsers = allUsers as Array<{ id: string; email: string | null; name: string; created_at: string; role: string }>;
+      console.log(`Erfolgreich ${filteredUsers.length} von ${userIds.length} Benutzern geladen`);
+      
+      if (filteredUsers.length === 0 && userIds.length > 0) {
+        console.warn('Warnung: Es wurden keine Benutzer gefunden, obwohl Tag-Zuweisungen existieren');
+      }
+      
       return res.status(200).json({ users: filteredUsers });
     } catch (supabaseError) {
       console.error('Fehler beim Abrufen der Benutzerdaten von Supabase:', supabaseError);

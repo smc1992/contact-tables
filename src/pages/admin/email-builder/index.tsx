@@ -212,6 +212,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
   
   // Handle tag selection
   const handleTagChange = async (value: string) => {
+    console.log(`Tag-Auswahl geändert auf: ${value}`);
     setSelectedTag(value);
     setSelectedGroup('');
     setSearchTerm('');
@@ -222,20 +223,39 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
       
       if (value === 'none') {
         // Benutzer ohne Tags abrufen
+        console.log('Rufe Benutzer ohne Tags ab...');
         response = await fetch('/api/admin/users/without-tags');
       } else {
         // Benutzer mit dem ausgewählten Tag abrufen
+        console.log(`Rufe Benutzer mit Tag ID ${value} ab...`);
         response = await fetch(`/api/admin/users/by-tag?tagId=${value}`);
       }
       
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`API-Fehler (${response.status}):`, errorText);
+        throw new Error(`Fehler beim Laden der Benutzer nach Tag: ${response.status}`);
       }
+      
       const data = await response.json();
-      setCustomers(data.users || []);
+      console.log('API-Antwort erhalten:', data);
+      
+      if (data.error) {
+        console.error('API-Fehler:', data.error);
+        message.error(`Fehler: ${data.error}`);
+      }
+      
+      if (Array.isArray(data.users)) {
+        console.log(`${data.users.length} Benutzer mit diesem Tag gefunden`);
+        setCustomers(data.users);
+      } else {
+        console.warn('Keine Benutzer in der API-Antwort gefunden oder ungültiges Format');
+        setCustomers([]);
+        message.warning('Keine Benutzer mit diesem Tag gefunden');
+      }
     } catch (error) {
-      console.error('Failed to fetch customers by tag:', error);
-      message.error('Fehler beim Laden der Kunden nach Tag');
+      console.error('Fehler beim Laden der Benutzer nach Tag:', error);
+      message.error(`Fehler beim Laden der Kunden nach Tag: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       setCustomers([]);
     } finally {
       setLoading(false);
