@@ -400,7 +400,16 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
     }
 
     setSending(true);
+    let timeoutId;
+
     try {
+      // Timeout-Handler für lange Anfragen
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Zeitüberschreitung bei der Anfrage. Die E-Mail-Kampagne wurde möglicherweise trotzdem geplant. Bitte überprüfen Sie den E-Mail-Verlauf.'));
+        }, 30000); // 30 Sekunden Timeout
+      });
+
       const selectedCustomerEmails = customers
         .filter(c => selectedCustomers.includes(c.id))
         .map(c => ({
@@ -409,24 +418,45 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
           name: c.name || ''
         }));
 
-      const response = await fetch('/api/admin/emails/send', {
+      // Bereite Request-Daten vor
+      const requestData = {
+        subject,
+        content,
+        recipients: selectedCustomerEmails,
+        templateId: selectedTemplate || undefined,
+        // Enable batching and respect server limits
+        allowBatching: true,
+        batchSize: 200, // Angepasst auf 200 E-Mails pro Batch
+        attachments: attachments.length > 0 ? attachments.map(att => ({
+          filename: att.filename,
+          content: att.content,
+          contentType: att.contentType
+        })) : undefined
+      };
+
+      // Race zwischen Fetch und Timeout
+      const fetchPromise = fetch('/api/admin/emails/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject,
-          content,
-          recipients: selectedCustomerEmails,
-          templateId: selectedTemplate || undefined,
-          // Enable batching and respect server limits
-          allowBatching: true,
-          batchSize: 200, // Angepasst auf 200 E-Mails pro Batch
-          attachments: attachments.length > 0 ? attachments.map(att => ({
-            filename: att.filename,
-            content: att.content,
-            contentType: att.contentType
-          })) : undefined
-        }),
+        body: JSON.stringify(requestData),
       });
+
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+      clearTimeout(timeoutId);
+
+      // Prüfe auf Netzwerkfehler
+      if (!response.ok && response.status !== 202) {
+        let errorMessage = 'Unbekannter Fehler';
+        
+        try {
+          const result = await response.json();
+          errorMessage = result.message || `Server-Fehler: ${response.status}`;
+        } catch (e) {
+          errorMessage = `Server-Fehler: ${response.status} ${response.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
 
       const result = await response.json();
 
@@ -447,8 +477,6 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
           ),
           okText: 'Verstanden',
         });
-      } else if (!response.ok) {
-        throw new Error(result.message || 'Fehler beim Senden der E-Mails');
       } else {
         // Normale erfolgreiche Sendung
         message.success(`E-Mails wurden erfolgreich gesendet! Erfolgreich: ${result.sent || 0}, Fehlgeschlagen: ${result.failed || 0}`);
@@ -464,26 +492,53 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
       
     } catch (error) {
       console.error('Fehler beim Senden der E-Mails:', error);
+      clearTimeout(timeoutId);
       
-      // Spezielle Behandlung für Rate-Limit-Fehler
-      if (error instanceof Error && error.message.includes('rate limit exceeded')) {
-        // Zeige einen benutzerfreundlicheren Dialog mit mehr Informationen
-        Modal.error({
-          title: 'E-Mail-Versand-Limit erreicht',
-          content: (
-            <div>
-              <p>Das E-Mail-Versand-Limit wurde erreicht. Dies dient zum Schutz vor Spam und zur Sicherstellung der Zustellbarkeit.</p>
-              <p>Große E-Mail-Kampagnen werden automatisch in Batches von 200 E-Mails pro Stunde versendet.</p>
-              <p>Bei 1500 Empfängern würde der Versand etwa 8 Stunden dauern (200 E-Mails pro Stunde).</p>
-            </div>
-          ),
-          okText: 'Verstanden',
-        });
+      // Spezielle Behandlung für verschiedene Fehlertypen
+      if (error instanceof Error) {
+        if (error.message.includes('rate limit exceeded')) {
+          // Rate-Limit-Fehler
+          Modal.error({
+            title: 'E-Mail-Versand-Limit erreicht',
+            content: (
+              <div>
+                <p>Das E-Mail-Versand-Limit wurde erreicht. Dies dient zum Schutz vor Spam und zur Sicherstellung der Zustellbarkeit.</p>
+                <p>Große E-Mail-Kampagnen werden automatisch in Batches von 200 E-Mails pro Stunde versendet.</p>
+                <p>Bei 1500 Empfängern würde der Versand etwa 8 Stunden dauern (200 E-Mails pro Stunde).</p>
+              </div>
+            ),
+            okText: 'Verstanden',
+          });
+        } else if (error.message.includes('Zeitüberschreitung')) {
+          // Timeout-Fehler
+          Modal.info({
+            title: 'Anfrage dauert länger als erwartet',
+            content: (
+              <div>
+                <p>Die Anfrage zur Verarbeitung Ihrer E-Mail-Kampagne dauert länger als erwartet.</p>
+                <p>Bei großen E-Mail-Kampagnen ist dies normal. Die Kampagne wurde möglicherweise trotzdem erfolgreich geplant.</p>
+                <p>Bitte überprüfen Sie den E-Mail-Verlauf, um den Status Ihrer Kampagne zu sehen.</p>
+                <p>Sie müssen diese E-Mail nicht erneut senden.</p>
+              </div>
+            ),
+            okText: 'Zum E-Mail-Verlauf',
+            onOk: () => {
+              // Optional: Weiterleitung zum E-Mail-Verlauf
+              // window.location.href = '/admin/email-history';
+            }
+          });
+        } else {
+          // Standard-Fehlerbehandlung für andere Fehler
+          Modal.error({
+            title: 'Fehler beim Senden der E-Mails',
+            content: error.message
+          });
+        }
       } else {
-        // Standard-Fehlerbehandlung für andere Fehler
+        // Unbekannter Fehlertyp
         Modal.error({
           title: 'Fehler beim Senden der E-Mails',
-          content: error instanceof Error ? error.message : 'Unbekannter Fehler'
+          content: 'Ein unbekannter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.'
         });
       }
     } finally {
