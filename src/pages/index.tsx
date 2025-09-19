@@ -88,7 +88,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     
     // Fallback-Wert, falls die API-Anfrage fehlschlägt
     if (!memberCount) {
-      memberCount = 1575;
+      memberCount = 1579;
     }
 
     // Restaurants: alle Restaurants zählen, unabhängig von Sichtbarkeit
@@ -104,7 +104,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     console.error("Error fetching stats for homepage:", error);
     // Fallback values in case of a database error
     // Versuche die Benutzerzahl direkt von der API zu holen
-    let memberCount = 1575; // Fallback-Wert
+    let memberCount = 1579; // Fallback-Wert
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/public/stats/supabase-user-count`);
       if (response.ok) {

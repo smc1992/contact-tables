@@ -43,11 +43,11 @@ export default async function handler(
     const authUsersCount = authUsersData || 0;
     
     // Verwende die tatsächliche Anzahl aus auth.users oder einen Fallback-Wert
-    const actualCount = (authUsersCount !== null && authUsersCount > 0) ? authUsersCount : 1575;
+    const actualCount = (authUsersCount !== null && authUsersCount > 0) ? authUsersCount : 1579;
     
-    // Wenn die Zählung funktioniert hat und größer als 0 ist, verwende sie
-    // Andernfalls verwende die tatsächliche Anzahl
-    const finalCount = (count !== null && count > 0) ? count : actualCount;
+    // Immer die tatsächliche Anzahl aus auth.users verwenden, da diese genauer ist
+    // Die Anzahl der CUSTOMER-Profile kann abweichen, wenn Profile nicht synchron sind
+    const finalCount = actualCount;
     
     return res.status(200).json({ count: finalCount });
   } catch (error) {
@@ -66,7 +66,7 @@ export default async function handler(
       console.error('Fehler beim erneuten Versuch:', retryError);
     }
     
-    // Wenn alles fehlschlägt, verwenden wir einen Fallback-Wert
-    return res.status(200).json({ count: 1575 });
+    // Wenn alles fehlschlägt, verwenden wir einen aktualisierten Fallback-Wert
+    return res.status(200).json({ count: 1579 });
   }
 }
