@@ -162,22 +162,46 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
   const fetchTemplates = async () => {
     setTemplatesLoading(true);
     try {
-      const response = await fetch('/api/admin/emails/templates');
+      console.log('Frontend: Starte Abruf der E-Mail-Vorlagen...');
+      
+      const response = await fetch('/api/admin/emails/templates', {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      console.log('Frontend: API-Antwort erhalten, Status:', response.status);
       
       if (!response.ok) {
-        throw new Error('Fehler beim Laden der Vorlagen');
+        console.error('Frontend: API-Fehler:', response.status, response.statusText);
+        throw new Error(`Fehler beim Laden der Vorlagen: ${response.status} ${response.statusText}`);
       }
       
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+        console.log('Frontend: API-Antwort erfolgreich geparst');
+      } catch (jsonError) {
+        console.error('Frontend: Fehler beim Parsen der JSON-Antwort:', jsonError);
+        throw new Error('Die API-Antwort enthält kein gültiges JSON');
+      }
+      
+      console.log('Frontend: API-Antwort:', result);
       
       if (result.ok && Array.isArray(result.data)) {
+        console.log('Frontend: Setze', result.data.length, 'Vorlagen');
         setTemplates(result.data);
+        message.success('Vorlagen erfolgreich geladen');
       } else {
         // Fallback to empty array
+        console.warn('Frontend: Keine Vorlagen in der Antwort oder ungültiges Format');
         setTemplates([]);
+        message.warning(result.message || 'Keine Vorlagen verfügbar');
       }
     } catch (error) {
-      console.error('Fehler beim Laden der Vorlagen:', error);
+      console.error('Frontend: Fehler beim Laden der Vorlagen:', error);
+      message.error(`Fehler beim Laden der Vorlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       setTemplates([]);
     } finally {
       setTemplatesLoading(false);
