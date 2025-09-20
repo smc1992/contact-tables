@@ -306,6 +306,56 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
       }
     }
   };
+  
+  // Speichern einer neuen Vorlage
+  const saveTemplate = async () => {
+    if (!subject || !content) {
+      message.error('Bitte geben Sie einen Betreff und Inhalt ein.');
+      return;
+    }
+    
+    const templateName = prompt('Bitte geben Sie einen Namen für die Vorlage ein:');
+    if (!templateName) return;
+    
+    try {
+      setSending(true);
+      message.loading('Vorlage wird gespeichert...');
+      
+      const response = await fetch('/api/admin/emails/templates/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          subject,
+          content
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Fehler beim Speichern der Vorlage: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.ok && result.data && result.data.length > 0) {
+        message.success('Vorlage erfolgreich gespeichert');
+        
+        // Aktualisiere die Vorlagen-Liste
+        await fetchTemplates();
+        
+        // Wähle die neue Vorlage aus
+        const newTemplate = result.data[0];
+        setSelectedTemplate(newTemplate.id);
+      } else {
+        throw new Error(result.message || 'Unbekannter Fehler beim Speichern der Vorlage');
+      }
+    } catch (error) {
+      console.error('Fehler beim Speichern der Vorlage:', error);
+      message.error(`Fehler beim Speichern der Vorlage: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+    } finally {
+      setSending(false);
+    }
+  };
 
   // Handle customer group selection
   const handleGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -782,13 +832,24 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                   </div>
                   
                   <div className="flex justify-between mt-6">
-                    <button
-                      onClick={handleSendTestEmail}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                    >
-                      <FiSend className="mr-2" />
-                      Test-E-Mail senden
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleSendTestEmail}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                      >
+                        <FiSend className="mr-2" />
+                        Test-E-Mail senden
+                      </button>
+                      
+                      <button
+                        onClick={saveTemplate}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                        disabled={sending || !subject || !content}
+                      >
+                        <FiSave className="mr-2" />
+                        Als Vorlage speichern
+                      </button>
+                    </div>
                     
                     <button
                       onClick={handleSendEmail}
