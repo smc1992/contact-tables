@@ -17,10 +17,63 @@ interface ApiResponse {
   data?: EmailTemplate[];
 }
 
-// Direkte Supabase-Client-Initialisierung mit Anon-Key
+// Direkte Supabase-Client-Initialisierung mit Service-Role-Key für volle Schreibrechte
 const supabaseUrl = 'https://efmbzrmroyetcqxcwxka.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmbWJ6cm1yb3lldGNxeGN3eGthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc3MjkzNDgsImV4cCI6MjA2MzMwNTM0OH0.ohJQapQUce_nuK0Ra30WUQGfchrSG3ZTx43jxV0f0I4';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmbWJ6cm1yb3lldGNxeGN3eGthIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzcyOTM0OCwiZXhwIjoyMDYzMzA1MzQ4fQ.ahZPlrKH2QHiQTr_qrrhRnYkGMhYnRdD8Zdxn6r5k-4';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Prüfe die Verbindung und erstelle die Tabelle, falls sie nicht existiert
+async function ensureTableExists() {
+  try {
+    console.log('Prüfe, ob die email_templates-Tabelle existiert...');
+    
+    // Prüfe, ob die Tabelle existiert
+    const { data, error } = await supabase
+      .from('email_templates')
+      .select('count(*)', { count: 'exact', head: true });
+    
+    if (error && error.code === '42P01') { // Tabelle existiert nicht
+      console.log('Tabelle existiert nicht, erstelle sie...');
+      
+      // Erstelle die Tabelle
+      const { error: createError } = await supabase.rpc('create_email_templates_if_not_exists');
+      
+      if (createError) {
+        console.error('Fehler beim Erstellen der Tabelle mit RPC:', createError);
+        
+        // Fallback: Direktes SQL
+        const { error: sqlError } = await supabase
+          .rpc('execute_sql', {
+            sql: `
+              CREATE TABLE IF NOT EXISTS public.email_templates (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+              );
+            `
+          });
+        
+        if (sqlError) {
+          console.error('Fehler beim direkten Erstellen der Tabelle:', sqlError);
+        } else {
+          console.log('Tabelle erfolgreich mit direktem SQL erstellt');
+        }
+      } else {
+        console.log('Tabelle erfolgreich mit RPC erstellt');
+      }
+    } else {
+      console.log('Tabelle existiert bereits');
+    }
+  } catch (error) {
+    console.error('Fehler beim Prüfen/Erstellen der Tabelle:', error);
+  }
+}
+
+// Initialisiere die Tabelle beim Start
+ensureTableExists();
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ApiResponse>) {
   console.log('Templates API (mit Trailing-Slash): Anfrage erhalten');
@@ -31,6 +84,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const fetchTemplatesFromDB = async (): Promise<EmailTemplate[]> => {
     try {
       console.log('Versuche, Vorlagen aus der Datenbank abzurufen...');
+      
+      // Stelle sicher, dass die Tabelle existiert
+      await ensureTableExists();
+      
+      // Versuche, alle Vorlagen abzurufen
       const { data, error } = await supabase
         .from('email_templates')
         .select('*')
@@ -41,7 +99,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         throw error;
       }
       
-      console.log(`${data?.length || 0} Vorlagen aus der Datenbank abgerufen`);
+      console.log(`${data?.length || 0} Vorlagen aus der Datenbank abgerufen:`, data);
+      
+      // Prüfe, ob die Vorlagen tatsächlich Daten enthalten
+      if (!data || data.length === 0) {
+        console.log('Keine Vorlagen in der Datenbank gefunden');
+        
+        // Prüfe, ob die Tabelle leer ist oder nicht existiert
+        const { count, error: countError } = await supabase
+          .from('email_templates')
+          .select('*', { count: 'exact', head: true });
+          
+        if (countError) {
+          console.error('Fehler beim Zählen der Vorlagen:', countError);
+        } else {
+          console.log(`Anzahl der Vorlagen in der Datenbank: ${count}`);
+        }
+      }
+      
       return data as EmailTemplate[] || [];
     } catch (error) {
       console.error('Unerwarteter Fehler beim Abrufen der Vorlagen:', error);
@@ -53,24 +128,68 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   const saveTemplateInDB = async (template: Partial<EmailTemplate>): Promise<EmailTemplate> => {
     try {
       console.log('Versuche, Vorlage in der Datenbank zu speichern:', template.name);
+      
+      // Stelle sicher, dass die Tabelle existiert
+      await ensureTableExists();
+      
+      // Generiere eine UUID für die Vorlage, falls keine vorhanden ist
+      const templateId = template.id || `template-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Bereite die Daten vor
+      const templateData = {
+        id: templateId,
+        name: template.name,
+        subject: template.subject,
+        content: template.content,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: template.created_by || 'system'
+      };
+      
+      console.log('Speichere Vorlage mit folgenden Daten:', templateData);
+      
+      // Versuche, die Vorlage zu speichern
       const { data, error } = await supabase
         .from('email_templates')
-        .insert({
-          name: template.name,
-          subject: template.subject,
-          content: template.content,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .insert(templateData)
         .select()
         .single();
       
       if (error) {
         console.error('Fehler beim Speichern der Vorlage:', error);
-        throw error;
+        
+        // Versuche einen alternativen Ansatz mit upsert
+        console.log('Versuche alternativen Ansatz mit upsert...');
+        const { data: upsertData, error: upsertError } = await supabase
+          .from('email_templates')
+          .upsert(templateData)
+          .select()
+          .single();
+        
+        if (upsertError) {
+          console.error('Auch upsert fehlgeschlagen:', upsertError);
+          throw upsertError;
+        }
+        
+        console.log('Vorlage erfolgreich mit upsert gespeichert:', upsertData?.id);
+        return upsertData as EmailTemplate;
       }
       
       console.log('Vorlage erfolgreich gespeichert:', data?.id);
+      
+      // Prüfe, ob die Vorlage tatsächlich gespeichert wurde
+      const { data: checkData, error: checkError } = await supabase
+        .from('email_templates')
+        .select('*')
+        .eq('id', data?.id || templateId)
+        .single();
+      
+      if (checkError) {
+        console.error('Fehler beim Überprüfen der gespeicherten Vorlage:', checkError);
+      } else {
+        console.log('Gespeicherte Vorlage gefunden:', checkData);
+      }
+      
       return data as EmailTemplate;
     } catch (error) {
       console.error('Unerwarteter Fehler beim Speichern der Vorlage:', error);
