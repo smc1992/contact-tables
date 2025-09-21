@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createAdminClient } from '@/utils/supabase/server';
-import prisma from '@/lib/prisma';
 
 interface CronResponse {
   ok: boolean;
@@ -32,33 +31,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
   try {
     const adminSupabase = createAdminClient();
-    const now = new Date();
     const errors: string[] = [];
     let processed = 0;
-    let scheduled = 0;
 
-    // Finde alle fälligen Batches (scheduled_time <= jetzt und status = PENDING)
+    // Finde alle PENDING Batches (vereinfacht - keine scheduled_time Prüfung)
     const { data: pendingBatches, error: batchError } = await adminSupabase
       .from('email_batches')
       .select('id, campaign_id')
       .eq('status', 'PENDING')
-      .lte('scheduled_time', now.toISOString())
-      .order('scheduled_time', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(10); // Verarbeite maximal 10 Batches pro Lauf
 
     if (batchError) {
       console.error('Fehler beim Abrufen der fälligen Batches:', batchError);
-      return res.status(500).json({ 
-        ok: false, 
-        message: `Fehler beim Abrufen der fälligen Batches: ${batchError.message}` 
+      return res.status(500).json({
+        ok: false,
+        message: `Fehler beim Abrufen der fälligen Batches: ${batchError.message}`
       });
     }
 
     if (!pendingBatches || pendingBatches.length === 0) {
-      return res.status(200).json({ 
-        ok: true, 
+      return res.status(200).json({
+        ok: true,
         message: 'Keine fälligen Batches gefunden',
-        processed: 0,
-        scheduled: 0
+        processed: 0
       });
     }
 
@@ -67,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     // Verarbeite jeden Batch
     for (const batch of pendingBatches) {
       try {
-        // Rufe den Batch-Prozessor auf
+        // Rufe den Batch-Processor auf
         const response = await fetch(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/api/admin/emails/process-batch`, {
           method: 'POST',
           headers: {
@@ -79,12 +75,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
         const result = await response.json();
 
-        if (response.ok) {
+        if (response.ok && result.ok) {
           processed++;
-          console.log(`Batch ${batch.id} erfolgreich verarbeitet: ${result.message}`);
+          console.log(`Batch ${batch.id} erfolgreich verarbeitet`);
         } else {
-          errors.push(`Batch ${batch.id}: ${result.message}`);
-          console.error(`Fehler beim Verarbeiten von Batch ${batch.id}:`, result.message);
+          errors.push(`Batch ${batch.id}: ${result.message || 'Unbekannter Fehler'}`);
+          console.error(`Fehler beim Verarbeiten von Batch ${batch.id}:`, result);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
@@ -93,81 +89,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     }
 
-    // Plane die nächsten Batches
-    const { data: nextBatches, error: nextError } = await adminSupabase
-      .from('email_batches')
-      .select('id, campaign_id, batch_number, total_batches')
-      .eq('status', 'COMPLETED')
-      .lt('batch_number', 100) // Sicherheitsgrenze
-      .order('completed_at', { ascending: false })
-      .limit(10);
-
-    if (!nextError && nextBatches && nextBatches.length > 0) {
-      for (const batch of nextBatches) {
-        // Prüfe, ob es noch weitere Batches für diese Kampagne geben sollte
-        if (batch.batch_number < batch.total_batches) {
-          try {
-            // Prüfe, ob bereits ein nächster Batch existiert
-            const { count: existingCount } = await adminSupabase
-              .from('email_batches')
-              .select('id', { count: 'exact', head: true })
-              .eq('campaign_id', batch.campaign_id)
-              .eq('batch_number', batch.batch_number + 1);
-
-            if (!existingCount) {
-              // Erstelle den nächsten Batch
-              const nextScheduledTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 Stunde später
-              
-              // Hole die Empfänger für den nächsten Batch
-              const { data: pendingRecipients } = await adminSupabase
-                .from('email_recipients')
-                .select('id')
-                .eq('campaign_id', batch.campaign_id)
-                .eq('status', 'pending')
-                .limit(200);
-              
-              if (pendingRecipients && pendingRecipients.length > 0) {
-                const { data: newBatch, error: createError } = await adminSupabase
-                  .from('email_batches')
-                  .insert({
-                    campaign_id: batch.campaign_id,
-                    status: 'PENDING',
-                    scheduled_time: nextScheduledTime.toISOString(),
-                    batch_number: batch.batch_number + 1,
-                    total_batches: batch.total_batches,
-                    recipient_count: pendingRecipients.length,
-                    sent_count: 0,
-                    failed_count: 0
-                  })
-                  .select('id')
-                  .single();
-
-                if (!createError && newBatch) {
-                  scheduled++;
-                  console.log(`Nächster Batch für Kampagne ${batch.campaign_id} geplant: ${newBatch.id}`);
-                  
-                  // Aktualisiere die Empfänger mit der neuen Batch-ID
-                  await adminSupabase
-                    .from('email_recipients')
-                    .update({ batch_id: newBatch.id })
-                    .eq('campaign_id', batch.campaign_id)
-                    .eq('status', 'pending')
-                    .limit(200);
-                }
-              }
-            }
-          } catch (error) {
-            console.error(`Fehler beim Planen des nächsten Batches für Kampagne ${batch.campaign_id}:`, error);
-          }
-        }
-      }
-    }
-
     return res.status(200).json({
       ok: true,
-      message: `${processed} Batches verarbeitet, ${scheduled} neue Batches geplant`,
+      message: `${processed} Batches verarbeitet`,
       processed,
-      scheduled,
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
