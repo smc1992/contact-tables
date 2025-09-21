@@ -500,7 +500,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
         templateId: selectedTemplate || undefined,
         // Enable batching and respect server limits
         allowBatching: true,
-        batchSize: 200, // Angepasst auf 200 E-Mails pro Batch
+        batchSize: 50, // Optimiert auf 50 E-Mails pro Batch für bessere Zustellbarkeit
         attachments: attachments.length > 0 ? attachments.map(att => ({
           filename: att.filename,
           content: att.content,
@@ -577,8 +577,8 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
             content: (
               <div>
                 <p>Das E-Mail-Versand-Limit wurde erreicht. Dies dient zum Schutz vor Spam und zur Sicherstellung der Zustellbarkeit.</p>
-                <p>Große E-Mail-Kampagnen werden automatisch in Batches von 200 E-Mails pro Stunde versendet.</p>
-                <p>Bei 1500 Empfängern würde der Versand etwa 8 Stunden dauern (200 E-Mails pro Stunde).</p>
+                <p>Große E-Mail-Kampagnen werden automatisch in Batches von 50 E-Mails pro Stunde versendet.</p>
+                <p>Bei 1500 Empfängern würde der Versand etwa 8 Stunden dauern (50 E-Mails pro Stunde).</p>
               </div>
             ),
             okText: 'Verstanden',
@@ -866,7 +866,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                           <FiSend className="mr-2" />
                           {selectedCustomers.length} Empfänger in Batches senden
                           <span className="ml-1 bg-white text-indigo-600 text-xs rounded-full px-2 py-0.5">
-                            {Math.ceil(selectedCustomers.length / 200)} Std.
+                            {selectedCustomers.length > 50 ? Math.ceil(selectedCustomers.length / 50) : 1} Std.
                           </span>
                         </>
                       ) : (
@@ -964,10 +964,10 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                               <span className="font-bold">Batch-Verarbeitung aktiv:</span> Sie haben {selectedCustomers.length} Empfänger ausgewählt.
                             </p>
                             <p className="text-sm text-blue-700 mt-1">
-                              Die E-Mails werden in Batches von 200 E-Mails pro Stunde versendet.
+                              Die E-Mails werden in Batches von 50 E-Mails pro Stunde versendet.
                             </p>
                             <p className="text-sm text-blue-700 mt-1">
-                              Geschätzte Versanddauer: {Math.ceil(selectedCustomers.length / 200)} Stunden
+                              Geschätzte Versanddauer: {selectedCustomers.length > 50 ? Math.ceil(selectedCustomers.length / 50) : 1} Stunden
                             </p>
                           </div>
                         </div>
