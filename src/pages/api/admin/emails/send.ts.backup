@@ -117,12 +117,32 @@ async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, 
     const rateLimitPassed = await emailRateLimiter(req, res, currentUser.id);
     if (!rateLimitPassed) {
       // If response is 202, it means the campaign was scheduled for batch processing
-      if (res.statusCode === 202 || allowBatching) {
+      if (res.statusCode === 202) {
         // Update campaign status to scheduled
         await adminSupabase
           .from('email_campaigns')
           .update({ status: 'scheduled' })
           .eq('id', emailHistory.id);
+
+        // Persist all recipients as pending so scheduled processor can pick them up
+        try {
+          const recipientRows = recipients.map(r => ({
+            campaign_id: emailHistory.id,
+            recipient_id: r.id,
+            recipient_email: r.email,
+            status: 'pending'
+          }));
+          if (recipientRows.length > 0) {
+            // Insert in chunks of 100 to avoid payload limits
+            const chunkSize = 100;
+            for (let i = 0; i < recipientRows.length; i += chunkSize) {
+              const chunk = recipientRows.slice(i, i + chunkSize);
+              await adminSupabase.from('email_recipients').insert(chunk);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to persist recipients for scheduled campaign:', e);
+        }
       }
       // Response already sent by the rate limiter
       return;
@@ -415,35 +435,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, 
         await adminSupabase
           .from('email_recipients')
           .update({ status: 'sending' })
-          .eq('batch_id', currentBatch.data.id)
-          .eq('recipient_id', recipient.id);
-        
-        // Send email with retry logic
-        let success = false;
-        let lastError = null;
-        let retryCount = 0;
-        
-        while (!success && retryCount <= maxRetries) {
-          try {
-            await transporter.sendMail(mailOptions);
-            success = true;
-            sent++;
-            
-            // Update recipient status to sent
-            await adminSupabase
-              .from('email_recipients')
-              .update({ 
-                status: 'sent',
-                sent_at: new Date().toISOString()
-              })
-              .eq('batch_id', currentBatch.data.id)
-              .eq('recipient_id', recipient.id);
-              
-            console.log(`[Email Campaign ${emailHistory.id}] Email sent to ${recipient.email}`);
-          } catch (error: any) {
-            lastError = error;
-            retryCount++;
-            
             console.error(`[Email Campaign ${emailHistory.id}] Failed to send email to ${recipient.email} (attempt ${retryCount}/${maxRetries}):`, error.message);
             
             // Exponential backoff

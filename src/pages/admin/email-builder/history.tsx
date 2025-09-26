@@ -114,15 +114,23 @@ function EmailHistoryPage() {
   const fetchRecipients = async (campaignId: string) => {
     setLoadingRecipients(true);
     try {
-      const { data, error } = await supabase
-        .from('email_recipients')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('sent_at', { ascending: true });
+      const response = await fetch(`/api/admin/campaigns/${campaignId}/recipients`);
+      const result = await response.json();
       
-      if (error) throw error;
+      if (!response.ok) throw new Error(result.error || 'Fehler beim Laden der Empfänger');
       
-      setRecipients(data || []);
+      // Transform data to match expected interface
+      const transformedRecipients = (result.recipients || []).map((recipient: any) => ({
+        id: recipient.id,
+        campaign_id: campaignId,
+        recipient_id: '', // Not provided by API
+        recipient_email: recipient.recipient_email,
+        status: recipient.status,
+        error_message: recipient.error_message || null,
+        sent_at: recipient.sent_at
+      }));
+      
+      setRecipients(transformedRecipients);
     } catch (error) {
       console.error('Fehler beim Laden der Empfänger:', error);
       toast.error('Empfänger konnten nicht geladen werden');

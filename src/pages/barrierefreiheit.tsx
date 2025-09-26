@@ -1,4 +1,4 @@
-import PageLayout from '../components/PageLayout';
+import LegalPageLayout from '@/components/legal/LegalPageLayout';
 
 const barrierefreiheitHtml = `
 <h1>Erklärung zur Barrierefreiheit für Dienstleistungen</h1> <p>Im Rahmen unserer Barrierefreiheitserklärung möchten wir Ihnen einen Überblick über den Stand der Vereinbarkeit der unten beschriebenen Dienstleistung(en) mit den Anforderungen der Barrierefreiheit nach gesetzlichen Vorschriften (insbesondere mit dem Barrierefreiheitsstärkungsgesetz – BFSG) geben.</p>
@@ -26,11 +26,18 @@ Hessen</p>
 
 export default function Barrierefreiheit() {
   return (
-    <PageLayout title="Barrierefreiheit">
+    <LegalPageLayout
+      title="Barrierefreiheit"
+      description="Erklärung zur Barrierefreiheit der Dienstleistungen von contact-tables."
+      metaTitle="Barrierefreiheit | contact-tables"
+      contentClassName="space-y-0"
+    >
+      <div className="bg-white rounded-2xl shadow-lg p-8">
         <div
-          className="prose prose-lg lg:prose-xl mx-auto text-gray-500"
+          className="prose prose-neutral lg:prose-lg max-w-none text-neutral-700"
           dangerouslySetInnerHTML={{ __html: barrierefreiheitHtml }}
         />
-    </PageLayout>
+      </div>
+    </LegalPageLayout>
   );
 }

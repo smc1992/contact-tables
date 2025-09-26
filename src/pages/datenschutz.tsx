@@ -1,31 +1,17 @@
-import { motion } from 'framer-motion';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
+import LegalPageLayout from '@/components/legal/LegalPageLayout';
 
 export default function DatenschutzPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50">
-      <Header />
-      
-      <main className="flex-grow">
-        {/* Hero-Bereich */}
-        <section className="bg-gradient-to-b from-primary-500 to-primary-700 text-white py-12">
-          <div className="container mx-auto px-4">
-            <motion.h1 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-4xl md:text-5xl font-bold mb-4 text-center"
-            >
-              Datenschutzerklärung
-            </motion.h1>
-          </div>
-        </section>
-        
-        {/* Datenschutz-Inhalt */}
-        <section className="py-12">
-          <div className="container mx-auto px-4 max-w-4xl">
-            <div className="bg-white rounded-xl shadow-md p-8 prose lg:prose-xl" dangerouslySetInnerHTML={{ __html: `
+    <LegalPageLayout
+      title="Datenschutzerklärung"
+      description="Informationen zum Datenschutz bei contact-tables."
+      metaTitle="Datenschutzerklärung | contact-tables"
+      contentClassName="space-y-0"
+    >
+      <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div
+          className="prose prose-neutral lg:prose-lg max-w-none text-neutral-700"
+          dangerouslySetInnerHTML={{ __html: `
 <h1>Datenschutz&shy;erkl&auml;rung</h1>
 <h2>1. Datenschutz auf einen Blick</h2>
 <h3>Allgemeine Hinweise</h3> <p>Die folgenden Hinweise geben einen einfachen &Uuml;berblick dar&uuml;ber, was mit Ihren personenbezogenen Daten passiert, wenn Sie diese Website besuchen. Personenbezogene Daten sind alle Daten, mit denen Sie pers&ouml;nlich identifiziert werden k&ouml;nnen. Ausf&uuml;hrliche Informationen zum Thema Datenschutz entnehmen Sie unserer unter diesem Text aufgef&uuml;hrten Datenschutzerkl&auml;rung.</p>
@@ -85,12 +71,9 @@ E-Mail: datenschutz@contact-tables.org</p>
 <h3>Google Ads</h3> <p>Der Websitebetreiber verwendet Google Ads. Google Ads ist ein Online-Werbeprogramm der Google Ireland Limited (&bdquo;Google&ldquo;), Gordon House, Barrow Street, Dublin 4, Irland.</p> <p>Google Ads erm&ouml;glicht es uns Werbeanzeigen in der Google-Suchmaschine oder auf Drittwebseiten auszuspielen, wenn der Nutzer bestimmte Suchbegriffe bei Google eingibt (Keyword-Targeting). Ferner k&ouml;nnen zielgerichtete Werbeanzeigen anhand der bei Google vorhandenen Nutzerdaten (z.&nbsp;B. Standortdaten und Interessen) ausgespielt werden (Zielgruppen-Targeting). Wir als Websitebetreiber k&ouml;nnen diese Daten quantitativ auswerten, indem wir beispielsweise analysieren, welche Suchbegriffe zur Ausspielung unserer Werbeanzeigen gef&uuml;hrt haben und wie viele Anzeigen zu entsprechenden Klicks gef&uuml;hrt haben.</p> <p>Die Nutzung dieses Dienstes erfolgt auf Grundlage Ihrer Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO und &sect; 25 Abs. 1 TDDDG. Die Einwilligung ist jederzeit widerrufbar.</p> <p>Die Daten&uuml;bertragung in die USA wird auf die Standardvertragsklauseln der EU-Kommission gest&uuml;tzt. Details finden Sie hier: <a href="https://policies.google.com/privacy/frameworks" target="_blank" rel="noopener noreferrer">https://policies.google.com/privacy/frameworks</a> und <a href="https://business.safety.google/controllerterms/" target="_blank" rel="noopener noreferrer">https://business.safety.google/controllerterms/</a>.</p>
 <p>Das Unternehmen verf&gt;gt &uuml;ber eine Zertifizierung nach dem &bdquo;EU-US Data Privacy Framework&ldquo; (DPF). Der DPF ist ein &Uuml;bereinkommen zwischen der Europ&auml;ischen Union und den USA, der die Einhaltung europ&auml;ischer Datenschutzstandards bei Datenverarbeitungen in den USA gew&auml;hrleisten soll. Jedes nach dem DPF zertifizierte Unternehmen verpflichtet sich, diese Datenschutzstandards einzuhalten. Weitere Informationen hierzu erhalten Sie vom Anbieter unter folgendem Link: <a href="https://www.dataprivacyframework.gov/participant/5780" target="_blank" rel="noopener noreferrer">https://www.dataprivacyframework.gov/participant/5780</a>.</p>
 <h3>Google Ads Remarketing</h3> <p>Diese Website nutzt die Funktionen von Google Ads Remarketing. Anbieter ist die Google Ireland Limited (&bdquo;Google&ldquo;), Gordon House, Barrow Street, Dublin 4, Irland.</p> <p>Mit Google Ads Remarketing k&ouml;nnen wir Personen, die mit unserem Online-Angebot interagieren bestimmten Zielgruppen zuordnen, um ihnen anschlie&szlig;end interessenbezogene Werbung im Google-Werbenetzwerk anzeigen zu lassen (Remarketing bzw. Retargeting).</p> <p>Des Weiteren k&ouml;nnen die mit Google Ads Remarketing erstellten Werbe-Zielgruppen mit den ger&auml;te&uuml;bergreifenden Funktionen von Google verkn&uuml;pft werden. Auf diese Weise k&ouml;nnen interessenbezogene, personalisierte Werbebotschaften, die 
-` }}></div>
-          </div>
-        </section>
-      </main>
-      
-      <Footer />
-    </div>
+` }}
+        />
+      </div>
+    </LegalPageLayout>
   );
 }

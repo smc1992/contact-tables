@@ -83,6 +83,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/agb" className="text-neutral-400 hover:text-primary-400 transition-colors">
+                  AGB
+                </Link>
+              </li>
+              <li>
                 <Link href="/barrierefreiheit" className="text-neutral-400 hover:text-primary-400 transition-colors">
                   Barrierefreiheit
                 </Link>
