@@ -15,21 +15,11 @@ const nextConfig = {
   trailingSlash: true,
   experimental: {
     outputFileTracingExcludes: {
-      "**/node_modules/@prisma/**": true,
+      "*": ["**/node_modules/@prisma/**"],
     },
     serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
   },
-  exportPathMap: async function (defaultPathMap, { dev, dir, outDir, distDir, buildId }) {
-    const filteredPathMap = {};
-    
-    for (const path in defaultPathMap) {
-      if (!path.startsWith('/admin')) {
-        filteredPathMap[path] = defaultPathMap[path];
-      }
-    }
-    
-    return filteredPathMap;
-  },
+
   env: {
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     STRIPE_PUBLIC_KEY: process.env.STRIPE_PUBLIC_KEY,

@@ -1,3 +1,4 @@
+import React from 'react';
 import PageLayout from '@/components/PageLayout';
 import Link from 'next/link';
 

@@ -83,7 +83,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/agb" className="text-neutral-400 hover:text-primary-400 transition-colors">
+                <Link href="/terms-conditions" className="text-neutral-400 hover:text-primary-400 transition-colors">
                   AGB
                 </Link>
               </li>
@@ -146,4 +146,4 @@ export default function Footer() {
       </div>
     </footer>
   );
-} 
+}
