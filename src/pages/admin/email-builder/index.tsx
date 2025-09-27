@@ -85,6 +85,12 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [tagsLoading, setTagsLoading] = useState(true);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [bulkSelectCount, setBulkSelectCount] = useState<number>(50);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -393,6 +399,18 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
     });
   };
 
+  // Bulk select first N customers from filtered list
+  const bulkSelectCustomers = (count: number, fromAllPages: boolean = false) => {
+    const sourceCustomers = fromAllPages ? filteredCustomers : paginatedCustomers;
+    const availableCustomers = sourceCustomers.slice(0, count);
+    const customerIds = availableCustomers.map(customer => customer.id);
+    setSelectedCustomers(prev => {
+      // Merge with existing selection, avoiding duplicates
+      const newSelection = Array.from(new Set([...prev, ...customerIds]));
+      return newSelection;
+    });
+  };
+
   // Filter customers based on search term
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchTerm.toLowerCase();
@@ -401,6 +419,23 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
       (customer.name && customer.name.toLowerCase().includes(searchLower))
     );
   });
+
+  // Pagination calculations
+  const totalCustomers = filteredCustomers.length;
+  const totalPages = Math.ceil(totalCustomers / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedGroup, selectedTag]);
+
+  // Reset to first page when items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   // Handle file upload for attachments
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -975,7 +1010,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                     )}
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-700">
-                        Kunden ({filteredCustomers.length})
+                        Kunden ({totalCustomers} gesamt, Seite {currentPage} von {totalPages})
                       </span>
                       <span className="text-sm text-indigo-600">
                         {selectedCustomers.length} ausgewählt
@@ -993,7 +1028,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                         </div>
                       ) : (
                         <ul className="divide-y divide-gray-200">
-                          {filteredCustomers.map(customer => (
+                          {paginatedCustomers.map(customer => (
                             <li key={customer.id} className="p-3 hover:bg-gray-50">
                               <div className="flex items-center">
                                 <input
@@ -1032,6 +1067,119 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                         Alle auswählen
                       </button>
                     </div>
+                    
+                    {/* Bulk Selection Controls */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-md border">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Bulk-Auswahl
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max={filteredCustomers.length}
+                          value={bulkSelectCount}
+                          onChange={(e) => setBulkSelectCount(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-20 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                          placeholder="50"
+                        />
+                        <button
+                          onClick={() => bulkSelectCustomers(bulkSelectCount, false)}
+                          disabled={paginatedCustomers.length === 0}
+                          className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Erste {Math.min(bulkSelectCount, paginatedCustomers.length)} auf dieser Seite
+                        </button>
+                        <button
+                          onClick={() => bulkSelectCustomers(bulkSelectCount, true)}
+                          disabled={filteredCustomers.length === 0}
+                          className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Erste {Math.min(bulkSelectCount, filteredCustomers.length)} insgesamt
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Wählt Kontakte entweder von der aktuellen Seite oder aus allen gefilterten Ergebnissen aus
+                      </p>
+                    </div>
+
+                    {/* Page Size Selector */}
+                    <div className="mt-4 p-3 bg-blue-50 rounded-md border">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ergebnisse pro Seite
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={itemsPerPage}
+                          onChange={(e) => setItemsPerPage(parseInt(e.target.value))}
+                          className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        >
+                          <option value={25}>25 pro Seite</option>
+                          <option value={50}>50 pro Seite</option>
+                          <option value={100}>100 pro Seite</option>
+                          <option value={200}>200 pro Seite</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="mt-4 p-3 bg-white rounded-md border">
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          >
+                            Vorherige
+                          </button>
+                          
+                          <div className="flex items-center space-x-1">
+                            {/* Page Numbers */}
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                              let pageNum;
+                              if (totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                              } else {
+                                pageNum = currentPage - 2 + i;
+                              }
+                              
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => setCurrentPage(pageNum)}
+                                  className={`px-2 py-1 text-sm rounded ${
+                                    currentPage === pageNum
+                                      ? 'bg-indigo-600 text-white'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          
+                          <button
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          >
+                            Nächste
+                          </button>
+                        </div>
+                        
+                        <div className="mt-2 text-center">
+                          <span className="text-xs text-gray-500">
+                            Zeige {startIndex + 1}-{Math.min(endIndex, totalCustomers)} von {totalCustomers} Kunden
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
