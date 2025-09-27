@@ -1,6 +1,14 @@
 // Dieses Skript erstellt Platzhalterbilder für Partner und Blog
 const fs = require('fs');
-const { createCanvas } = require('canvas');
+
+// Versuche canvas zu laden, falls verfügbar
+let createCanvas;
+try {
+  createCanvas = require('canvas').createCanvas;
+} catch (error) {
+  console.log('Canvas-Paket nicht verfügbar. Platzhalterbilder werden übersprungen.');
+  process.exit(0);
+}
 
 // Funktion zum Erstellen eines Platzhalterbilds
 function createPlaceholderImage(width, height, text, filename, bgColor, textColor) {
