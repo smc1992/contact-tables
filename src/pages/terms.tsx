@@ -26,10 +26,6 @@ export default function TermsPage() {
       description="Bitte lies dir diese Nutzungsbedingungen sorgfältig durch, bevor du unsere Dienste nutzt."
       contentClassName="space-y-8"
     >
-      {/* Hauptinhalt */}
-      <div className="py-0">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
             <motion.div
               variants={containerVariants}
               initial="hidden"
@@ -243,9 +239,6 @@ export default function TermsPage() {
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
     </LegalPageLayout>
   );
 }

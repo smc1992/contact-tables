@@ -26,10 +26,6 @@ export default function PrivacyPage() {
       description="Wir nehmen den Schutz deiner persönlichen Daten sehr ernst. Hier erfährst du, wie wir mit deinen Daten umgehen und welche Rechte du hast."
       contentClassName="space-y-8"
     >
-      {/* Hauptinhalt */}
-      <div className="py-0">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
             <motion.div
               variants={containerVariants}
               initial="hidden"
@@ -216,9 +212,6 @@ export default function PrivacyPage() {
                 Kontakt aufnehmen
               </Link>
             </div>
-          </div>
-        </div>
-      </div>
     </LegalPageLayout>
   );
 }

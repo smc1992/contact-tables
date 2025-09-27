@@ -25,23 +25,21 @@ export default function AgbPage() {
       description="Hier finden Sie die aktuellen Allgemeinen Geschäftsbedingungen (AGB) für die Nutzung von contact-tables.org. Wählen Sie die passende Version für Endverbraucher oder Restaurants, um alle Konditionen im Detail zu lesen."
       contentClassName="space-y-8"
     >
-      <div className="container mx-auto px-4 -mt-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {navigationLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow border border-neutral-100 p-6 flex flex-col space-y-3"
-              >
-                <span className="text-sm uppercase tracking-wide text-primary-600 font-semibold">Direkt zu</span>
-                <span className="text-2xl font-semibold text-neutral-900">{link.title}</span>
-                <span className="text-neutral-600 leading-relaxed">{link.description}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+        {navigationLinks.map(link => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow border border-neutral-100 p-6 flex flex-col space-y-3"
+          >
+            <span className="text-sm uppercase tracking-wide text-primary-600 font-semibold">Direkt zu</span>
+            <span className="text-2xl font-semibold text-neutral-900">{link.title}</span>
+            <span className="text-neutral-600 leading-relaxed">{link.description}</span>
+          </Link>
+        ))}
+      </div>
 
-      <div className="container mx-auto px-4 py-16 space-y-24">
+      <div className="space-y-24">
         {/* Verbraucher (B2C) */}
         <section id="verbraucher" className="scroll-mt-24">
           <div className="max-w-4xl">
