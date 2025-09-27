@@ -1,5 +1,5 @@
 import React from 'react';
-import PageLayout from '@/components/PageLayout';
+import LegalPageLayout from '@/components/legal/LegalPageLayout';
 import Link from 'next/link';
 
 const navigationLinks = [
@@ -19,26 +19,13 @@ const navigationLinks = [
 
 export default function AgbPage() {
   return (
-    <PageLayout
-      title="AGB | contact-tables"
-      description="Allgemeine Geschäftsbedingungen für Verbraucher und Restaurants bei contact-tables"
-      className="bg-white"
+    <LegalPageLayout
+      title="Allgemeine Geschäftsbedingungen"
+      metaTitle="AGB | contact-tables"
+      description="Hier finden Sie die aktuellen Allgemeinen Geschäftsbedingungen (AGB) für die Nutzung von contact-tables.org. Wählen Sie die passende Version für Endverbraucher oder Restaurants, um alle Konditionen im Detail zu lesen."
+      contentClassName="space-y-8"
     >
-      <div className="relative overflow-hidden">
-        <div className="bg-gradient-to-r from-primary-900 via-primary-800 to-primary-700">
-          <div className="container mx-auto px-4 py-16 text-white">
-            <div className="max-w-3xl">
-              <p className="uppercase tracking-wider text-primary-200 text-sm font-semibold mb-4">Rechtliches</p>
-              <h1 className="text-4xl md:text-5xl font-bold mb-6">Allgemeine Geschäftsbedingungen</h1>
-              <p className="text-lg text-primary-100 leading-relaxed">
-                Hier finden Sie die aktuellen Allgemeinen Geschäftsbedingungen (AGB) für die Nutzung von contact-tables.org.
-                Wählen Sie die passende Version für Endverbraucher oder Restaurants, um alle Konditionen im Detail zu lesen.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="container mx-auto px-4 -mt-12">
+      <div className="container mx-auto px-4 -mt-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {navigationLinks.map(link => (
               <Link
@@ -308,6 +295,6 @@ export default function AgbPage() {
           </div>
         </section>
       </div>
-    </PageLayout>
+    </LegalPageLayout>
   );
 }

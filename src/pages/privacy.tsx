@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { FiShield, FiUser, FiDatabase, FiDisc, FiMail, FiAlertCircle } from 'react-icons/fi';
-import PageLayout from '../components/PageLayout';
+import LegalPageLayout from '../components/legal/LegalPageLayout';
 import Link from 'next/link';
 
 export default function PrivacyPage() {
@@ -21,28 +21,13 @@ export default function PrivacyPage() {
   };
 
   return (
-    <PageLayout>
-      {/* Hero Section */}
-      <div className="bg-secondary-800 text-white py-20 -mt-8 rounded-b-3xl">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-3xl mx-auto text-center"
-          >
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Datenschutzerklärung
-            </h1>
-            <p className="text-xl text-white/90 leading-relaxed">
-              Wir nehmen den Schutz deiner persönlichen Daten sehr ernst. Hier erfährst du, 
-              wie wir mit deinen Daten umgehen und welche Rechte du hast.
-            </p>
-          </motion.div>
-        </div>
-      </div>
-
+    <LegalPageLayout
+      title="Datenschutzerklärung"
+      description="Wir nehmen den Schutz deiner persönlichen Daten sehr ernst. Hier erfährst du, wie wir mit deinen Daten umgehen und welche Rechte du hast."
+      contentClassName="space-y-8"
+    >
       {/* Hauptinhalt */}
-      <div className="py-16">
+      <div className="py-0">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <motion.div
@@ -234,6 +219,6 @@ export default function PrivacyPage() {
           </div>
         </div>
       </div>
-    </PageLayout>
+    </LegalPageLayout>
   );
 }
