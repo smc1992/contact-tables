@@ -3,6 +3,7 @@
 
 # Build directory
 /.next/
+/.netlify/
 
 # Local environment variables
 .env.local
@@ -20,6 +21,7 @@ supabase/.temp/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # Editor directories
 .vscode/
@@ -30,3 +32,15 @@ yarn-error.log*
 
 # Backup files
 *.bak
+
+# Large files and bundles
+*.bundle
+*.pack
+
+# Build artifacts and cache
+/out/
+/dist/
+/.cache/
+
+# Netlify
+/.netlify/
