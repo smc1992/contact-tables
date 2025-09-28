@@ -148,8 +148,9 @@ function EmailHistoryPage() {
       
       if (!response.ok) throw new Error(result.message || 'Fehler beim Laden der Batches');
       
-      setBatches(result.data.batches || []);
-      setBatchPagination(result.data.pagination);
+      // API liefert batches/pagination auf Top-Level
+      setBatches(result.batches || []);
+      setBatchPagination(result.pagination);
     } catch (error) {
       console.error('Fehler beim Laden der Batches:', error);
       toast.error('Batches konnten nicht geladen werden');
