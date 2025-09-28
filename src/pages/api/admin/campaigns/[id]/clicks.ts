@@ -1,8 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { createClient } from '@/utils/supabase/server';
-
-const prisma = new PrismaClient();
+import { createClient, createAdminClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Nur GET-Anfragen erlauben
@@ -33,30 +30,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Kampagne prüfen
-    const campaign = await prisma.email_campaigns.findUnique({
-      where: { id }
-    });
+    const admin = createAdminClient();
 
+    // Kampagne prüfen (Supabase)
+    const { data: campaign, error: campaignError } = await admin
+      .from('email_campaigns')
+      .select('id')
+      .eq('id', id as string)
+      .maybeSingle();
+
+    if (campaignError) throw campaignError;
     if (!campaign) {
       return res.status(404).json({ error: 'Kampagne nicht gefunden' });
     }
 
-    // Link-Klicks abrufen
-    const clicks = await prisma.email_link_clicks.findMany({
-      where: { campaign_id: id },
-      select: {
-        id: true,
-        recipient_email: true,
-        link_url: true,
-        link_id: true,
-        clicked_at: true,
-        user_agent: true
-      },
-      orderBy: { clicked_at: 'desc' }
-    });
+    // Link-Klicks via Supabase abrufen
+    const { data: clicks, error: clicksError } = await admin
+      .from('email_link_clicks')
+      .select('id, recipient_email, link_url, link_id, clicked_at, user_agent')
+      .eq('campaign_id', id as string)
+      .order('clicked_at', { ascending: false });
 
-    return res.status(200).json({ clicks });
+    if (clicksError) throw clicksError;
+
+    return res.status(200).json({ clicks: clicks || [] });
   } catch (error) {
     console.error('Fehler beim Abrufen der Link-Klicks:', error);
     return res.status(500).json({ error: 'Serverfehler', details: (error as Error).message });

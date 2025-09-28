@@ -90,6 +90,8 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState('month');
+  const [quota, setQuota] = useState<{ remaining: number; used: number; maxPerHour: number; resetTime: string } | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     users: 0,
     restaurants: 0,
@@ -183,6 +185,27 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
       });
     } finally {
       setStatusLoading(false);
+    }
+  }, []);
+  
+  // E-Mail-Kontingent abrufen
+  const fetchEmailQuota = useCallback(async () => {
+    setQuotaLoading(true);
+    try {
+      const response = await fetch('/api/admin/emails/quota', {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' },
+        credentials: 'same-origin'
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Fehler beim Laden des E-Mail-Kontingents');
+      }
+      setQuota({ remaining: data.remaining, used: data.used, maxPerHour: data.maxPerHour, resetTime: data.resetTime });
+    } catch (error) {
+      console.error('Fehler beim Laden des E-Mail-Kontingents:', error);
+    } finally {
+      setQuotaLoading(false);
     }
   }, []);
   
@@ -371,7 +394,8 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
     // Daten beim ersten Laden abrufen
     loadDashboardData();
     fetchSystemStatus();
-  }, [loadDashboardData, fetchSystemStatus]);
+    fetchEmailQuota();
+  }, [loadDashboardData, fetchSystemStatus, fetchEmailQuota]);
 
   if (loading) {
     return (
@@ -1058,10 +1082,49 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                       </div>
                     </div>
                   )}
-                </div>
               </div>
-              
-              {/* Email-Management-Sektion */}
+            </div>
+
+            {/* E-Mail-Kontingent */}
+            <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
+              <div className="px-4 py-5 sm:p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium text-gray-900">E-Mail-Kontingent</h2>
+                  <button 
+                    onClick={fetchEmailQuota}
+                    disabled={quotaLoading}
+                    className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center"
+                  >
+                    <FiRefreshCw className={`mr-1 ${quotaLoading ? 'animate-spin' : ''}`} />
+                    {quotaLoading ? 'Wird aktualisiert...' : 'Aktualisieren'}
+                  </button>
+                </div>
+                {quota ? (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                      <p className="text-sm font-medium text-blue-800">Max / Stunde</p>
+                      <p className="text-2xl font-bold text-blue-900">{quota.maxPerHour}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                      <p className="text-sm font-medium text-green-800">Verfügbar</p>
+                      <p className="text-2xl font-bold text-green-900">{quota.remaining}</p>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                      <p className="text-sm font-medium text-yellow-800">Verbraucht</p>
+                      <p className="text-2xl font-bold text-yellow-900">{quota.used}</p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                      <p className="text-sm font-medium text-purple-800">Reset-Zeit</p>
+                      <p className="text-sm font-semibold text-purple-900">{new Date(quota.resetTime).toLocaleTimeString('de-DE')}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">Keine Kontingentdaten verfügbar</div>
+                )}
+              </div>
+            </div>
+
+             {/* Email-Management-Sektion */}
             <div className="bg-white overflow-hidden shadow rounded-lg mb-8">
               <div className="px-4 py-5 sm:p-6">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Email-Management</h2>

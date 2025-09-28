@@ -201,7 +201,32 @@ async function updateDynamicSegmentMembers(segmentId: string, criteria: any) {
         params.push(criteria.email_activity.click_rate);
       }
     }
-    
+
+    // Filter: Benutzer, die noch keine E-Mail zu einer Vorlage oder einem Betreff erhalten haben
+    if (criteria.email_not_received && (criteria.email_not_received.template_id || criteria.email_not_received.subject_contains)) {
+      const conditions: string[] = [];
+      if (criteria.email_not_received.template_id) {
+        conditions.push(`c.template_id = $${params.length + 1}`);
+        params.push(criteria.email_not_received.template_id);
+      }
+      if (criteria.email_not_received.subject_contains) {
+        conditions.push(`c.subject ILIKE $${params.length + 1}`);
+        params.push(`%${criteria.email_not_received.subject_contains}%`);
+      }
+
+      const whereClause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
+      query += `
+        AND NOT EXISTS (
+          SELECT 1
+          FROM email_recipients r
+          JOIN email_campaigns c ON c.id = r.campaign_id
+          WHERE r.recipient_id = profiles.id
+            ${whereClause}
+            AND (r.status = 'sent' OR r.opened_at IS NOT NULL)
+        )
+      `;
+    }
+
     // Tag-Filter
     if (criteria.tags && criteria.tags.length > 0) {
       query += `

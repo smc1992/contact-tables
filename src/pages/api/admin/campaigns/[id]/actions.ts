@@ -73,6 +73,66 @@ async function createRecipientsForCampaign(campaignId: string, targetConfig: any
   }
 }
 
+// Nach Empfänger-Erstellung: dynamische Segmente mit Kriterium „noch keine E-Mail erhalten“ aktualisieren
+async function refreshEmailNotReceivedSegmentsForCampaign(campaignId: string) {
+  try {
+    const campaignRows: any[] = await prisma.$queryRaw`
+      SELECT id, subject, template_id FROM email_campaigns WHERE id = ${campaignId}::uuid
+    `;
+    const campaign = Array.isArray(campaignRows) && campaignRows.length > 0 ? campaignRows[0] : null;
+    if (!campaign) return;
+
+    const segments: any[] = await prisma.$queryRaw`
+      SELECT id, is_dynamic, criteria FROM user_segments WHERE is_dynamic = true
+    `;
+
+    for (const seg of segments) {
+      let criteria: any = seg.criteria;
+      try {
+        if (typeof criteria === 'string') criteria = JSON.parse(criteria);
+      } catch {}
+
+      const enr = criteria?.email_not_received;
+      if (!enr) continue;
+
+      const templateMatch = enr.template_id && campaign.template_id && String(enr.template_id) === String(campaign.template_id);
+      const subjectMatch = enr.subject_contains && campaign.subject && String(campaign.subject).toLowerCase().includes(String(enr.subject_contains).toLowerCase());
+      if (!templateMatch && !subjectMatch) continue;
+
+      const templateId: string | null = enr.template_id || null;
+      const subjectContains: string | null = enr.subject_contains || null;
+
+      // Mitglieder neu berechnen: alle Nutzer, für die keine gesendete E-Mail zu Vorlage/Betreff existiert
+      const whereParts: string[] = [];
+      if (templateId) {
+        whereParts.push(`ec2.template_id = '${templateId}'`);
+      }
+      if (subjectContains) {
+        const like = subjectContains.replace(/'/g, "''");
+        whereParts.push(`ec2.subject ILIKE '%${like}%'`);
+      }
+      const matchClause = whereParts.length > 0 ? `AND ( ${whereParts.join(' OR ')} )` : '';
+
+      await prisma.$executeRawUnsafe(`
+        DELETE FROM user_segment_members WHERE segment_id = '${seg.id}';
+        INSERT INTO user_segment_members (segment_id, user_id)
+        SELECT '${seg.id}'::uuid, u.id
+        FROM users u
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM email_recipients er2
+          JOIN email_campaigns ec2 ON ec2.id = er2.campaign_id
+          WHERE er2.recipient_id = u.id
+            AND er2.status IN ('sent','opened','clicked')
+            ${matchClause}
+        );
+      `);
+    }
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren dynamischer Segmente (nicht erhalten):', err);
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Nur POST-Anfragen erlauben
   if (req.method !== 'POST') {
@@ -192,6 +252,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           
           // Empfänger für die Kampagne erstellen
           await createRecipientsForCampaign(id, startInfo.target_config);
+
+          // Dynamische „Nicht erhalten“-Segmente aktualisieren
+          await refreshEmailNotReceivedSegmentsForCampaign(id);
 
           // Batch-Verarbeitung starten (asynchron)
           fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/emails/process-batch`, {

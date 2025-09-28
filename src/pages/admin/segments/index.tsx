@@ -9,7 +9,8 @@ import {
 } from 'react-icons/fi';
 import moment from 'moment';
 import 'moment/locale/de';
-import withAuthClient from '@/utils/withAuthClient';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 import AdminSidebar from '@/components/AdminSidebar';
 import Header from '@/components/Header';
 
@@ -28,7 +29,11 @@ interface Segment {
   created_at: string;
 }
 
-function UserSegmentsPage() {
+interface UserSegmentsPageProps {
+  user: User;
+}
+
+function UserSegmentsPage({ user }: UserSegmentsPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -544,4 +549,15 @@ function UserSegmentsPage() {
   );
 }
 
-export default withAuthClient(UserSegmentsPage, ['admin', 'ADMIN']);
+export default UserSegmentsPage;
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context: any, user: User) => {
+    return {
+      props: {
+        user,
+      },
+    };
+  }
+);

@@ -1,8 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { createClient } from '@/utils/supabase/server';
-
-const prisma = new PrismaClient();
+import { createClient, createAdminClient } from '@/utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Nur GET-Anfragen erlauben
@@ -33,43 +30,65 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Kampagne abrufen
-    const campaign = await prisma.email_campaigns.findUnique({
-      where: { id }
-    });
+    const admin = createAdminClient();
 
-    if (!campaign) {
-      return res.status(404).json({ error: 'Kampagne nicht gefunden' });
+    // Kampagne abrufen (Supabase)
+    const { data: campaign, error: campaignError } = await admin
+      .from('email_campaigns')
+      .select('id, subject, status, created_at, completed_at')
+      .eq('id', id)
+      .single();
+
+    if (campaignError) {
+      if (campaignError.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Kampagne nicht gefunden' });
+      }
+      throw campaignError;
     }
 
-    // Statistiken abrufen
-    const [recipientStats, clickStats] = await Promise.all([
-      // Empfänger-Statistiken
-      prisma.$queryRaw`
-        SELECT 
-          COUNT(*) FILTER (WHERE status = 'sent') as sent_count,
-          COUNT(*) FILTER (WHERE opened_at IS NOT NULL) as opened_count,
-          COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
-          COUNT(*) as total_count
-        FROM email_recipients
-        WHERE campaign_id = ${id}::uuid
-      `,
-      // Link-Klick-Statistiken
-      prisma.$queryRaw`
-        SELECT COUNT(*) as click_count
-        FROM email_link_clicks
-        WHERE campaign_id = ${id}::uuid
-      `
-    ]);
+    // Zählungen (Supabase)
+    const { count: totalCount } = await admin
+      .from('email_recipients')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
 
-    // Link-Statistiken abrufen (gruppiert nach URL)
-    const linkStats = await prisma.$queryRaw`
-      SELECT link_url as url, COUNT(*) as clicks
-      FROM email_link_clicks
-      WHERE campaign_id = ${id}::uuid
-      GROUP BY link_url
-      ORDER BY clicks DESC
-    `;
+    const { count: sentCount } = await admin
+      .from('email_recipients')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id)
+      .eq('status', 'sent');
+
+    const { count: openedCount } = await admin
+      .from('email_recipients')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id)
+      .not('opened_at', 'is', null);
+
+    const { count: failedCount } = await admin
+      .from('email_recipients')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id)
+      .eq('status', 'failed');
+
+    const { count: clickCount } = await admin
+      .from('email_link_clicks')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', id);
+
+    // Linkspezifische Klick-Statistik (Supabase + Aggregation)
+    const { data: linkRows } = await admin
+      .from('email_link_clicks')
+      .select('link_url')
+      .eq('campaign_id', id);
+
+    const linkMap = new Map<string, number>();
+    (linkRows || []).forEach(r => {
+      const url = r.link_url as string;
+      linkMap.set(url, (linkMap.get(url) || 0) + 1);
+    });
+    const linkStats = Array.from(linkMap.entries())
+      .map(([url, clicks]) => ({ url, clicks }))
+      .sort((a, b) => b.clicks - a.clicks);
 
     // Ergebnisse zusammenführen
     const stats = {
@@ -78,15 +97,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: campaign.status,
       created_at: campaign.created_at,
       completed_at: campaign.completed_at,
-      recipient_count: Array.isArray(recipientStats) && recipientStats.length > 0 ? Number(recipientStats[0].total_count) : 0,
-      sent_count: Array.isArray(recipientStats) && recipientStats.length > 0 ? Number(recipientStats[0].sent_count) : 0,
-      opened_count: Array.isArray(recipientStats) && recipientStats.length > 0 ? Number(recipientStats[0].opened_count) : 0,
-      failed_count: Array.isArray(recipientStats) && recipientStats.length > 0 ? Number(recipientStats[0].failed_count) : 0,
-      click_count: Array.isArray(clickStats) && clickStats.length > 0 ? Number(clickStats[0].click_count) : 0,
-      links: Array.isArray(linkStats) ? linkStats.map((link: any) => ({
-        url: link.url,
-        clicks: Number(link.clicks)
-      })) : []
+      recipient_count: totalCount,
+      sent_count: sentCount,
+      opened_count: openedCount,
+      failed_count: failedCount,
+      click_count: clickCount,
+      links: linkStats
     };
 
     return res.status(200).json(stats);

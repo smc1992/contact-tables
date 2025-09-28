@@ -50,8 +50,8 @@ export default async function handler(
     // Aktuellen Status des Empfängers abrufen
     const { data: recipient, error: recipientError } = await adminClient
       .from('email_recipients')
-      .select('id, status, tracking_data')
-      .eq('id', rid)
+      .select('id, status, opened_at, recipient_email')
+      .eq('recipient_id', rid)
       .eq('campaign_id', cid)
       .single();
     
@@ -64,41 +64,61 @@ export default async function handler(
     
     // Tracking-Daten vorbereiten
     const now = new Date().toISOString();
-    let trackingData = recipient.tracking_data || {};
-    let newStatus = recipient.status;
     
     // Status und Tracking-Daten aktualisieren
-    if (type === 'open' && recipient.status !== 'opened') {
-      newStatus = 'opened';
-      trackingData.opened_at = now;
-      trackingData.opens = (trackingData.opens || 0) + 1;
-    } else if (type === 'click') {
-      newStatus = 'clicked';
-      trackingData.clicked_at = trackingData.clicked_at || now;
-      trackingData.clicks = (trackingData.clicks || 0) + 1;
+    if (type === 'open' && !recipient.opened_at) {
+      // E-Mail-Öffnung tracken
+      const { error: updateError } = await adminClient
+        .from('email_recipients')
+        .update({
+          opened_at: now,
+          status: 'opened'
+        })
+        .eq('recipient_id', rid)
+        .eq('campaign_id', cid);
       
-      // Geklickte Links speichern
-      if (!trackingData.clicked_links) {
-        trackingData.clicked_links = [];
+      if (updateError) {
+        console.error('Error updating recipient opened_at:', updateError);
       }
-      trackingData.clicked_links.push({
-        url: link,
-        clicked_at: now
-      });
-    }
-    
-    // Empfänger in der Datenbank aktualisieren
-    const { error: updateError } = await adminClient
-      .from('email_recipients')
-      .update({
-        status: newStatus,
-        tracking_data: trackingData,
-        updated_at: now
-      })
-      .eq('id', rid);
-    
-    if (updateError) {
-      console.error('Error updating recipient:', updateError);
+    } else if (type === 'click') {
+      // Link-Klick tracken
+      console.log('Tracking link click:', { cid, recipient_email: recipient.recipient_email, link });
+      
+      const insertData = {
+        campaign_id: cid,
+        recipient_id: rid as string,
+        recipient_email: recipient.recipient_email || '',
+        link_url: link as string,
+        link_id: link as string, // Verwende die URL als link_id
+        clicked_at: now,
+        user_agent: req.headers['user-agent'] || '',
+        ip_address: (req.headers['x-forwarded-for'] as string) || (req.socket?.remoteAddress) || '127.0.0.1'
+      };
+      
+      console.log('Insert data:', insertData);
+      
+      const { data: insertResult, error: clickError } = await adminClient
+        .from('email_link_clicks')
+        .insert(insertData)
+        .select();
+      
+      if (clickError) {
+        console.error('Error inserting link click:', clickError);
+      } else {
+        console.log('Link click tracked successfully:', insertResult);
+        // Status auf 'clicked' setzen und Öffnungszeit ggf. nachtragen
+        const { error: updateClickStatusError } = await adminClient
+          .from('email_recipients')
+          .update({
+            status: 'clicked',
+            opened_at: recipient.opened_at || now
+          })
+          .eq('recipient_id', rid)
+          .eq('campaign_id', cid);
+        if (updateClickStatusError) {
+          console.error('Error updating recipient click status:', updateClickStatusError);
+        }
+      }
     }
     
     // Tracking-Antwort senden

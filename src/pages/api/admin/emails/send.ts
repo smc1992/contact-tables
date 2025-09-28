@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
 import { createAdminClient, createClient } from '@/utils/supabase/server';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
@@ -59,6 +60,67 @@ interface SendResponse {
   batchScheduled?: boolean;
   estimatedSendTime?: string;
   remainingRecipients?: number;
+}
+
+const prisma = new PrismaClient();
+
+// Aktualisiert dynamische Segmente mit Kriterium „noch keine E-Mail erhalten“ basierend auf der Kampagne
+async function refreshEmailNotReceivedSegmentsForCampaign(campaignId: string) {
+  try {
+    const campaignRows: any[] = await prisma.$queryRaw`
+      SELECT id, subject, template_id FROM email_campaigns WHERE id = ${campaignId}::uuid
+    `;
+    const campaign = Array.isArray(campaignRows) && campaignRows.length > 0 ? campaignRows[0] : null;
+    if (!campaign) return;
+
+    const segments: any[] = await prisma.$queryRaw`
+      SELECT id, is_dynamic, criteria FROM user_segments WHERE is_dynamic = true
+    `;
+
+    for (const seg of segments) {
+      let criteria: any = seg.criteria;
+      try {
+        if (typeof criteria === 'string') criteria = JSON.parse(criteria);
+      } catch {}
+
+      const enr = criteria?.email_not_received;
+      if (!enr) continue;
+
+      const templateMatch = enr.template_id && campaign.template_id && String(enr.template_id) === String(campaign.template_id);
+      const subjectMatch = enr.subject_contains && campaign.subject && String(campaign.subject).toLowerCase().includes(String(enr.subject_contains).toLowerCase());
+      if (!templateMatch && !subjectMatch) continue;
+
+      const templateId: string | null = enr.template_id || null;
+      const subjectContains: string | null = enr.subject_contains || null;
+
+      const whereParts: string[] = [];
+      if (templateId) {
+        whereParts.push(`ec2.template_id = '${templateId}'`);
+      }
+      if (subjectContains) {
+        const like = subjectContains.replace(/'/g, "''");
+        whereParts.push(`ec2.subject ILIKE '%${like}%'`);
+      }
+      const matchClause = whereParts.length > 0 ? `AND ( ${whereParts.join(' OR ')} )` : '';
+
+      await prisma.$executeRawUnsafe(`
+        DELETE FROM user_segment_members WHERE segment_id = '${seg.id}';
+        INSERT INTO user_segment_members (segment_id, user_id)
+        SELECT '${seg.id}'::uuid, u.id
+        FROM users u
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM email_recipients er2
+          JOIN email_campaigns ec2 ON ec2.id = er2.campaign_id
+          WHERE er2.recipient_id = u.id
+            AND er2.status IN ('sent','opened','clicked')
+            ${matchClause}
+        );
+      `);
+    }
+  } catch (err) {
+    console.error('Fehler beim Aktualisieren dynamischer Segmente (nicht erhalten) nach Versand:', err);
+  }
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, userId: string) {
@@ -437,7 +499,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, 
               .from('email_recipients')
               .update({ 
                 status: 'sent',
-                sent_at: new Date().toISOString()
+                sent_at: new Date().toISOString(),
+                unsubscribe_token: unsubscribeToken
               })
               .eq('batch_id', currentBatch.data.id)
               .eq('recipient_id', recipient.id);
@@ -522,6 +585,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, 
             completed_at: new Date().toISOString()
           })
           .eq('id', emailHistory.id);
+
+        // Dynamische „Nicht erhalten“-Segmente nach Abschluss aktualisieren
+        await refreshEmailNotReceivedSegmentsForCampaign(emailHistory.id);
       }
       
       // Check if there are more recipients to process

@@ -14,7 +14,8 @@ import {
 } from 'react-icons/fi';
 import moment from 'moment';
 import 'moment/locale/de';
-import withAuthClient from '@/utils/withAuthClient';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 import AdminSidebar from '@/components/AdminSidebar';
 import Header from '@/components/Header';
 import { CSVLink } from 'react-csv';
@@ -64,7 +65,11 @@ interface PerformanceData {
   };
 }
 
-function CampaignAnalyticsPage() {
+interface CampaignAnalyticsPageProps {
+  user: User;
+}
+
+function CampaignAnalyticsPage({ user }: CampaignAnalyticsPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -563,4 +568,19 @@ function CampaignAnalyticsPage() {
   );
 }
 
-export default withAuthClient(CampaignAnalyticsPage, ['admin', 'ADMIN']);
+export default CampaignAnalyticsPage;
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: { user }
+    };
+  }
+);
+
+// Verhindert statischen Export und erzwingt Node.js Runtime für Admin-Seiten
+export const config = {
+  unstable_runtimeJS: true,
+  runtime: 'nodejs'
+};

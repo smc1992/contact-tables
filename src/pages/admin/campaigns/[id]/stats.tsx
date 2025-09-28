@@ -4,12 +4,13 @@ import { Card, Table, Spin, Alert, Tabs, Typography, Statistic, Row, Col, Badge 
 import { FiMail, FiEye, FiMousePointer, FiClock } from 'react-icons/fi';
 import moment from 'moment';
 import 'moment/locale/de';
-import withAuthClient from '@/utils/withAuthClient';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 import { Layout as AdminLayout } from 'antd';
 import AdminSidebar from '@/components/AdminSidebar';
 import Header from '@/components/Header';
+import { createClient } from '@/utils/supabase/client';
 
-const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 
 interface LinkClick {
@@ -46,7 +47,11 @@ interface CampaignStats {
   }[];
 }
 
-function CampaignStatsPage() {
+interface CampaignStatsPageProps {
+  user: User;
+}
+
+function CampaignStatsPage({ user }: CampaignStatsPageProps) {
   const router = useRouter();
   const { id } = router.query;
   
@@ -63,8 +68,20 @@ function CampaignStatsPage() {
       try {
         setLoading(true);
         
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error('Nicht authentifiziert');
+        }
+        
+        const headers = {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        };
+        
         // Kampagnen-Statistiken abrufen
-        const statsResponse = await fetch(`/api/admin/campaigns/${id}/stats`);
+        const statsResponse = await fetch(`/api/admin/campaigns/${id}/stats/`, { headers });
         if (!statsResponse.ok) {
           throw new Error('Fehler beim Laden der Kampagnen-Statistiken');
         }
@@ -72,7 +89,7 @@ function CampaignStatsPage() {
         setStats(statsData);
         
         // Empfänger abrufen
-        const recipientsResponse = await fetch(`/api/admin/campaigns/${id}/recipients`);
+        const recipientsResponse = await fetch(`/api/admin/campaigns/${id}/recipients/`, { headers });
         if (!recipientsResponse.ok) {
           throw new Error('Fehler beim Laden der Empfänger');
         }
@@ -80,7 +97,7 @@ function CampaignStatsPage() {
         setRecipients(recipientsData.recipients || []);
         
         // Link-Klicks abrufen
-        const clicksResponse = await fetch(`/api/admin/campaigns/${id}/clicks`);
+        const clicksResponse = await fetch(`/api/admin/campaigns/${id}/clicks/`, { headers });
         if (!clicksResponse.ok) {
           throw new Error('Fehler beim Laden der Link-Klicks');
         }
@@ -105,8 +122,9 @@ function CampaignStatsPage() {
           <AdminSidebar activeItem="campaigns" />
           <main className="flex-1 p-6 bg-gray-50">
             <div className="max-w-7xl mx-auto">
-              <div className="flex justify-center items-center h-64">
-                <Spin size="large" tip="Statistiken werden geladen..." />
+              <div className="flex flex-col justify-center items-center h-64">
+                <Spin size="large" />
+                <div className="mt-4 text-gray-600">Statistiken werden geladen...</div>
               </div>
             </div>
           </main>
@@ -321,34 +339,47 @@ function CampaignStatsPage() {
         </Row>
       </Card>
       
-      <Tabs defaultActiveKey="recipients">
-        <TabPane tab="Empfänger" key="recipients">
-          <Table 
-            dataSource={recipients} 
-            columns={recipientColumns} 
-            rowKey="id"
-            pagination={{ pageSize: 10 }}
-          />
-        </TabPane>
-        
-        <TabPane tab="Link-Klicks" key="clicks">
-          <Table 
-            dataSource={linkClicks} 
-            columns={clickColumns} 
-            rowKey="id"
-            pagination={{ pageSize: 10 }}
-          />
-        </TabPane>
-        
-        <TabPane tab="Link-Statistik" key="linkStats">
-          <Table 
-            dataSource={stats.links} 
-            columns={linkStatsColumns} 
-            rowKey="url"
-            pagination={{ pageSize: 10 }}
-          />
-        </TabPane>
-      </Tabs>
+      <Tabs 
+        defaultActiveKey="recipients"
+        items={[
+          {
+            key: 'recipients',
+            label: 'Empfänger',
+            children: (
+              <Table 
+                dataSource={recipients} 
+                columns={recipientColumns} 
+                rowKey="id"
+                pagination={{ pageSize: 10 }}
+              />
+            )
+          },
+          {
+            key: 'clicks',
+            label: 'Link-Klicks',
+            children: (
+              <Table 
+                dataSource={linkClicks} 
+                columns={clickColumns} 
+                rowKey="id"
+                pagination={{ pageSize: 10 }}
+              />
+            )
+          },
+          {
+            key: 'linkStats',
+            label: 'Link-Statistik',
+            children: (
+              <Table 
+                dataSource={stats.links} 
+                columns={linkStatsColumns} 
+                rowKey="url"
+                pagination={{ pageSize: 10 }}
+              />
+            )
+          }
+        ]}
+      />
           </div>
         </main>
       </div>
@@ -356,4 +387,19 @@ function CampaignStatsPage() {
   );
 }
 
-export default withAuthClient(CampaignStatsPage, ['admin', 'ADMIN']);
+export default CampaignStatsPage;
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: { user }
+    };
+  }
+);
+
+// Verhindert statischen Export und erzwingt Node.js Runtime für Admin-Seiten
+export const config = {
+  unstable_runtimeJS: true,
+  runtime: 'nodejs'
+};

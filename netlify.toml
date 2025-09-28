@@ -51,6 +51,8 @@
 [functions]
   node_bundler = "esbuild"
 
-[functions."process-email-batches"]
-  # Run every 5 minutes
-  schedule = "*/5 * * * *"
+# Hinweis: Geplante E-Mail-Batch-Verarbeitung wurde auf Supabase Cron umgestellt
+# Die Netlify Scheduled Function wird deaktiviert, um Doppel-Trigger zu vermeiden.
+# Wenn eine Rückkehr zu Netlify gewünscht ist, diesen Block wieder aktivieren.
+# [functions."process-email-batches"]
+#   schedule = "*/5 * * * *"

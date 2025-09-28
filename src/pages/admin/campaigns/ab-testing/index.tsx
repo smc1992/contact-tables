@@ -9,9 +9,11 @@ import {
 } from 'react-icons/fi';
 import moment from 'moment';
 import 'moment/locale/de';
-import withAuthClient from '@/utils/withAuthClient';
+
 import AdminSidebar from '@/components/AdminSidebar';
 import Header from '@/components/Header';
+import { withAuth } from '@/utils/withAuth';
+import { User } from '@supabase/supabase-js';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -43,7 +45,11 @@ interface ABTestVariant {
   is_winner: boolean;
 }
 
-function ABTestingPage() {
+interface ABTestingPageProps {
+  user: User;
+}
+
+function ABTestingPage({ user }: ABTestingPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -416,4 +422,13 @@ function ABTestingPage() {
   );
 }
 
-export default withAuthClient(ABTestingPage, ['admin', 'ADMIN']);
+export default ABTestingPage;
+
+export const getServerSideProps = withAuth(
+  ['admin', 'ADMIN'],
+  async (context, user) => {
+    return {
+      props: { user }
+    };
+  }
+);

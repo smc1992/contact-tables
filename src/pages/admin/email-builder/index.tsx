@@ -86,6 +86,12 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
   const [tagsLoading, setTagsLoading] = useState(true);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [bulkSelectCount, setBulkSelectCount] = useState<number>(50);
+  // Segment: Noch keine E-Mail erhalten
+  const [nrTemplateId, setNrTemplateId] = useState<string>('');
+  const [nrSubjectContains, setNrSubjectContains] = useState<string>('');
+  const [nrSegmentName, setNrSegmentName] = useState<string>('Noch keine E-Mail zu Thema/Vorlage');
+  const [nrSegmentDescription, setNrSegmentDescription] = useState<string>('');
+  const [savingSegment, setSavingSegment] = useState<boolean>(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -105,6 +111,41 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
       ['link', 'image'],
       ['clean']
     ],
+  };
+
+  // Speichere dynamisches Segment „noch keine E-Mail erhalten“
+  const saveNotReceivedSegment = async () => {
+    try {
+      setSavingSegment(true);
+      const templateName = templates.find(t => t.id === nrTemplateId)?.name;
+      const resolvedName = nrSegmentName || `Nicht erhalten: ${nrSubjectContains || templateName || 'Thema/Vorlage'}`;
+      const body = {
+        name: resolvedName,
+        description: nrSegmentDescription,
+        is_dynamic: true,
+        criteria: {
+          email_not_received: {
+            ...(nrTemplateId ? { template_id: nrTemplateId } : {}),
+            ...(nrSubjectContains ? { subject_contains: nrSubjectContains } : {})
+          }
+        }
+      };
+      const response = await fetch('/api/admin/segments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Segment konnte nicht erstellt werden');
+      }
+      message.success('Segment gespeichert und Mitglieder aktualisiert');
+    } catch (error) {
+      console.error('Fehler beim Speichern des Segments:', error);
+      message.error(error instanceof Error ? error.message : 'Unbekannter Fehler beim Speichern');
+    } finally {
+      setSavingSegment(false);
+    }
   };
 
   // Load customers data
@@ -919,6 +960,71 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
               <div className="lg:col-span-1">
                 <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6 mb-6">
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Empfänger auswählen</h2>
+                  {/* Dynamisches Segment: Kunden, die noch keine E-Mail zu Vorlage/Betreff erhalten haben */}
+                  <div className="mb-4 p-4 bg-yellow-50 rounded-md border border-yellow-200">
+                    <h3 className="text-sm font-semibold text-yellow-800 mb-2">Nicht erhalten – Segment erstellen</h3>
+                    <p className="text-xs text-yellow-700 mb-3">Wähle eine Vorlage oder gib einen Betreff ein, um eine Kundengruppe zu speichern, die hierzu noch keine gesendete E-Mail erhalten hat. Diese Gruppe aktualisiert sich automatisch bei neuen Sendungen.</p>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vorlage</label>
+                        <select
+                          value={nrTemplateId}
+                          onChange={(e) => setNrTemplateId(e.target.value)}
+                          className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        >
+                          <option value="">Keine Vorlage</option>
+                          {templatesLoading ? (
+                            <option value="" disabled>Vorlagen werden geladen…</option>
+                          ) : templates.length === 0 ? (
+                            <option value="" disabled>Keine Vorlagen verfügbar</option>
+                          ) : (
+                            templates.map(t => (
+                              <option key={t.id} value={t.id}>{t.name} — {t.subject}</option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Betreff enthält</label>
+                        <input
+                          type="text"
+                          value={nrSubjectContains}
+                          onChange={(e) => setNrSubjectContains(e.target.value)}
+                          placeholder="z.B. Gutschein, Herbstaktion"
+                          className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Segmentname</label>
+                        <input
+                          type="text"
+                          value={nrSegmentName}
+                          onChange={(e) => setNrSegmentName(e.target.value)}
+                          placeholder="Noch keine E-Mail zu Thema/Vorlage"
+                          className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung (optional)</label>
+                        <input
+                          type="text"
+                          value={nrSegmentDescription}
+                          onChange={(e) => setNrSegmentDescription(e.target.value)}
+                          placeholder="z.B. Kunden ohne Mailing ‚Herbstaktion‘"
+                          className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={saveNotReceivedSegment}
+                          disabled={savingSegment || (!nrTemplateId && !nrSubjectContains)}
+                          className={`px-3 py-2 bg-yellow-600 text-white text-sm rounded-md hover:bg-yellow-700 ${savingSegment || (!nrTemplateId && !nrSubjectContains) ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          {savingSegment ? 'Speichern…' : 'Segment speichern'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                   
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">

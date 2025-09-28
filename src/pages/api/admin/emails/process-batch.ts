@@ -120,13 +120,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       rateLimit: 5, // Limit to 5 messages per second
     });
 
+    // Determine max recipients to send in this invocation (default 50, capped at 200)
+    const requestedMax = Number((req.body as any)?.maxToSend ?? 50);
+    let maxToSend = Math.max(0, Math.min(Number.isFinite(requestedMax) ? requestedMax : 50, 200));
+
+    // Enforce global hourly quota at the batch level as an extra safety net
+    const windowStart = new Date(Date.now() - 60 * 60 * 1000);
+    const { count: sentInWindow } = await adminSupabase
+      .from('email_recipients')
+      .select('id', { count: 'exact', head: true })
+      .gte('sent_at', windowStart.toISOString());
+    const remainingQuota = Math.max(0, 200 - (sentInWindow || 0));
+    maxToSend = Math.min(maxToSend, remainingQuota);
+
+    if (maxToSend <= 0) {
+      // No quota left in this hour
+      const { count: pendingCount } = await adminSupabase
+        .from('email_recipients')
+        .select('id', { count: 'exact', head: true })
+        .eq('campaign_id', batch.campaign_id)
+        .eq('status', 'pending');
+      await prisma.$executeRaw`
+        UPDATE email_batches 
+        SET status = 'PENDING' 
+        WHERE id = ${batchId}::uuid
+      `;
+      return res.status(200).json({
+        ok: true,
+        message: 'Hourly quota exhausted, will continue next run',
+        batchId,
+        processed: 0,
+        remaining: pendingCount || 0
+      });
+    }
+
     // Get recipients for this campaign that haven't been processed yet
     const { data: recipients } = await adminSupabase
       .from('email_recipients')
       .select('id, recipient_id, recipient_email, unsubscribe_token, status')
       .eq('campaign_id', batch.campaign_id)
       .eq('status', 'pending')
-      .limit(50); // Process in batches of 50
+      .limit(maxToSend); // Process up to maxToSend recipients for this run
 
     if (!recipients || recipients.length === 0) {
       await prisma.email_batches.update({

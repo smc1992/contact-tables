@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
 import { Table, Tag, Button, Space, Tooltip, message, Modal, Spin } from 'antd';
-import { FiPlus, FiEdit, FiTrash2, FiPause, FiPlay, FiCopy, FiBarChart2, FiCalendar, FiClock, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiPause, FiPlay, FiCopy, FiBarChart2, FiCalendar, FiClock, FiRefreshCw, FiMail } from 'react-icons/fi';
 
 interface Campaign {
   id: string;
@@ -36,9 +36,12 @@ function CampaignDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [quota, setQuota] = useState<{ remaining: number; used: number; maxPerHour: number; resetTime: string } | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
 
   useEffect(() => {
     fetchCampaigns();
+    fetchQuota();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -57,6 +60,28 @@ function CampaignDashboardPage() {
       message.error('Kampagnen konnten nicht geladen werden');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchQuota = async () => {
+    setQuotaLoading(true);
+    try {
+      const response = await fetch('/api/admin/emails/quota', {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' },
+        credentials: 'same-origin'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setQuota({ remaining: data.remaining, used: data.used, maxPerHour: data.maxPerHour, resetTime: data.resetTime });
+      } else {
+        throw new Error(data.error || 'Fehler beim Laden des E-Mail-Kontingents');
+      }
+    } catch (error) {
+      console.error('Fehler beim Laden des E-Mail-Kontingents:', error);
+      message.warning('E-Mail-Kontingent konnte nicht geladen werden');
+    } finally {
+      setQuotaLoading(false);
     }
   };
 
@@ -343,6 +368,23 @@ function CampaignDashboardPage() {
                   Aktualisieren
                 </Button>
               </div>
+        </div>
+
+            {/* Quotenanzeige */}
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3 text-sm text-gray-700">
+                <span className="flex items-center"><FiMail className="mr-1" />Kontingent pro Stunde:</span>
+                <Tag color="blue">{quota?.maxPerHour ?? 200}</Tag>
+                <span>Verfügbar:</span>
+                <Tag color={(quota?.remaining ?? 0) > 0 ? 'green' : 'red'}>
+                  {quota ? `${quota.remaining}` : 'lädt...'}
+                </Tag>
+                <span>Reset:</span>
+                <Tag>{quota ? new Date(quota.resetTime).toLocaleTimeString('de-DE') : '-'}</Tag>
+              </div>
+              <Button icon={<FiRefreshCw />} onClick={fetchQuota} loading={quotaLoading}>
+                Quota aktualisieren
+              </Button>
             </div>
 
             <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-6">

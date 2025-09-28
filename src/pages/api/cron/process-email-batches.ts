@@ -37,6 +37,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     let processed = 0;
     let scheduled = 0;
 
+    // Global Quota: max 200 emails per 1h window (IONOS limit)
+    const windowStart = new Date(now.getTime() - 60 * 60 * 1000);
+    const { count: sentInWindow } = await adminSupabase
+      .from('email_recipients')
+      .select('id', { count: 'exact', head: true })
+      .gte('sent_at', windowStart.toISOString());
+    let remainingQuota = Math.max(0, 200 - (sentInWindow || 0));
+
+    if (remainingQuota <= 0) {
+      return res.status(200).json({
+        ok: true,
+        message: 'Stundenlimit erreicht (200). Warten bis Quotenfenster zurückgesetzt.',
+        processed: 0,
+        scheduled: 0
+      });
+    }
+
     // Finde alle fälligen Batches (scheduled_time <= jetzt und status = PENDING)
     const { data: pendingBatches, error: batchError } = await adminSupabase
       .from('email_batches')
@@ -66,22 +83,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     // Verarbeite jeden Batch
     for (const batch of pendingBatches) {
+      if (remainingQuota <= 0) break;
+
       try {
-        // Rufe den Batch-Prozessor auf
+        // Rufe den Batch-Prozessor auf, begrenze pro Lauf die Anzahl über maxToSend
+        const maxForThisBatch = Math.min(remainingQuota, 50); // Standard-Chunks von 50
         const response = await fetch(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/api/admin/emails/process-batch`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${cronSecret}`
           },
-          body: JSON.stringify({ batchId: batch.id })
+          body: JSON.stringify({ batchId: batch.id, maxToSend: maxForThisBatch })
         });
 
         const result = await response.json();
 
         if (response.ok) {
-          processed++;
-          console.log(`Batch ${batch.id} erfolgreich verarbeitet: ${result.message}`);
+          const processedCount = Number(result?.processed ?? 0);
+          processed += processedCount;
+          remainingQuota -= processedCount;
+          console.log(`Batch ${batch.id} verarbeitet: ${processedCount} gesendet, verbleibende Quote: ${remainingQuota}`);
         } else {
           errors.push(`Batch ${batch.id}: ${result.message}`);
           console.error(`Fehler beim Verarbeiten von Batch ${batch.id}:`, result.message);

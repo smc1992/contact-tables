@@ -7,224 +7,32 @@ type SupabaseServerContext =
   | { req: NextApiRequest; res: NextApiResponse };
 
 export function createAdminClient() {
-  // Direkte Zuweisung der Umgebungsvariablen für bessere Kompatibilität mit Netlify
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const isNetlify = process.env.NETLIFY === 'true';
-  
-  // Detaillierte Protokollierung für Debugging
-  console.log('Admin Client: Netlify-Umgebung?', isNetlify);
-  console.log('Admin Client: URL vorhanden?', !!supabaseUrl);
-  console.log('Admin Client: Service Key vorhanden?', !!supabaseServiceKey);
-  console.log('Admin Client: Service Key Länge:', supabaseServiceKey ? supabaseServiceKey.length : 0);
-  console.log('Admin Client: Umgebungsvariablen:', {
-    NODE_ENV: process.env.NODE_ENV,
-    NETLIFY: process.env.NETLIFY,
-    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-  });
 
-  // Notfall-Fallback für Netlify-Umgebung, wenn die Umgebungsvariablen fehlen
-  if (isNetlify && (!supabaseUrl || !supabaseServiceKey)) {
-    console.error('Netlify-Umgebung erkannt, aber Supabase-Konfiguration fehlt:', {
-      url: !!supabaseUrl,
-      serviceKey: !!supabaseServiceKey
-    });
-    
-    // Versuche, die Werte aus der .env-Datei zu lesen (falls sie in der Deployment-Konfiguration fehlen)
-    const fallbackUrl = 'https://efmbzrmroyetcqxcwxka.supabase.co';
-    const fallbackKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    if (fallbackUrl && fallbackKey) {
-      console.warn('Netlify: Verwende Fallback-Konfiguration mit Anon-Key (eingeschränkte Berechtigungen)');
-      
-      try {
-        // Erstelle einen Client mit eingeschränkten Berechtigungen als Fallback
-        const fallbackClient = createServerClient<Database>(
-          fallbackUrl,
-          fallbackKey,
-          {
-            cookies: {
-              get() { return undefined; },
-              set() {},
-              remove() {},
-            },
-          }
-        );
-        
-        console.warn('Netlify: Fallback-Client erstellt. HINWEIS: Eingeschränkte Berechtigungen!');
-        return fallbackClient;
-      } catch (fallbackError) {
-        console.error('Netlify: Auch Fallback-Konfiguration fehlgeschlagen:', fallbackError);
-      }
-    }
-    
-    console.error('Netlify: Keine funktionierenden Fallback-Optionen verfügbar');
-    throw new Error('Netlify: Admin Supabase configuration is missing. Bitte überprüfen Sie, ob SUPABASE_SERVICE_ROLE_KEY und NEXT_PUBLIC_SUPABASE_URL in den Netlify-Umgebungsvariablen korrekt gesetzt sind.');
-  }
-  
-  // Standardprüfung für alle Umgebungen
+  // Admin-Client MUSS Service-Role verwenden; keine Fallbacks auf Anon-Key
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Admin Supabase configuration is missing:', {
-      url: !!supabaseUrl,
-      serviceKey: !!supabaseServiceKey
-    });
-    
-    // Versuche, mit dem Anon-Key zu arbeiten, wenn der Service-Key fehlt
-    const fallbackKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    
-    if (supabaseUrl && fallbackKey) {
-      console.warn('Verwende Fallback mit Anon-Key (eingeschränkte Berechtigungen)');
-      
-      try {
-        // Erstelle einen Client mit eingeschränkten Berechtigungen als Fallback
-        const fallbackClient = createServerClient<Database>(
-          supabaseUrl,
-          fallbackKey,
-          {
-            cookies: {
-              get() { return undefined; },
-              set() {},
-              remove() {},
-            },
-          }
-        );
-        
-        console.warn('Fallback-Client erstellt. HINWEIS: Eingeschränkte Berechtigungen!');
-        return fallbackClient;
-      } catch (fallbackError) {
-        console.error('Auch Fallback-Konfiguration fehlgeschlagen:', fallbackError);
-      }
-    }
-    
-    throw new Error('Admin Supabase configuration is missing. SUPABASE_SERVICE_ROLE_KEY und NEXT_PUBLIC_SUPABASE_URL müssen in den Umgebungsvariablen gesetzt sein.');
+    throw new Error('Admin Supabase configuration is missing. SUPABASE_SERVICE_ROLE_KEY und NEXT_PUBLIC_SUPABASE_URL müssen gesetzt sein.');
   }
 
-  try {
-    // Zusätzliche Prüfung für Netlify-Umgebung
-    if (isNetlify) {
-      console.log('Netlify-Umgebung: Erstelle Supabase-Client mit Service Key');
-      console.log('Netlify-Umgebung: URL Länge:', supabaseUrl?.length || 0);
-      console.log('Netlify-Umgebung: Service Key Länge:', supabaseServiceKey?.length || 0);
-      
-      // Zusätzliche Validierung für Netlify-Umgebung
-      if (supabaseUrl?.length < 10 || supabaseServiceKey?.length < 10) {
-        console.error('Netlify-Umgebung: Ungültige Länge der Umgebungsvariablen');
-        
-        // Versuche mit Fallback-Werten
-        const fallbackUrl = 'https://efmbzrmroyetcqxcwxka.supabase.co';
-        const fallbackKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        
-        if (fallbackUrl && fallbackKey && fallbackKey.length > 10) {
-          console.warn('Netlify: Verwende Fallback-URL und Anon-Key');
-          
-          try {
-            const fallbackClient = createServerClient<Database>(
-              fallbackUrl,
-              fallbackKey,
-              {
-                cookies: {
-                  get() { return undefined; },
-                  set() {},
-                  remove() {},
-                },
-              }
-            );
-            
-            console.warn('Netlify: Fallback-Client mit Anon-Key erstellt');
-            return fallbackClient;
-          } catch (fallbackError) {
-            console.error('Netlify: Fallback fehlgeschlagen:', fallbackError);
-          }
-        }
-        
-        throw new Error('Netlify: Umgebungsvariablen scheinen ungültig zu sein. Bitte überprüfen Sie die Länge und das Format.');
-      }
-    } else {
-      console.log('Admin Client: Erstelle Supabase-Client mit Service Key');
-    }
-    
-    // Zusätzliche Validierung der Parameter
-    if (typeof supabaseUrl !== 'string' || supabaseUrl.trim() === '') {
-      throw new Error('Supabase URL ist leer oder kein String');
-    }
-    
-    if (typeof supabaseServiceKey !== 'string' || supabaseServiceKey.trim() === '') {
-      throw new Error('Supabase Service Key ist leer oder kein String');
-    }
-    
-    const client = createServerClient<Database>(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        cookies: {
-          get() { return undefined; },
-          set() {},
-          remove() {},
-        },
-      }
-    );
-    
-    // Prüfe, ob der Client korrekt erstellt wurde
-    if (!client || !client.auth) {
-      throw new Error('Supabase-Client wurde erstellt, aber scheint ungültig zu sein');
-    }
-    
-    console.log('Admin Client: Supabase-Client erfolgreich erstellt');
-    return client;
-  } catch (error) {
-    // Detaillierte Fehlerprotokollierung
-    console.error('Fehler beim Erstellen des Admin-Clients:', error);
-    
-    // Versuche, möglichst viele Informationen über den Fehler zu sammeln
-    let errorDetails = 'Keine Details verfügbar';
-    try {
-      if (error instanceof Error) {
-        errorDetails = `${error.name}: ${error.message}\nStack: ${error.stack || 'Kein Stack verfügbar'}`;
-      } else {
-        errorDetails = JSON.stringify(error, Object.getOwnPropertyNames(error || {}));
-      }
-    } catch (jsonError) {
-      errorDetails = 'Fehler beim Serialisieren des Fehlers: ' + String(jsonError);
-    }
-    
-    console.error('Fehler-Details:', errorDetails);
-    
-    // Letzte Chance: Versuche mit dem Anon-Key
-    const fallbackKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const fallbackUrl = supabaseUrl || 'https://efmbzrmroyetcqxcwxka.supabase.co';
-    
-    if (fallbackUrl && fallbackKey) {
-      console.warn('Letzter Versuch: Erstelle Client mit Anon-Key nach Fehler');
-      
-      try {
-        const lastResortClient = createServerClient<Database>(
-          fallbackUrl,
-          fallbackKey,
-          {
-            cookies: {
-              get() { return undefined; },
-              set() {},
-              remove() {},
-            },
-          }
-        );
-        
-        console.warn('Notfall-Client mit Anon-Key erstellt. HINWEIS: Stark eingeschränkte Funktionalität!');
-        return lastResortClient;
-      } catch (lastError) {
-        console.error('Auch letzter Versuch fehlgeschlagen:', lastError);
-      }
-    }
-    
-    // Spezifische Fehlermeldung für Netlify
-    if (isNetlify) {
-      throw new Error('Netlify: Fehler beim Erstellen des Admin-Clients. Bitte überprüfen Sie die Netlify-Umgebungsvariablen und Logs.');
-    }
-    
-    throw new Error('Fehler beim Erstellen des Admin-Clients: ' + (error instanceof Error ? error.message : String(error)));
+  if (typeof supabaseUrl !== 'string' || supabaseUrl.trim() === '') {
+    throw new Error('Supabase URL ist leer oder ungültig');
   }
+  if (typeof supabaseServiceKey !== 'string' || supabaseServiceKey.trim() === '') {
+    throw new Error('Supabase Service Role Key ist leer oder ungültig');
+  }
+
+  return createServerClient<Database>(
+    supabaseUrl,
+    supabaseServiceKey,
+    {
+      cookies: {
+        get() { return undefined; },
+        set() {},
+        remove() {},
+      },
+    }
+  );
 }
 
 export function createClient(context: SupabaseServerContext) {
