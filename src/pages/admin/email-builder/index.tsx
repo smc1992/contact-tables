@@ -533,9 +533,9 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
         content,
         recipients: selectedCustomerEmails,
         templateId: selectedTemplate || undefined,
-        // Enable batching and respect server limits
-        allowBatching: true,
-        batchSize: 200, // Angepasst auf 200 E-Mails pro Batch
+        // Automatically enable batching for more than 10 emails to avoid Netlify timeout
+        allowBatching: selectedCustomerEmails.length > 10,
+        batchSize: selectedCustomerEmails.length > 10 ? 200 : selectedCustomerEmails.length,
         attachments: attachments.length > 0 ? attachments.map(att => ({
           filename: att.filename,
           content: att.content,
@@ -896,7 +896,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                           <FiRefreshCw className="animate-spin mr-2" />
                           Wird gesendet...
                         </>
-                      ) : selectedCustomers.length > 200 ? (
+                      ) : selectedCustomers.length > 10 ? (
                         <>
                           <FiSend className="mr-2" />
                           {selectedCustomers.length} Empfänger in Batches senden
@@ -907,7 +907,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                       ) : (
                         <>
                           <FiSend className="mr-2" />
-                          An {selectedCustomers.length} Empfänger senden
+                          An {selectedCustomers.length} Empfänger sofort senden
                         </>
                       )}
                     </button>
@@ -986,7 +986,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                   </div>
                   
                   <div className="mt-4">
-                    {selectedCustomers.length > 200 && (
+                    {selectedCustomers.length > 10 && (
                       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
                         <div className="flex">
                           <div className="flex-shrink-0">
@@ -999,7 +999,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
                               <span className="font-bold">Batch-Verarbeitung aktiv:</span> Sie haben {selectedCustomers.length} Empfänger ausgewählt.
                             </p>
                             <p className="text-sm text-blue-700 mt-1">
-                              Die E-Mails werden in Batches von 200 E-Mails pro Stunde versendet.
+                              Die E-Mails werden in Batches von 200 E-Mails pro Stunde versendet, um Server-Timeouts zu vermeiden.
                             </p>
                             <p className="text-sm text-blue-700 mt-1">
                               Geschätzte Versanddauer: {Math.ceil(selectedCustomers.length / 200)} Stunden

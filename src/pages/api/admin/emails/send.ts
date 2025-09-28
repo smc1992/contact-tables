@@ -268,6 +268,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, 
     
     const unsubscribedEmails = new Set((unsubscribed || []).map(u => u.email));
     
+    // Process emails in smaller batches to avoid Netlify timeout
+    const processBatchSize = recipients.length > 20 ? 10 : recipients.length; // Process max 10 emails at a time for immediate send
+    
     // Batch-Verarbeitung vorbereiten
     let currentBatch: { data: { id: string } } | null = null;
     let recipientsToProcess: Array<{id: string; email: string; name?: string}> = [];
