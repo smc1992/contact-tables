@@ -96,7 +96,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       try {
         // Rufe den Batch-Prozessor auf, begrenze pro Lauf die Anzahl über maxToSend
         const maxForThisBatch = Math.min(remainingQuota, 50); // Standard-Chunks von 50
-        const response = await fetch(`${siteUrl}/api/admin/emails/process-batch`, {
+        // Vermeide 308-Redirects: Endpunkt mit abschließendem Slash aufrufen
+        const response = await fetch(`${siteUrl}/api/admin/emails/process-batch/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
