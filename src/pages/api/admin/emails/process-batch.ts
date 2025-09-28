@@ -27,11 +27,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   try {
     // Allow internal/scheduled invocations via secret header
     const cronSecret = process.env.CRON_SECRET;
+    const adminToken = process.env.ADMIN_API_TOKEN;
     const authHeader = (req.headers['authorization'] || req.headers['x-internal-secret'] || req.headers['x-cron-secret'] || '') as string;
     const provided = authHeader.startsWith('Bearer ')
       ? authHeader.slice('Bearer '.length).trim()
       : authHeader.trim();
-    const isInternal = Boolean(cronSecret && provided && provided === cronSecret);
+    const adminHeader = (req.headers['x-admin-token'] || '') as string;
+    const isInternal = Boolean(
+      (cronSecret && provided && provided === cronSecret) ||
+      (adminToken && adminHeader && adminHeader === adminToken)
+    );
 
     if (!isInternal) {
       // Auth check: only admins may process batches
@@ -47,7 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       }
     }
 
-    const { batchId } = req.body;
+    const batchId = (req.body as any)?.batchId || (req.body as any)?.batch_id;
     if (!batchId) {
       return res.status(400).json({ ok: false, message: 'Missing required field: batchId' });
     }
@@ -66,17 +71,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       return res.status(404).json({ ok: false, message: 'Batch not found' });
     }
 
-    if (batch.status !== 'PENDING') {
+    const normalizedStatus = String((batch as any).status || '').toUpperCase();
+    if (normalizedStatus !== 'PENDING') {
       return res.status(400).json({ 
         ok: false, 
-        message: `Batch is already ${batch.status.toLowerCase()}` 
+        message: `Batch is already ${String((batch as any).status || '').toLowerCase()}` 
       });
     }
 
     // Update batch status to processing
     await prisma.$executeRaw`
       UPDATE email_batches 
-      SET status = 'PROCESSING' 
+      SET status = 'processing' 
       WHERE id = ${batchId}::uuid
     `;
 
@@ -98,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !fromAddress) {
       await prisma.email_batches.update({
         where: { id: batchId },
-        data: { status: EmailBatchStatus.FAILED }
+        data: { status: 'failed' }
       });
       return res.status(500).json({ 
         ok: false, 
@@ -165,7 +171,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     if (!recipients || recipients.length === 0) {
       await prisma.email_batches.update({
         where: { id: batchId },
-        data: { status: EmailBatchStatus.COMPLETED }
+        data: { status: 'completed' }
       });
       return res.status(200).json({ 
         ok: true, 
