@@ -171,23 +171,72 @@ async function handler(req: NextApiRequest, res: NextApiResponse<SendResponse>, 
       });
     }
     
-    // Add campaignId to request body for rate limiter
+    // Async Enqueue: Erstelle einen initialen Batch und gib 202 zurück
+    // Kampagnen-ID für Folgelogik bereitstellen
     req.body.campaignId = emailHistory.id;
-    req.body.allowBatching = allowBatching;
-    
-    // Apply rate limiting
-    const rateLimitPassed = await emailRateLimiter(req, res, currentUser.id);
-    if (!rateLimitPassed) {
-      // If response is 202, it means the campaign was scheduled for batch processing
-      if (res.statusCode === 202 || allowBatching) {
-        // Update campaign status to scheduled
-        await adminSupabase
-          .from('email_campaigns')
-          .update({ status: 'scheduled' })
-          .eq('id', emailHistory.id);
+
+    try {
+      const totalBatches = Math.max(1, Math.ceil((Array.isArray(recipients) ? recipients.length : 0) / (batchSize || 50)));
+      const scheduledTime = new Date().toISOString();
+
+      const { data: batch, error: batchError } = await adminSupabase
+        .from('email_batches')
+        .insert({
+          campaign_id: emailHistory.id,
+          status: 'PENDING',
+          scheduled_time: scheduledTime,
+          batch_number: 1,
+          total_batches: totalBatches,
+          recipient_count: recipients.length,
+          sent_count: 0,
+          failed_count: 0
+        })
+        .select('id')
+        .single();
+
+      if (batchError || !batch) {
+        console.error('Error creating initial batch:', batchError);
+        return res.status(500).json({ ok: false, message: 'Failed to create initial batch' });
       }
-      // Response already sent by the rate limiter
-      return;
+
+      // Empfängerzeilen vorbereiten und einfügen
+      const recipientRows = (recipients || []).map(r => ({
+        campaign_id: emailHistory.id,
+        batch_id: batch.id,
+        recipient_id: r.id,
+        recipient_email: r.email,
+        status: 'pending'
+      }));
+
+      if (recipientRows.length > 0) {
+        const { error: recInsertError } = await adminSupabase
+          .from('email_recipients')
+          .insert(recipientRows);
+        if (recInsertError) {
+          console.error('Error inserting recipients into batch:', recInsertError);
+          return res.status(500).json({ ok: false, message: 'Failed to assign recipients to batch' });
+        }
+      }
+
+      // Kampagne als geplant markieren
+      await adminSupabase
+        .from('email_campaigns')
+        .update({ status: 'scheduled' })
+        .eq('id', emailHistory.id);
+
+      // Sofort 202 Accepted zurückgeben, Verarbeitung läuft im Worker/Cron
+      return res.status(202).json({
+        ok: true,
+        message: 'Email campaign queued for background processing',
+        campaignId: emailHistory.id,
+        batchId: batch.id,
+        batchScheduled: true,
+        totalRecipients: recipients.length,
+        estimatedSendTime: scheduledTime
+      });
+    } catch (enqueueError) {
+      console.error('Error enqueueing email campaign:', enqueueError);
+      return res.status(500).json({ ok: false, message: 'Failed to enqueue email campaign' });
     }
 
     // Überprüfe, ob der Admin-Client korrekt erstellt wurde

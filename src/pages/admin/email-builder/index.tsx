@@ -98,6 +98,7 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
   const [itemsPerPage, setItemsPerPage] = useState<number>(50);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const campaignPollingRef = useRef<number | null>(null);
   const supabase = createClient();
 
   // Rich text editor modules configuration
@@ -203,6 +204,66 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Starte Status-Polling für eine geplante Kampagne
+  const startCampaignPolling = (campaignId: string) => {
+    // Vorheriges Polling beenden
+    if (campaignPollingRef.current) {
+      clearInterval(campaignPollingRef.current);
+      campaignPollingRef.current = null;
+    }
+
+    // Sofortige Info anzeigen
+    message.open({
+      key: 'campaign-progress',
+      type: 'loading',
+      content: 'Kampagne geplant. Fortschritt wird überwacht...',
+      duration: 0
+    });
+
+    // Alle 15 Sekunden Status abrufen
+    campaignPollingRef.current = window.setInterval(async () => {
+      try {
+        const resp = await fetch(`/api/admin/emails/campaign-status?campaignId=${campaignId}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.ok || !data.campaign) return;
+
+        const status = data.campaign.status;
+        const sent = data.campaign.sent_count || 0;
+        const failed = data.campaign.failed_count || 0;
+        const total = data.campaign.total_recipients || 0;
+        const processed = sent + failed;
+
+        message.open({
+          key: 'campaign-progress',
+          type: 'loading',
+          content: `Status: ${status} • Fortschritt: ${processed}/${total}`,
+          duration: 0
+        });
+
+        // Terminalzustände: sent/partial/failed (Groß- und Kleinschreibung tolerieren)
+        const terminalStatuses = ['sent', 'partial', 'failed', 'SENT', 'PARTIAL', 'FAILED'];
+        if (terminalStatuses.includes(status)) {
+          if (campaignPollingRef.current) {
+            clearInterval(campaignPollingRef.current);
+            campaignPollingRef.current = null;
+          }
+
+          const finalType = status.toLowerCase() === 'failed' ? 'error' : 'success';
+          message.open({
+            key: 'campaign-progress',
+            type: finalType,
+            content: `Kampagne abgeschlossen: ${sent} gesendet, ${failed} fehlgeschlagen`,
+            duration: 4
+          });
+        }
+      } catch (e) {
+        // Bei Fehlern weiter versuchen; UI nicht spammen
+        console.warn('Fehler beim Kampagnen-Polling', e);
+      }
+    }, 15000);
   };
 
   // Load email templates from database
@@ -338,6 +399,14 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
     fetchCustomers();
     fetchTemplates();
     fetchTags();
+
+    // Cleanup bei Unmount: Polling beenden
+    return () => {
+      if (campaignPollingRef.current) {
+        clearInterval(campaignPollingRef.current);
+        campaignPollingRef.current = null;
+      }
+    };
   }, []);
 
   // Handle template selection
@@ -627,6 +696,11 @@ function EmailBuilderPage({ user }: EmailBuilderPageProps) {
           ),
           okText: 'Verstanden',
         });
+
+        // Status-Polling starten
+        if (result.campaignId) {
+          startCampaignPolling(result.campaignId);
+        }
       } else {
         // Normale erfolgreiche Sendung
         message.success(`E-Mails wurden erfolgreich gesendet! Erfolgreich: ${result.sent || 0}, Fehlgeschlagen: ${result.failed || 0}`);

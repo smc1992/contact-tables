@@ -22,31 +22,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // GET-Anfrage: Liste aller Segmente abrufen
   if (req.method === 'GET') {
     try {
-      // Alle Segmente abrufen
-      const segments = await prisma.user_segments.findMany({
-        orderBy: {
-          created_at: 'desc'
-        }
-      });
+      // Alle Segmente inkl. Member-Count per SQL abrufen
+      const segments: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        criteria: any;
+        is_dynamic: boolean;
+        created_at: Date;
+        member_count: number;
+      }> = await prisma.$queryRawUnsafe(
+        `
+        SELECT s.id,
+               s.name,
+               s.description,
+               s.criteria,
+               s.is_dynamic,
+               s.created_at,
+               (
+                 SELECT COUNT(*)
+                 FROM user_segment_members m
+                 WHERE m.segment_id = s.id
+               ) AS member_count
+        FROM user_segments s
+        ORDER BY s.created_at DESC
+        `
+      );
 
-      // Für jedes Segment die Anzahl der Mitglieder abrufen
-      const segmentsWithMemberCount = await Promise.all(segments.map(async (segment) => {
-        const memberCount = await prisma.user_segment_members.count({
-          where: { segment_id: segment.id }
-        });
-
-        return {
-          id: segment.id,
-          name: segment.name,
-          description: segment.description || '',
-          criteria: segment.criteria,
-          is_dynamic: segment.is_dynamic,
-          member_count: memberCount,
-          created_at: segment.created_at
-        };
+      // Beschreibung auf leeren String normalisieren
+      const normalized = segments.map((s) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description || '',
+        criteria: s.criteria,
+        is_dynamic: s.is_dynamic,
+        member_count: Number(s.member_count) || 0,
+        created_at: s.created_at
       }));
 
-      return res.status(200).json({ segments: segmentsWithMemberCount });
+      return res.status(200).json({ segments: normalized });
     } catch (error) {
       console.error('Fehler beim Abrufen der Segmente:', error);
       return res.status(500).json({ error: 'Serverfehler', details: (error as Error).message });
@@ -63,25 +77,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         criteria 
       } = req.body;
 
-      // Segment erstellen
-      const segment = await prisma.user_segments.create({
-        data: {
-          name,
-          description,
-          is_dynamic,
-          criteria,
-          created_by: user.id
-        }
-      });
+      // Eingabevalidierung
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Name ist erforderlich' });
+      }
+
+      const dynamicFlag = typeof is_dynamic === 'boolean' ? is_dynamic : true;
+      const criteriaJson = criteria ? JSON.stringify(criteria) : JSON.stringify({});
+
+      // Segment per SQL erstellen und ID zurückgeben
+      const inserted: Array<{ id: string }> = await prisma.$queryRawUnsafe(
+        `
+        INSERT INTO user_segments (name, description, is_dynamic, criteria, created_by)
+        VALUES ($1, $2, $3, $4::jsonb, $5)
+        RETURNING id
+        `,
+        name,
+        description ?? null,
+        dynamicFlag,
+        criteriaJson,
+        user.id
+      );
+
+      const segmentId = inserted[0]?.id;
 
       // Wenn es ein dynamisches Segment ist, Mitglieder basierend auf Kriterien hinzufügen
-      if (is_dynamic) {
-        await updateDynamicSegmentMembers(segment.id, criteria);
+      if (segmentId && dynamicFlag) {
+        await updateDynamicSegmentMembers(segmentId, criteria || {});
       }
 
       return res.status(201).json({ 
         message: 'Segment erfolgreich erstellt',
-        segment_id: segment.id
+        segment_id: segmentId
       });
     } catch (error) {
       console.error('Fehler beim Erstellen des Segments:', error);
@@ -99,26 +126,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 // Hilfsfunktion zum Aktualisieren der Mitglieder eines dynamischen Segments
 async function updateDynamicSegmentMembers(segmentId: string, criteria: any) {
   try {
-    const prisma = new PrismaClient();
-    
-    // Bestehende Mitglieder entfernen
-    await prisma.user_segment_members.deleteMany({
-      where: { segment_id: segmentId }
-    });
-    
+    const prismaLocal = new PrismaClient();
+
+    // Bestehende Mitglieder entfernen (SQL)
+    await prismaLocal.$executeRawUnsafe(
+      `DELETE FROM user_segment_members WHERE segment_id = $1`,
+      segmentId
+    );
+
     // SQL-Abfrage basierend auf den Kriterien erstellen
     let query = `
       SELECT id, email
       FROM profiles
       WHERE 1=1
     `;
-    
     const params: any[] = [];
-    
+
     // Engagement-Level-Filter
     if (criteria.engagement_level && criteria.engagement_level !== 'any') {
       let engagementCondition = '';
-      
       switch (criteria.engagement_level) {
         case 'high':
           engagementCondition = `
@@ -155,10 +181,9 @@ async function updateDynamicSegmentMembers(segmentId: string, criteria: any) {
           `;
           break;
       }
-      
       query += engagementCondition;
     }
-    
+
     // Letzter Aktivitätsfilter
     if (criteria.last_active_days && criteria.last_active_days > 0) {
       query += `
@@ -168,7 +193,7 @@ async function updateDynamicSegmentMembers(segmentId: string, criteria: any) {
         )
       `;
     }
-    
+
     // E-Mail-Aktivitätsfilter
     if (criteria.email_activity) {
       // Öffnungsrate
@@ -185,7 +210,6 @@ async function updateDynamicSegmentMembers(segmentId: string, criteria: any) {
         `;
         params.push(criteria.email_activity.open_rate);
       }
-      
       // Klickrate
       if (criteria.email_activity.click_rate > 0) {
         query += `
@@ -239,24 +263,27 @@ async function updateDynamicSegmentMembers(segmentId: string, criteria: any) {
       `;
       params.push(...criteria.tags);
     }
-    
+
     // Abfrage ausführen
-    const users = await prisma.$queryRawUnsafe(query, ...params);
-    
+    const users: Array<{ id: string; email: string | null }> = await prismaLocal.$queryRawUnsafe(query, ...params);
+
     // Benutzer zum Segment hinzufügen
     if (Array.isArray(users) && users.length > 0) {
-      const memberData = users.map((user: any) => ({
-        segment_id: segmentId,
-        user_id: user.id,
-        score: 1.0 // Standardwert, könnte basierend auf Kriterien angepasst werden
-      }));
-      
-      await prisma.user_segment_members.createMany({
-        data: memberData,
-        skipDuplicates: true
-      });
+      // Einfügen in kleinen Batches, um Konflikte zu ignorieren
+      for (const u of users) {
+        await prismaLocal.$executeRawUnsafe(
+          `
+          INSERT INTO user_segment_members (segment_id, user_id, score)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (segment_id, user_id) DO NOTHING
+          `,
+          segmentId,
+          u.id,
+          1.0
+        );
+      }
     }
-    
+
     return true;
   } catch (error) {
     console.error('Fehler beim Aktualisieren der Segmentmitglieder:', error);
