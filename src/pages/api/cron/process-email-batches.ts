@@ -37,6 +37,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     let processed = 0;
     let scheduled = 0;
 
+    // Ermittle die Basis-URL robust (Dev/Preview/Prod)
+    const siteUrl = (
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_WEBSITE_URL ||
+      process.env.SITE_URL ||
+      `${(req.headers['x-forwarded-proto'] as string) || 'http'}://${req.headers.host}`
+    ).replace(/\/$/, '');
+
     // Global Quota: max 200 emails per 1h window (IONOS limit)
     const windowStart = new Date(now.getTime() - 60 * 60 * 1000);
     const { count: sentInWindow } = await adminSupabase
@@ -58,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const { data: pendingBatches, error: batchError } = await adminSupabase
       .from('email_batches')
       .select('id, campaign_id')
-      .eq('status', 'PENDING')
+      .in('status', ['PENDING', 'pending'])
       .lte('scheduled_time', now.toISOString())
       .order('scheduled_time', { ascending: true });
 
@@ -88,7 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       try {
         // Rufe den Batch-Prozessor auf, begrenze pro Lauf die Anzahl über maxToSend
         const maxForThisBatch = Math.min(remainingQuota, 50); // Standard-Chunks von 50
-        const response = await fetch(`${process.env.NEXT_PUBLIC_WEBSITE_URL}/api/admin/emails/process-batch`, {
+        const response = await fetch(`${siteUrl}/api/admin/emails/process-batch`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
