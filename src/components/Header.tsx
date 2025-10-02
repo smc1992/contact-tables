@@ -44,7 +44,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center space-x-2">
-              <img className="h-16 w-auto" src="/images/logo-fixed/Logo CT mittig 4c.webp" alt="Contact Tables" />
+              <img className="h-16 w-auto" src="/images/logo/logo/Contact Tables RGB transparent.webp" alt="Contact Tables Logo" />
             </Link>
           </div>
 

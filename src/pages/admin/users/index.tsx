@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
-import { FiUsers, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiMail, FiLock, FiFilter, FiSearch } from 'react-icons/fi';
+import { FiUsers, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiMail, FiLock, FiFilter, FiSearch, FiDownload } from 'react-icons/fi';
 import { FaUser, FaUtensils, FaUsers } from 'react-icons/fa';
 import { GetServerSideProps } from 'next';
 import { withAuth } from '@/utils/withAuth';
@@ -122,6 +122,8 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
   const [usersWithSelectedTag, setUsersWithSelectedTag] = useState<string[]>([]);
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [csvExporting, setCsvExporting] = useState(false);
+  const [registeredFrom, setRegisteredFrom] = useState<string>('');
   
   // Debugging-Informationen
   useEffect(() => {
@@ -446,6 +448,41 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
     } catch (error) {
       console.error('Fehler beim Ändern des Passworts:', error);
       alert('Fehler beim Ändern des Passworts');
+    }
+  };
+
+  // CSV-Export-Funktion
+  const handleExportCSV = async () => {
+    setCsvExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (activeTab && activeTab !== 'all') params.set('role', activeTab);
+      if (registeredFrom) params.set('registered_from', registeredFrom);
+      const query = params.toString();
+      const response = await fetch(`/api/admin/users/export-csv${query ? `?${query}` : ''}`);
+      
+      if (!response.ok) {
+        throw new Error('Fehler beim Exportieren der CSV-Datei');
+      }
+      
+      // CSV-Datei herunterladen
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `benutzer_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      message.success('CSV-Datei erfolgreich heruntergeladen');
+    } catch (error) {
+      console.error('Fehler beim CSV-Export:', error);
+      message.error('Fehler beim Exportieren der CSV-Datei');
+    } finally {
+      setCsvExporting(false);
     }
   };
 
@@ -985,6 +1022,23 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
                     'Aktualisieren'
                   )}
                 </button>
+                <button
+                  onClick={handleExportCSV}
+                  disabled={csvExporting}
+                  className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center ${csvExporting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {csvExporting ? (
+                    <>
+                      <FiDownload className="animate-pulse mr-2" />
+                      Exportiere...
+                    </>
+                  ) : (
+                    <>
+                      <FiDownload className="mr-2" />
+                      CSV Export
+                    </>
+                  )}
+                </button>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -1078,6 +1132,15 @@ export default function UsersPage({ initialUsers, initialGroupedUsers, error, us
                       className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Registriert ab</label>
+                  <input
+                    type="date"
+                    value={registeredFrom}
+                    onChange={(e) => setRegisteredFrom(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">E-Mail enthält</label>

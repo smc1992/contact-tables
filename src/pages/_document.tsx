@@ -10,7 +10,7 @@ class MyDocument extends Document {
     return (
       <Html lang="de">
         <Head>
-          <link rel="icon" href="/images/logo-fixed/Logo CT mittig 4c.webp" type="image/webp" />
+          <link rel="icon" href="/images/logo/logo/Contact Tables RGB transparent.webp" type="image/webp" />
           <meta name="description" content="Contact Tables verbindet Menschen anonym am Restauranttisch – für authentische Gespräche und neue Begegnungen in entspannter Atmosphäre." />
           <meta name="theme-color" content="#d3d800" />
         </Head>

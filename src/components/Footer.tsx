@@ -14,7 +14,7 @@ export default function Footer() {
               <div className="flex items-center space-x-3 group">
                 <div className="h-12 bg-white p-2 rounded-lg overflow-hidden relative">
                   <Image 
-                    src="/images/logo-fixed/Logo CT quer 4c.webp" 
+                    src="/images/logo/logo/Contact Tables RGB transparent.webp" 
                     alt="Contact Tables Logo" 
                     width={120}
                     height={40}
@@ -146,4 +146,4 @@ export default function Footer() {
       </div>
     </footer>
   );
-} 
+}

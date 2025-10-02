@@ -31,8 +31,15 @@ Eine weitere Verarbeitung auf anderen Servern als den vorgenannten von Netlify f
 Am Wiesenhang 12<br />
 65207 Wiesbaden</p>
 
-<p>Telefon: +4915679640069<br />
-E-Mail: datenschutz@contact-tables.org</p>
+<h3>Verantwortlicher</h3>
+<p>Verantwortlich f&uuml;r die Datenverarbeitung im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
+<p>Contact-tables LLC<br />
+Registrierungsnummer: 8048467<br />
+1209 Mountain Rd Pl NE<br />
+Albuquerque, NM 87110<br />
+USA<br />
+Vertreten durch: Anette Rapp</p>
+<p>E-Mail: datenschutz@contact-tables.org</p>
  <p>Verantwortliche Stelle ist die nat&uuml;rliche oder juristische Person, die allein oder gemeinsam mit anderen &uuml;ber die Zwecke und Mittel der Verarbeitung von personenbezogenen Daten (z.&nbsp;B. Namen, E-Mail-Adressen o. &Auml;.) entscheidet.</p>
 
 <h3>Speicherdauer</h3> <p>Soweit innerhalb dieser Datenschutzerkl&auml;rung keine speziellere Speicherdauer genannt wurde, verbleiben Ihre personenbezogenen Daten bei uns, bis der Zweck f&uuml;r die Datenverarbeitung entf&auml;llt. Wenn Sie ein berechtigtes L&ouml;schersuchen geltend machen oder eine Einwilligung zur Datenverarbeitung widerrufen, werden Ihre Daten gel&ouml;scht, sofern wir keine anderen rechtlich zul&auml;ssigen Gr&uuml;nde f&uuml;r die Speicherung Ihrer personenbezogenen Daten haben (z.&nbsp;B. steuer- oder handelsrechtliche Aufbewahrungsfristen); im letztgenannten Fall erfolgt die L&ouml;schung nach Fortfall dieser Gr&uuml;nde.</p>
