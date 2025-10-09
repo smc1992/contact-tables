@@ -27,9 +27,11 @@ Eine weitere Verarbeitung auf anderen Servern als den vorgenannten von Netlify f
 <h4>Auftragsverarbeitung</h4> <p>Wir haben einen Vertrag &uuml;ber Auftragsverarbeitung (AVV) zur Nutzung des oben genannten Dienstes geschlossen. Hierbei handelt es sich um einen datenschutzrechtlich vorgeschriebenen Vertrag, der gew&auml;hrleistet, dass dieser die personenbezogenen Daten unserer Websitebesucher nur nach unseren Weisungen und unter Einhaltung der DSGVO verarbeitet.</p>
 <h2>3. Allgemeine Hinweise und Pflicht&shy;informationen</h2>
 <h3>Datenschutz</h3> <p>Die Betreiber dieser Seiten nehmen den Schutz Ihrer pers&ouml;nlichen Daten sehr ernst. Wir behandeln Ihre personenbezogenen Daten vertraulich und entsprechend den gesetzlichen Datenschutzvorschriften sowie dieser Datenschutzerkl&auml;rung.</p> <p>Wenn Sie diese Website benutzen, werden verschiedene personenbezogene Daten erhoben. Personenbezogene Daten sind Daten, mit denen Sie pers&ouml;nlich identifiziert werden k&ouml;nnen. Die vorliegende Datenschutzerkl&auml;rung erl&auml;utert, welche Daten wir erheben und wof&uuml;r wir sie nutzen. Sie erl&auml;utert auch, wie und zu welchem Zweck das geschieht.</p> <p>Wir weisen darauf hin, dass die Daten&uuml;bertragung im Internet (z.&nbsp;B. bei der Kommunikation per E-Mail) Sicherheitsl&uuml;cken aufweisen kann. Ein l&uuml;ckenloser Schutz der Daten vor dem Zugriff durch Dritte ist nicht m&ouml;glich.</p>
-<h3>Hinweis zur verantwortlichen Stelle</h3> <p>Die verantwortliche Stelle f&uuml;r die Datenverarbeitung auf dieser Website ist:</p> <p>Anette Rapp<br />
-Am Wiesenhang 12<br />
-65207 Wiesbaden</p>
+<h3>Hinweis zur verantwortlichen Stelle</h3> <p>Die verantwortliche Stelle f&uuml;r die Datenverarbeitung auf dieser Website ist:</p> <p>Contact-tables LLC<br />
+Registrierungsnummer: 8048467<br />
+1209 Mountain Rd Pl NE<br />
+Albuquerque, NM 87110<br />
+USA</p>
 
 <h3>Verantwortlicher</h3>
 <p>Verantwortlich f&uuml;r die Datenverarbeitung im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
@@ -37,8 +39,7 @@ Am Wiesenhang 12<br />
 Registrierungsnummer: 8048467<br />
 1209 Mountain Rd Pl NE<br />
 Albuquerque, NM 87110<br />
-USA<br />
-Vertreten durch: Anette Rapp</p>
+USA</p>
 <p>E-Mail: datenschutz@contact-tables.org</p>
  <p>Verantwortliche Stelle ist die nat&uuml;rliche oder juristische Person, die allein oder gemeinsam mit anderen &uuml;ber die Zwecke und Mittel der Verarbeitung von personenbezogenen Daten (z.&nbsp;B. Namen, E-Mail-Adressen o. &Auml;.) entscheidet.</p>
 
