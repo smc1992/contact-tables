@@ -44,7 +44,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center space-x-2">
-              <img className="h-16 w-auto" src="/images/logo/logo/Contact Tables RGB transparent.webp" alt="Contact Tables Logo" />
+              <img className="h-12 w-auto" src="/images/logo/logo/Contact Tables RGB transparent.webp" alt="Contact Tables Logo" />
             </Link>
           </div>
 

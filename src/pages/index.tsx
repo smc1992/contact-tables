@@ -290,7 +290,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                 transition={{ duration: 0.7, delay: 0.5 }}
               >
                 <span className="block">Willkommen bei</span>
-                <span className="block">contact-tables.org</span>
+                <span className="block">contact-tables®</span>
               </motion.p>
               
               {/* Sprachanimation im Hero-Bereich (angepasst für hellen Hintergrund) */}

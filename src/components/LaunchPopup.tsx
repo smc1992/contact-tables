@@ -44,8 +44,7 @@ const LaunchPopup = () => {
             </button>
             <h2 className="text-2xl font-bold text-gray-800 mb-3">Bald geht's richtig los!</h2>
             <p className="text-gray-600 leading-relaxed">
-              Der offizielle Launch von contact-tables ist im 
-              <span className="font-semibold text-primary-600"> Oktober 2025</span>.
+              Der offizielle Launch von contact-tables ist schon ganz bald. Wir arbeiten auf Hochtouren daran.
               <br />
               Du kannst dich aber schon jetzt registrieren und Teil unserer Community werden.
             </p>
