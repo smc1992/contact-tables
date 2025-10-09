@@ -11,7 +11,7 @@ export default function Impressum() {
         <div className="prose prose-neutral max-w-none text-neutral-700">
           <h2>Kontakt</h2>
           <p>
-            Contact-tables LLC, registriert im US-Bundesstaat New Mexico unter der Registrierungsnummer 8048467, mit Sitz in 1209 Mountain Rd Pl NE, Albuquerque, NM87110, USA, vertreten durch Anette Rapp
+            Contact-tables LLC, registriert im US-Bundesstaat New Mexico unter der Registrierungsnummer 8048467, mit Sitz in 1209 Mountain Rd Pl NE, Albuquerque, NM87110, USA.
           </p>
 
           <p>

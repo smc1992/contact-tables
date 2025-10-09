@@ -69,7 +69,7 @@ export default function AgbPage() {
               <p>
                 Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die Nutzung der Plattform contact-tables.org durch Verbraucher im Sinne des § 13 BGB (im Folgenden
                 „Nutzer“). Betreiber der Plattform ist die Contact-tables LLC, registriert im US-Bundesstaat New Mexico unter der Nummer 8048467, mit Sitz in 1209 Mountain Rd Pl NE,
-                Albuquerque, NM 87110, USA, vertreten durch Anette Rapp (im Folgenden „Betreiber“).
+                Albuquerque, NM 87110, USA (im Folgenden „Betreiber“).
               </p>
               <p>
                 Die Nutzung der Plattform ist für Nutzer derzeit kostenlos. Der Betreiber behält sich jedoch vor, künftig zusätzliche, freiwillig buchbare Funktionen oder Upgrades
@@ -191,7 +191,7 @@ export default function AgbPage() {
               <h3>1. Präambel / Einleitung</h3>
               <p>
                 Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Verträge zwischen der Contact-tables LLC, registriert im US-Bundesstaat New Mexico unter der Registrierungsnummer
-                8048467, mit Sitz in 1209 Mountain Rd Pl NE, Albuquerque, NM 87110, USA, vertreten durch Anette Rapp (im Folgenden „Betreiber“), und gastronomischen Betrieben (im Folgenden
+                8048467, mit Sitz in 1209 Mountain Rd Pl NE, Albuquerque, NM 87110, USA (im Folgenden „Betreiber“), und gastronomischen Betrieben (im Folgenden
                 „Restaurant“), die ihre Betriebe auf der Plattform des Betreibers listen.
               </p>
               <p>
