@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
@@ -45,6 +45,19 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
+  // Digistore24: zwei Zahlungspläne direkt verknüpfen (custom = Restaurant-ID)
+  const DIGISTORE_MONTHLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_BASIC_URL;
+  const DIGISTORE_YEARLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_PREMIUM_URL;
+  const appendCustom = (url?: string) => {
+    if (!url) return undefined;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}custom=${encodeURIComponent(restaurant.id)}`;
+  };
+  const dsPlans = [
+    ...(DIGISTORE_MONTHLY_URL ? [{ id: 'monthly', name: 'Monatlich', url: String(appendCustom(DIGISTORE_MONTHLY_URL)) }] : []),
+    ...(DIGISTORE_YEARLY_URL ? [{ id: 'yearly', name: 'Jährlich', url: String(appendCustom(DIGISTORE_YEARLY_URL)) }] : []),
+  ];
+
   const plans = [
     {
       id: 'basic',
@@ -118,7 +131,6 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
       setSuccess('Abonnement erfolgreich aktualisiert');
       setIsUpgrading(false);
       
-      // In einer echten Implementierung würden wir hier die Seite neu laden oder die Daten aktualisieren
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -175,23 +187,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency }).format(amount);
   };
   
-  // Digistore24: zwei Zahlungspläne dynamisch laden
-  const [dsPlans, setDsPlans] = useState<Array<{ id: string; name: string; price?: number; currency?: string; url: string }>>([]);
-
-  useEffect(() => {
-    const loadPlans = async () => {
-      try {
-        const resp = await fetch(`/api/digistore/plans?restaurantId=${encodeURIComponent(restaurant.id)}`);
-        const json = await resp.json();
-        if (Array.isArray(json?.plans)) {
-          setDsPlans(json.plans);
-        }
-      } catch (e) {
-        console.warn('Konnte Digistore-Pläne nicht laden:', e);
-      }
-    };
-    loadPlans();
-  }, [restaurant.id]);
+  // Digistore24: Pläne werden über ENV eingebunden (siehe dsPlans oben)
   
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -218,11 +214,6 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                     <div key={p.id} className="border rounded-xl p-6">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-lg font-semibold text-gray-800">{p.name}</h3>
-                        {typeof p.price === 'number' && p.currency && (
-                          <span className="text-gray-700 font-bold">
-                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: p.currency }).format(p.price)}
-                          </span>
-                        )}
                       </div>
                       <p className="text-gray-600 mb-4">Bezahlen Sie sicher über Digistore24. Ihr Restaurant wird nach Zahlung automatisch freigeschaltet.</p>
                       <a
@@ -231,7 +222,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                         rel="noopener noreferrer"
                         className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
                       >
-                        Jetzt auswählen
+                        Zahlung abschließen
                       </a>
                     </div>
                   ))}
@@ -308,9 +299,9 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                     <div className="flex items-center mb-2">
                       <FiCreditCard className="text-primary-500 mr-2" size={20} />
                       <h3 className="text-lg font-medium text-gray-800">
-                        {restaurant.plan === 'basic' && 'Basic'}
-                        {restaurant.plan === 'standard' && 'Standard'}
-                        {restaurant.plan === 'premium' && 'Premium'}
+                        {restaurant.plan === 'monthly' && 'Monatlich'}
+                        {restaurant.plan === 'yearly' && 'Jährlich'}
+                        {!['monthly','yearly'].includes(restaurant.plan || '') && 'Mitgliedschaft'}
                       </h3>
                     </div>
                     
@@ -357,57 +348,31 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
               >
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">Tarif ändern</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {plans.map((plan) => (
-                    <div 
-                      key={plan.id}
-                      className={`border rounded-xl p-6 cursor-pointer transition-colors ${
-                        selectedPlan === plan.id 
-                          ? 'border-primary-500 bg-primary-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      onClick={() => handlePlanSelect(plan.id)}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {DIGISTORE_MONTHLY_URL && (
+                    <a
+                      href={String(appendCustom(DIGISTORE_MONTHLY_URL))}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors"
                     >
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
-                        <div className={`w-5 h-5 rounded-full border-2 ${
-                          selectedPlan === plan.id 
-                            ? 'border-primary-500 bg-primary-500' 
-                            : 'border-gray-300'
-                        }`} />
-                      </div>
-                      
-                      <p className="text-2xl font-bold text-gray-900 mb-4">
-                        {formatAmount(plan.price, 'EUR')}<span className="text-sm font-normal text-gray-500">/Monat</span>
-                      </p>
-                      
-                      <ul className="space-y-2">
-                        {plan.features.map((feature, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="text-primary-500 mr-2">✓</span>
-                            <span className="text-gray-600">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                      <span className="text-lg font-semibold text-gray-800">Monatlich</span>
+                      <span className="px-4 py-2 bg-primary-600 text-white rounded-lg">Zur Zahlung</span>
+                    </a>
+                  )}
+                  {DIGISTORE_YEARLY_URL && (
+                    <a
+                      href={String(appendCustom(DIGISTORE_YEARLY_URL))}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors"
+                    >
+                      <span className="text-lg font-semibold text-gray-800">Jährlich</span>
+                      <span className="px-4 py-2 bg-primary-600 text-white rounded-lg">Zur Zahlung</span>
+                    </a>
+                  )}
                 </div>
-                
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    onClick={() => setIsUpgrading(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Abbrechen
-                  </button>
-                  
-                  <button
-                    onClick={handleUpgradeSubmit}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center"
-                  >
-                    Tarif aktualisieren <FiArrowRight className="ml-2" />
-                  </button>
-                </div>
+
               </motion.div>
             )}
             

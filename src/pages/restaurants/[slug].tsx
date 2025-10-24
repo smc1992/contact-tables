@@ -198,8 +198,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return { notFound: true };
   }
 
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { slug },
+  // Enforce visibility and payment gating: only active + paid
+  const restaurant = await prisma.restaurant.findFirst({
+    where: { slug, isActive: true, contractStatus: 'ACTIVE' },
     include: {
       events: {
         where: {

@@ -30,25 +30,26 @@ export default function RestaurantList({
   // Funktion zum Abrufen der Restaurants
   const fetchRestaurants = async (): Promise<Restaurant[]> => {
     let query = supabase
-      .from('restaurants')
-      .select('id, name, address, city, cuisine, image_url, is_active')
-      .order('name');
-      
+      .from(showInactive ? 'restaurants' : 'visible_restaurants')
+      .select('id, name, address, city, cuisine, image_url, is_active');
+
     if (!showInactive) {
-      query = query.eq('is_active', true);
+      // visible_restaurants already enforces gating; optional limit applies to both
+      if (limit > 0) {
+        query = query.limit(limit);
+      }
+    } else {
+      if (limit > 0) {
+        query = query.limit(limit);
+      }
     }
-    
-    if (limit > 0) {
-      query = query.limit(limit);
-    }
-    
+
     const { data, error } = await query;
-    
     if (error) {
       throw new Error(`Fehler beim Laden der Restaurants: ${error.message}`);
     }
-    
-    return data || [];
+
+    return (data || []) as Restaurant[];
   };
   
   // Cache-Key basierend auf den Parametern

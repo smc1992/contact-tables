@@ -41,7 +41,7 @@ export default async function handler(
       email,
       password: tempPassword, // Erforderlich für signup-Links
       options: {
-        redirectTo: `${siteUrl}/auth/callback`
+        redirectTo: `${siteUrl}/auth/confirm`
       }
     });
 

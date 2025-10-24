@@ -19,7 +19,7 @@ interface RestaurantData {
   capacity: number;
   openingHours: string;
   imageUrl: string | null;
-  isActive: boolean;
+  isVisible: boolean;
   contractStatus: string;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +43,16 @@ interface DashboardProps {
 export default function SimpleDashboard({ restaurant }: DashboardProps) {
   // Vereinfachte Version ohne Animationen und komplexe Berechnungen
   
+  const resolveUrl = (base?: string) => {
+    if (!base) return undefined;
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}custom=${encodeURIComponent(restaurant.id)}`;
+  };
+  const monthlyBase = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_BASIC_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_BASIC_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#';
+  const yearlyBase = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#';
+  const monthlyUrl = resolveUrl(monthlyBase);
+  const yearlyUrl = resolveUrl(yearlyBase);
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -63,21 +73,41 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
             </div>
             
             {/* Zahlungs-/Aktivierungs-Hinweis */}
-            {(!restaurant?.isActive || restaurant?.contractStatus !== 'ACTIVE') && (
+            {(!restaurant?.isVisible || restaurant?.contractStatus !== 'ACTIVE') && (
               <div className="mb-8">
                 <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-6">
                   <h2 className="text-lg font-semibold text-yellow-800 mb-2">Profil noch nicht freigeschaltet</h2>
                   <p className="text-yellow-900 mb-4">
                     Bitte schließen Sie die Zahlung über Digistore ab, damit Ihr Restaurantprofil freigeschaltet und sichtbar wird.
                   </p>
-                  <a
-                    href={process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium transition-colors"
-                  >
-                    Jetzt bezahlen
-                  </a>
+                  <div className="flex flex-wrap gap-3">
+                    {monthlyUrl && (
+                      <a
+                        href={monthlyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium transition-colors"
+                      >
+                        Monatlich zahlen
+                      </a>
+                    )}
+                    {yearlyUrl && (
+                      <a
+                        href={yearlyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 border border-yellow-600 text-yellow-800 hover:bg-yellow-100 rounded-md font-medium transition-colors"
+                      >
+                        Jährlich zahlen
+                      </a>
+                    )}
+                    <a
+                      href="/restaurant/dashboard/subscription"
+                      className="inline-flex items-center px-4 py-2 border border-yellow-600 text-yellow-800 hover:bg-yellow-100 rounded-md font-medium transition-colors"
+                    >
+                      Abonnement verwalten
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -179,21 +209,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     };
   }
   
-  const prisma = new PrismaClient();
   try {
-    const restaurant = await prisma.restaurant.findFirst({
-      where: {
-        userId: user.id,
-      },
-      include: {
-        contract: true,
-        _count: {
-          select: { events: true },
-        },
-      },
-    });
-    
-    if (!restaurant) {
+    const { data: restaurantData, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('userId', user.id)
+      .single();
+
+    if (restaurantError || !restaurantData) {
       return {
         redirect: {
           destination: '/restaurant/register?error=not_found',
@@ -201,20 +224,38 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         },
       };
     }
-    
+
+    const restaurant: RestaurantData = {
+      id: restaurantData.id,
+      name: restaurantData.name,
+      description: restaurantData.description || '',
+      address: restaurantData.address || '',
+      city: restaurantData.city || '',
+      cuisine: restaurantData.cuisine || '',
+      phone: restaurantData.phone || '',
+      email: restaurantData.email || '',
+      website: restaurantData.website || '',
+      capacity: Number(restaurantData.capacity || 0),
+      openingHours: (restaurantData.opening_hours as string) || '',
+      imageUrl: restaurantData.image_url || null,
+      isVisible: Boolean(restaurantData.is_visible),
+      contractStatus: restaurantData.contract_status || 'PENDING',
+      createdAt: restaurantData.created_at,
+      updatedAt: restaurantData.updated_at,
+      userId: restaurantData.userId,
+    };
+
     return {
       props: {
-        restaurant: JSON.parse(JSON.stringify(restaurant)),
+        restaurant,
       },
     };
   } catch (error) {
-    console.error('Fehler beim Abrufen der Restaurantdaten:', error);
+    console.error('Fehler beim Abrufen der Restaurantdaten (Supabase):', error);
     return {
       props: {
         error: 'Fehler beim Abrufen der Restaurantdaten',
       },
     };
-  } finally {
-    await prisma.$disconnect();
   }
 };

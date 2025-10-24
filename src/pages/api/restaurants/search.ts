@@ -44,26 +44,25 @@ export default async function handler(
         console.error('Fehler bei RPC nearby_restaurants:', JSON.stringify(rpcError, null, 2));
         throw rpcError;
       }
-      restaurants = rpcData || [];
+      // Enforce visibility gating: only active + paid (Digistore active)
+      restaurants = (rpcData || []).filter((r: any) => r?.is_active === true && r?.contract_status === 'ACTIVE');
 
       // Additional filtering in backend if needed (less performant but necessary if not in RPC)
       if (cuisine) {
         restaurants = restaurants.filter((r: RestaurantPageItem) => r.cuisine?.toLowerCase().includes((cuisine as string).toLowerCase()));
       }
       if (priceRange) {
-                        restaurants = restaurants.filter((r: RestaurantPageItem) => r.price_range == priceRange);
+        restaurants = restaurants.filter((r: RestaurantPageItem) => r.price_range == priceRange);
       }
       if (offerTableToday === 'true') {
-                        restaurants = restaurants.filter((r: RestaurantPageItem) => r.offer_table_today === true);
+        restaurants = restaurants.filter((r: RestaurantPageItem) => r.offer_table_today === true);
       }
 
     } else if (searchTerm) {
       // --- TEXT-BASED SEARCH (FALLBACK) ---
       let query = supabase
-        .from('restaurants')
+        .from('visible_restaurants')
         .select('*, ratings(value), favorites(user_id)')
-        .eq('is_active', true)
-        .eq('contract_status', 'ACTIVE')
         .ilike('name', `%${searchTerm}%`);
 
       if (cuisine) {
@@ -103,11 +102,11 @@ export default async function handler(
 
     // --- SORTING ---
     if (sortBy === 'distance' && hasLocation) {
-                  restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (a.distance_in_meters ?? Infinity) - (b.distance_in_meters ?? Infinity));
+      restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (a.distance_in_meters ?? Infinity) - (b.distance_in_meters ?? Infinity));
     } else if (sortBy === 'popularity') {
-                  restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (b.popularity ?? 0) - (a.popularity ?? 0));
+      restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (b.popularity ?? 0) - (a.popularity ?? 0));
     } else if (sortBy === 'rating') {
-            restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
+      restaurants.sort((a: RestaurantPageItem, b: RestaurantPageItem) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
     }
 
     // --- PAGINATION ---
@@ -115,24 +114,20 @@ export default async function handler(
     const limit = parseInt(req.query.limit as string) || 10;
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
-    const paginatedRestaurants = restaurants.slice(startIndex, endIndex);
+    const paginatedRestaurants = (restaurants as RestaurantPageItem[]).slice(startIndex, endIndex);
 
     res.status(200).json({
       restaurants: paginatedRestaurants,
       pagination: {
-        totalResults: restaurants.length,
-        totalPages: Math.ceil(restaurants.length / limit),
+        totalResults: (restaurants as RestaurantPageItem[]).length,
+        totalPages: Math.ceil((restaurants as RestaurantPageItem[]).length / limit),
         currentPage: page,
         resultsPerPage: limit
       },
       filters: { ...req.query }
     });
-
-  } catch (e: any) {
-    console.error('Unerwarteter Fehler in /api/restaurants/search:', e);
-    res.status(500).json({
-      message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
-      error: process.env.NODE_ENV === 'development' ? { message: e.message, stack: e.stack } : {}
-    });
+  } catch (error) {
+    console.error('Fehler bei der Restaurantsuche:', error);
+    return res.status(500).json({ message: 'Interner Serverfehler' });
   }
 }

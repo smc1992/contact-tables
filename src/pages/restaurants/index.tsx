@@ -214,46 +214,95 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
 
         if (error) throw error;
         restaurantsData = data || [];
+
+        // Enforce visibility gating: only active + paid (Digistore active)
+        restaurantsData = (restaurantsData || []).filter((r: any) => r?.is_active === true && r?.contract_status === 'ACTIVE');
       }
 
     } else if (searchQuery) {
-            const { data, error } = await supabase
-        .from('restaurants')
+      let query = supabase
+        .from('visible_restaurants')
         .select('*')
-        .textSearch('name', `'${searchQuery}'`);
+        .ilike('name', `%${searchQuery}%`);
       
-      if (error) throw error;
-      restaurantsData = data || [];
-
+      if (context.query.cuisine) {
+        query = query.ilike('cuisine', `%${context.query.cuisine}%`);
+      }
+      if (context.query.priceRange) {
+        query = query.eq('price_range', context.query.priceRange);
+      }
+      if (context.query.offerTableToday === 'true') {
+        query = query.eq('offer_table_today', true);
+      }
+      
+      const { data, error } = await query;
+      if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01')) {
+        const { data: data2, error: error2 } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('is_active', true)
+          .eq('is_visible', true)
+          .eq('contract_status', 'ACTIVE')
+          .ilike('name', `%${searchQuery}%`);
+        if (error2) throw error2;
+        restaurantsData = data2 || [];
+      } else if (error) {
+        throw error;
+      } else {
+        restaurantsData = data || [];
+      }
     } else {
-            const { data, error } = await supabase
-        .from('restaurants')
+      const { data, error } = await supabase
+        .from('visible_restaurants')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
-      restaurantsData = data || [];
+      if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01')) {
+        const { data: data2, error: error2 } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('is_active', true)
+          .eq('is_visible', true)
+          .eq('contract_status', 'ACTIVE')
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (error2) throw error2;
+        restaurantsData = data2 || [];
+      } else if (error) {
+        throw error;
+      } else {
+        restaurantsData = data || [];
+      }
     }
 
-    const restaurants = restaurantsData;
+    const restaurants: RestaurantPageItem[] = (restaurantsData || []).map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description || '',
+      address: r.address || '',
+      city: r.city || '',
+      cuisine: r.cuisine || '',
+      image_url: r.image_url || null,
+      lat: r.lat || null,
+      long: r.long || null,
+      avg_rating: r.avg_rating || null,
+      popularity: r.popularity || 0,
+      distance_meters: r.distance_meters || null,
+    }));
 
-    return { 
-      props: { 
-        ...defaultProps,
-        restaurants, 
-        center: geoData ? { lat: geoData.lat, lng: geoData.lon } : null
-      } 
+    return {
+      props: {
+        restaurants,
+        searchQuery,
+        location,
+        radius,
+        center: geoData ? { lat: Number(geoData.lat), lng: Number(geoData.lon) } : null,
+      }
     };
-
-  } catch (error: any) {
-    console.error('Error fetching restaurants:', error);
-    return { 
-      props: { 
-        ...defaultProps,
-        error: 'Ein unerwarteter Fehler ist aufgetreten.' 
-      } 
-    };
+  } catch (err) {
+    console.error('Fehler auf /restaurants:', err);
+    return { props: { ...defaultProps, error: 'Ein unerwarteter Fehler ist aufgetreten.' } };
   }
 };
 

@@ -171,7 +171,7 @@ export default async function handler(
         type: 'magiclink', // Verwende magiclink statt signup, da der Benutzer bereits bestätigt ist
         email,
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/restaurant/dashboard`,
         },
       });
 
@@ -217,7 +217,7 @@ export default async function handler(
               cuisine: cuisine,
               capacity: capacity,
               openingHours: openingHours,
-              isActive: false, // Restaurants starten als inaktiv
+              isVisible: false,
               contractStatus: 'PENDING', // Startet im ausstehenden Status
             },
           });

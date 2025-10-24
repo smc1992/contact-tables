@@ -50,8 +50,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const restaurantId = (req.query.restaurantId as string) || undefined;
 
   // Fallback from env if API call is not available or fails
-  const basicEnv = process.env.NEXT_PUBLIC_DIGISTORE_PLAN_BASIC_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '';
-  const premiumEnv = process.env.NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '';
+  const basicEnv = process.env.NEXT_PUBLIC_DIGISTORE_PLAN_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_BASIC_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '';
+  const premiumEnv = process.env.NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '';
 
   const fallbackPlans: Plan[] = [
     basicEnv ? { id: 'basic', name: 'Basis', url: withCustomParam(basicEnv, restaurantId) } : undefined,

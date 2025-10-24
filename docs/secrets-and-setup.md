@@ -77,9 +77,10 @@ Hinweis: Variablen mit `NEXT_PUBLIC_…` sind clientseitig sichtbar und sollten 
   - `NEXT_PUBLIC_DIGISTORE_PRODUCT_URL` (Öffentlicher Checkout-Link)
   - `DIGISTORE_POSTBACK_SECRET` (Secret zur `sha_sign`-Verifikation)
   - `DIGISTORE_API_KEY` (Server-seitig; API-Zugriff auf Produkte/Pläne)
-- Optional (für zwei Pläne im Dashboard):
-  - `NEXT_PUBLIC_DIGISTORE_PLAN_BASIC_URL` (Checkout-Link „Basis“)
-  - `NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL` (Checkout-Link „Premium“)
+- Optional (monatlich/jährlich eindeutig):
+  - `NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL` (Checkout-Link „Monatlich“)
+  - `NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL` (Checkout-Link „Jährlich“)
+  - Für API-Fallback zusätzlich möglich: `NEXT_PUBLIC_DIGISTORE_PLAN_MONTHLY_URL`, `NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_URL`
 - Secret erzeugen:
   - OpenSSL: `openssl rand -hex 32` (64 Hex-Zeichen)
   - Node.js: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
