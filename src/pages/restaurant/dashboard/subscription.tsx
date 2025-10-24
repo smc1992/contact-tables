@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient } from '@/utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
@@ -175,6 +175,24 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency }).format(amount);
   };
   
+  // Digistore24: zwei Zahlungspläne dynamisch laden
+  const [dsPlans, setDsPlans] = useState<Array<{ id: string; name: string; price?: number; currency?: string; url: string }>>([]);
+
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const resp = await fetch(`/api/digistore/plans?restaurantId=${encodeURIComponent(restaurant.id)}`);
+        const json = await resp.json();
+        if (Array.isArray(json?.plans)) {
+          setDsPlans(json.plans);
+        }
+      } catch (e) {
+        console.warn('Konnte Digistore-Pläne nicht laden:', e);
+      }
+    };
+    loadPlans();
+  }, [restaurant.id]);
+  
   return (
     <div className="min-h-screen bg-neutral-50">
       <Header />
@@ -190,6 +208,36 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                 Verwalten Sie Ihr Contact Tables Abonnement und sehen Sie Ihre Rechnungen ein.
               </p>
             </div>
+
+            {/* Digistore24 Zahlungspläne */}
+            {dsPlans.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Zahlungspläne über Digistore24</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {dsPlans.map((p) => (
+                    <div key={p.id} className="border rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-semibold text-gray-800">{p.name}</h3>
+                        {typeof p.price === 'number' && p.currency && (
+                          <span className="text-gray-700 font-bold">
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: p.currency }).format(p.price)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-600 mb-4">Bezahlen Sie sicher über Digistore24. Ihr Restaurant wird nach Zahlung automatisch freigeschaltet.</p>
+                      <a
+                        href={p.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
+                      >
+                        Jetzt auswählen
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Erfolgs- oder Fehlermeldung */}
             {success && (

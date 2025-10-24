@@ -62,6 +62,26 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
               </div>
             </div>
             
+            {/* Zahlungs-/Aktivierungs-Hinweis */}
+            {(!restaurant?.isActive || restaurant?.contractStatus !== 'ACTIVE') && (
+              <div className="mb-8">
+                <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-6">
+                  <h2 className="text-lg font-semibold text-yellow-800 mb-2">Profil noch nicht freigeschaltet</h2>
+                  <p className="text-yellow-900 mb-4">
+                    Bitte schließen Sie die Zahlung über Digistore ab, damit Ihr Restaurantprofil freigeschaltet und sichtbar wird.
+                  </p>
+                  <a
+                    href={process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium transition-colors"
+                  >
+                    Jetzt bezahlen
+                  </a>
+                </div>
+              </div>
+            )}
+            
             {/* Willkommensbereich */}
             <div className="bg-primary-500 rounded-lg shadow-md p-8 mb-8 text-white">
               <h1 className="text-2xl md:text-3xl font-bold mb-2">
