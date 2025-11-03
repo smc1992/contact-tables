@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { createBrowserClient } from '@supabase/ssr';
 import { motion } from 'framer-motion';
-import { FiCheck, FiAlertCircle, FiUser, FiMail, FiPhone, FiMapPin, FiFileText, FiTag, FiUsers, FiClock } from 'react-icons/fi';
+import { FiCheck, FiAlertCircle, FiUser, FiMail } from 'react-icons/fi';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import PasswordInput from '../../components/PasswordInput';
@@ -12,14 +12,6 @@ interface FormData {
   email: string;
   password: string;
   confirmPassword: string;
-  phone: string;
-  address: string;
-  postalCode: string;
-  city: string;
-  description: string;
-  cuisine: string;
-  capacity: string;
-  openingHours: string;
 }
 
 export default function RestaurantRegister() {
@@ -29,14 +21,6 @@ export default function RestaurantRegister() {
     email: '',
     password: '',
     confirmPassword: '',
-    phone: '',
-    address: '',
-    postalCode: '',
-    city: '',
-    description: '',
-    cuisine: '',
-    capacity: '',
-    openingHours: '',
   });
   
   const [loading, setLoading] = useState(false);
@@ -70,22 +54,14 @@ export default function RestaurantRegister() {
         headers: {
           'Content-Type': 'application/json',
         },
-        // Wir senden jetzt alle Formulardaten an das Backend
+        // Minimal-Payload für Registrierung; weitere Details später im Dashboard
         body: JSON.stringify({
-          firstName: "Restaurant", // Platzhalter für Vorname
-          lastName: "Owner", // Platzhalter für Nachname
+          firstName: 'Restaurant',
+          lastName: 'Owner',
           restaurantName: formData.name,
           email: formData.email,
           password: formData.password,
           role: 'RESTAURANT',
-          phone: formData.phone,
-          address: formData.address,
-          postalCode: formData.postalCode,
-          city: formData.city,
-          description: formData.description,
-          cuisine: formData.cuisine,
-          capacity: parseInt(formData.capacity, 10) || 0,
-          openingHours: formData.openingHours,
         }),
       });
 
@@ -234,152 +210,10 @@ export default function RestaurantRegister() {
                       />
                     </div>
 
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                        Telefon *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiPhone className="text-gray-400" />
-                        </div>
-                        <input
-                          type="tel"
-                          id="phone"
-                          name="phone"
-                          required
-                          value={formData.phone}
-                          onChange={handleChange}
-                          className="w-full pl-10 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
                     <div className="md:col-span-2">
-                      <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                        Adresse *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiMapPin className="text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          id="address"
-                          name="address"
-                          required
-                          value={formData.address}
-                          onChange={handleChange}
-                          className="w-full pl-10 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-2">
-                        PLZ *
-                      </label>
-                      <input
-                        type="text"
-                        id="postalCode"
-                        name="postalCode"
-                        required
-                        value={formData.postalCode}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                        Ort *
-                      </label>
-                      <input
-                        type="text"
-                        id="city"
-                        name="city"
-                        required
-                        value={formData.city}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-2">
-                        Küche / Kategorie *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiTag className="text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          id="cuisine"
-                          name="cuisine"
-                          required
-                          value={formData.cuisine}
-                          onChange={handleChange}
-                          className="w-full pl-10 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="z.B. Italienisch, Mediterran"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 mb-2">
-                        Kapazität (Sitzplätze) *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiUsers className="text-gray-400" />
-                        </div>
-                        <input
-                          type="number"
-                          id="capacity"
-                          name="capacity"
-                          required
-                          value={formData.capacity}
-                          onChange={handleChange}
-                          className="w-full pl-10 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="openingHours" className="block text-sm font-medium text-gray-700 mb-2">
-                        Öffnungszeiten *
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <FiClock className="text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          id="openingHours"
-                          name="openingHours"
-                          required
-                          value={formData.openingHours}
-                          onChange={handleChange}
-                          className="w-full pl-10 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          placeholder="z.B. Mo-Fr 10-22 Uhr, Sa-So 12-22 Uhr"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                        Beschreibung *
-                      </label>
-                      <textarea
-                        id="description"
-                        name="description"
-                        required
-                        value={formData.description}
-                        onChange={handleChange}
-                        rows={4}
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        placeholder="Beschreiben Sie Ihr Restaurant, die Atmosphäre und was Ihre Gäste erwartet..."
-                      />
+                      <p className="text-sm text-gray-600">
+                        Weitere Angaben können später im Dashboard ergänzt werden.
+                      </p>
                     </div>
 
                   </div>
