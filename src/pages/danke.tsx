@@ -72,14 +72,14 @@ export default function DankePage() {
     return { contacts, order, urls, misc, extraItems };
   }, [router.query]);
 
-  const contractNotice = 'Die Abbuchung erfolgt durch Digistore24.com mit Bestellbestätigung';
+const contractNotice = 'Die Abbuchung erfolgt durch Digistore24 mit Bestellbestätigung';
 
   return (
     <>
       <Head>
         <title>Vielen Dank | Contact Tables</title>
         <meta name="robots" content="noindex,nofollow" />
-        <meta name="description" content="Vielen Dank für Ihre Bestellung. Die Abbuchung erfolgt durch Digistore24.com mit Bestellbestätigung." />
+        <meta name="description" content="Vielen Dank für Ihre Bestellung. Die Abbuchung erfolgt durch Digistore24 mit Bestellbestätigung." />
       </Head>
       <main className="min-h-screen bg-gray-50">
         <section className="max-w-3xl mx-auto px-4 py-16">

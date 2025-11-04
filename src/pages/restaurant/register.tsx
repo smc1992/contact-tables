@@ -29,6 +29,9 @@ export default function RestaurantRegister() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ));
 
+  const MONTHLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || 'https://www.checkout-ds24.com/product/640542';
+  const YEARLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || 'https://www.checkout-ds24.com/product/640621';
+
   const [status, setStatus] = useState<{
     type: 'success' | 'error' | null;
     message: string;
@@ -136,6 +139,26 @@ export default function RestaurantRegister() {
                       )}
                       {status.message}
                     </div>
+                    {status.type === 'success' && (
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <a
+                          href={MONTHLY_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg"
+                        >
+                          Monatszahlung (12 Monate)
+                        </a>
+                        <a
+                          href={YEARLY_URL}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-4 rounded-lg"
+                        >
+                          Jahres-Abo abschließen
+                        </a>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -241,6 +264,29 @@ export default function RestaurantRegister() {
                   <div className="mt-4 text-center">
                     <p className="text-sm text-gray-600">
                       Bereits registriert? <a href="/restaurant/login" className="text-primary-600 hover:text-primary-500 font-medium">Hier anmelden</a>
+                    </p>
+                  </div>
+
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-gray-700">
+                      Mitgliedschaft wählen: 
+                      <a
+                        href={MONTHLY_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-500 font-medium mr-2"
+                      >
+                        Monatszahlung
+                      </a>
+                      oder
+                      <a
+                        href={YEARLY_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-500 font-medium ml-2"
+                      >
+                        Jahres-Abo
+                      </a>
                     </p>
                   </div>
                 </form>

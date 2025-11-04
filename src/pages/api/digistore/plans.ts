@@ -104,7 +104,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (!url && (p?.product_id || p?.id)) {
         // Construct a standard order form URL as a last resort
-        url = `https://www.digistore24.com/product/${encodeURIComponent(String(p?.product_id ?? p?.id))}`;
+      url = `https://www.checkout-ds24.com/product/${encodeURIComponent(String(p?.product_id ?? p?.id))}`;
       }
       if (!url) continue;
 

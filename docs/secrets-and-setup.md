@@ -20,7 +20,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXTAUTH_URL=http://localhost:3000
 
 # Digistore24
-NEXT_PUBLIC_DIGISTORE_PRODUCT_URL=https://www.digistore24.com/product/<produkt-id>
+NEXT_PUBLIC_DIGISTORE_PRODUCT_URL=https://www.checkout-ds24.com/product/<produkt-id>
 DIGISTORE_POSTBACK_SECRET=<starker-geheimer-string>
 
 # Stripe

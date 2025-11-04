@@ -7,6 +7,8 @@ import PageLayout from '../../components/PageLayout';
 export default function RegistrationSuccess() {
   // State für FAQ-Accordion
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const YEARLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || 'https://www.checkout-ds24.com/product/640621';
+  const MONTHLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || 'https://www.checkout-ds24.com/product/640542';
   
   // Funktion zum Umschalten des FAQ-Accordion
   const toggleFaq = (index: number) => {
@@ -111,7 +113,38 @@ export default function RegistrationSuccess() {
                 </div>
               </motion.div>
             </motion.div>
-            
+
+            {/* Mitgliedschaft CTA (Monat/Jahr) */}
+            <motion.div
+              variants={itemVariants}
+              className="mt-8 max-w-2xl mx-auto"
+            >
+              <div className="bg-green-50 p-5 rounded-lg border border-green-200 text-center">
+                <h3 className="text-md font-medium text-green-800 mb-2">Schneller zur Aktivierung</h3>
+                <p className="text-sm text-green-700 mb-4">
+                  Wählen Sie zwischen monatlicher Zahlung oder dem Jahres-Abo und schalten Sie Ihr Restaurant nach Prüfung direkt frei.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <a
+                    href={MONTHLY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
+                  >
+                    Monatszahlung (12 Monate)
+                  </a>
+                  <a
+                    href={YEARLY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-md font-medium transition-colors"
+                  >
+                    Jahres-Abo abschließen
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+
             {/* Zeitplan */}
             <motion.div 
               variants={containerVariants}
