@@ -363,7 +363,7 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
   const { data: restaurantData, error: restaurantError } = await supabase
     .from('restaurants') // Ensure this is your restaurants table name
     .select('*') // Select all columns, or specify needed ones
-    .eq('user_id', user.id)
+    .eq('userId', user.id)
     .single();
 
   console.log(`getServerSideProps: Attempted to fetch restaurant with userId: ${user.id}`);

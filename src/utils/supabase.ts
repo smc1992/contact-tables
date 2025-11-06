@@ -255,7 +255,7 @@ export const restaurants = {
     const { data, error } = await supabase
       .from('restaurants')
       .select('*')
-      .eq('user_id', userId as any)
+      .eq('userId', userId as any)
       .single();
     return { data, error };
   },

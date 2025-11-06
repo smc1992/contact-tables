@@ -213,7 +213,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     const { data: restaurantData, error: restaurantError } = await supabase
       .from('restaurants')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('userId', user.id)
       .single();
 
     if (restaurantError || !restaurantData) {
@@ -242,7 +242,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       contractStatus: restaurantData.contract_status || 'PENDING',
       createdAt: restaurantData.created_at,
       updatedAt: restaurantData.updated_at,
-      userId: restaurantData.user_id,
+      userId: restaurantData.userId,
     };
 
     return {

@@ -5,7 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 // Typen für die Datenstrukturen
 interface Restaurant {
-  user_id: string;
+  userId: string;
 }
 
 interface ContactTable {
@@ -13,7 +13,7 @@ interface ContactTable {
   restaurant_id: string;
   max_participants: number;
   status: string;
-  restaurants?: Restaurant | Restaurant[] | { user_id: string } | { user_id: string }[];
+  restaurants?: Restaurant | Restaurant[] | { userId: string } | { userId: string }[];
 }
 
 interface ParticipantProfile {
@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Überprüfen, ob der Benutzer berechtigt ist, die Teilnehmer zu sehen
       const { data: table, error: tableError } = await supabase
         .from('contact_tables')
-        .select('restaurant_id, restaurants:restaurant_id(user_id)')
+        .select('restaurant_id, restaurants:restaurant_id(userId)')
         .eq('id', id)
         .single();
 
@@ -79,11 +79,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (Array.isArray(table.restaurants)) {
           // Wenn es ein Array ist, prüfen wir das erste Element
           const firstRestaurant = table.restaurants[0] as unknown as Restaurant;
-          isRestaurantOwner = table.restaurants.length > 0 && firstRestaurant.user_id === user.id;
+          isRestaurantOwner = table.restaurants.length > 0 && (firstRestaurant as any).userId === user.id;
         } else {
           // Wenn es ein einzelnes Objekt ist
           const restaurant = table.restaurants as unknown as Restaurant;
-          isRestaurantOwner = restaurant.user_id === user.id;
+          isRestaurantOwner = (restaurant as any).userId === user.id;
         }
       }
       
@@ -151,7 +151,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Überprüfen, ob der Benutzer der Restaurantbesitzer ist
       const { data: table, error: tableError } = await supabase
         .from('contact_tables')
-        .select('restaurant_id, restaurants:restaurant_id(user_id), max_participants, status')
+        .select('restaurant_id, restaurants:restaurant_id(userId), max_participants, status')
         .eq('id', id)
         .single();
 
@@ -168,11 +168,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (Array.isArray(table.restaurants)) {
           // Wenn es ein Array ist, prüfen wir das erste Element
           const firstRestaurant = table.restaurants[0] as unknown as Restaurant;
-          isRestaurantOwner = table.restaurants.length > 0 && firstRestaurant.user_id === user.id;
+          isRestaurantOwner = table.restaurants.length > 0 && (firstRestaurant as any).userId === user.id;
         } else {
           // Wenn es ein einzelnes Objekt ist
           const restaurant = table.restaurants as unknown as Restaurant;
-          isRestaurantOwner = restaurant.user_id === user.id;
+          isRestaurantOwner = (restaurant as any).userId === user.id;
         }
       }
       

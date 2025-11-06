@@ -364,7 +364,7 @@ export const getServerSideProps: GetServerSideProps = async (context: GetServerS
       image_url,
       restaurant_images ( id, url, is_primary )
     `)
-    .eq('user_id', user.id)
+    .eq('userId', user.id)
     .single();
 
   if (error || !restaurant) {

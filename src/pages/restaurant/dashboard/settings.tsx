@@ -590,8 +590,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   const { data: restaurantData, error: restaurantError } = await supabase
     .from('restaurants')
-    .select('id, name, is_active, contract_status, user_id, notification_settings, privacy_settings')
-    .eq('user_id', user.id)
+    .select('id, name, is_active, contract_status, userId, notification_settings, privacy_settings')
+    .eq('userId', user.id)
     .single();
 
   if (restaurantError || !restaurantData) {
@@ -624,7 +624,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
           name: restaurantData.name,
           isActive: restaurantData.is_active,
           contractStatus: restaurantData.contract_status,
-          userId: restaurantData.user_id,
+          userId: restaurantData.userId,
           notificationSettings: {
             ...defaultNotificationSettings,
             ...(restaurantData.notification_settings || {}),

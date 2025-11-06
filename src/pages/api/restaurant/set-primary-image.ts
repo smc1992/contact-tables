@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Überprüfe, ob der authentifizierte Benutzer der Besitzer des Restaurants ist
     const { data: restaurantData, error: restaurantOwnerError } = await supabase
       .from('restaurants')
-      .select('id, user_id') // user_id wird hier benötigt, um den Besitzer zu verifizieren
+      .select('id, userId') // userId wird hier benötigt, um den Besitzer zu verifizieren
       .eq('id', restaurantId)
       .single();
 
@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant nicht gefunden' });
     }
 
-    if (restaurantData.user_id !== user.id) {
+    if ((restaurantData as any).userId !== user.id) {
       return res.status(403).json({ message: 'Keine Berechtigung für dieses Restaurant' });
     }
 

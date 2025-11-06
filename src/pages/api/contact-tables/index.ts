@@ -137,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Überprüfen, ob der Benutzer der Restaurantbesitzer ist
       const { data: restaurant, error: restaurantError } = await supabase
         .from('restaurants')
-        .select('user_id')
+        .select('userId')
         .eq('id', restaurant_id)
         .single();
 
@@ -145,7 +145,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Restaurant nicht gefunden' });
       }
 
-      if (restaurant.user_id !== user.id) {
+      if ((restaurant as any).userId !== user.id) {
         const isAdmin = user.user_metadata.role === 'ADMIN';
         if (!isAdmin) {
           return res.status(403).json({ error: 'Keine Berechtigung zum Erstellen eines Kontakttisches für dieses Restaurant' });

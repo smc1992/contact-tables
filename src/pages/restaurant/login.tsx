@@ -33,7 +33,7 @@ export default function RestaurantLogin() {
         const { data: restaurantData, error: restaurantError } = await supabase
           .from('restaurants')
           .select('id, status')
-          .eq('user_id', data.user.id)
+          .eq('userId', data.user.id)
           .single();
 
         if (restaurantError && restaurantError.code !== 'PGRST116') {

@@ -31,11 +31,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Überprüfen, ob der Benutzer berechtigt ist, Teilnehmer zu entfernen
     const { data: table } = await supabase
       .from('contact_tables')
-      .select('restaurant_id, restaurant:restaurant_id(user_id)')
+      .select('restaurant_id, restaurant:restaurant_id(userId)')
       .eq('id', id)
       .single();
 
-    const isRestaurantOwner = table && table.restaurant?.user_id === user.id;
+    const isRestaurantOwner = table && (table.restaurant as any)?.userId === user.id;
     const isAdmin = user.user_metadata.role === 'ADMIN';
     const isSelfRemoval = user_id === user.id;
 
