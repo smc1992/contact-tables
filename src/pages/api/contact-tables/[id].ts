@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Gültige Tisch-ID erforderlich' });
   }
 
-  const supabase = createClient(req);
+  const supabase = createClient({ req, res });
   
   if (req.method === 'GET') {
     try {
@@ -78,11 +78,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Überprüfen, ob der Benutzer der Restaurantbesitzer ist
       const { data: table } = await supabase
         .from('contact_tables')
-        .select('restaurant_id, restaurants!inner(user_id)')
+        .select('restaurant_id, restaurant:restaurant_id(user_id)')
         .eq('id', id)
         .single();
 
-      if (!table || table.restaurants.user_id !== user.id) {
+      if (!table || table.restaurant?.user_id !== user.id) {
         const isAdmin = user.user_metadata.role === 'ADMIN';
         if (!isAdmin) {
           return res.status(403).json({ error: 'Keine Berechtigung zum Bearbeiten dieses Kontakttisches' });
@@ -127,11 +127,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Überprüfen, ob der Benutzer der Restaurantbesitzer ist
       const { data: table } = await supabase
         .from('contact_tables')
-        .select('restaurant_id, restaurants!inner(user_id)')
+        .select('restaurant_id, restaurant:restaurant_id(user_id)')
         .eq('id', id)
         .single();
 
-      if (!table || table.restaurants.user_id !== user.id) {
+      if (!table || table.restaurant?.user_id !== user.id) {
         const isAdmin = user.user_metadata.role === 'ADMIN';
         if (!isAdmin) {
           return res.status(403).json({ error: 'Keine Berechtigung zum Löschen dieses Kontakttisches' });

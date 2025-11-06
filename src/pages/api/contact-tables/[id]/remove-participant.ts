@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Authentifizierung prüfen
-    const supabase = createClient(req);
+    const supabase = createClient({ req, res });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -31,11 +31,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Überprüfen, ob der Benutzer berechtigt ist, Teilnehmer zu entfernen
     const { data: table } = await supabase
       .from('contact_tables')
-      .select('restaurant_id, restaurants!inner(user_id)')
+      .select('restaurant_id, restaurant:restaurant_id(user_id)')
       .eq('id', id)
       .single();
 
-    const isRestaurantOwner = table && table.restaurants.user_id === user.id;
+    const isRestaurantOwner = table && table.restaurant?.user_id === user.id;
     const isAdmin = user.user_metadata.role === 'ADMIN';
     const isSelfRemoval = user_id === user.id;
 

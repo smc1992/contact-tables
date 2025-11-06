@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '../../../utils/supabase/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const supabase = createClient(req);
+  const supabase = createClient({ req, res });
   
   if (req.method === 'GET') {
     try {

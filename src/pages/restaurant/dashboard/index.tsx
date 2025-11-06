@@ -78,7 +78,7 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
                 <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-6">
                   <h2 className="text-lg font-semibold text-yellow-800 mb-2">Profil noch nicht freigeschaltet</h2>
                   <p className="text-yellow-900 mb-4">
-                    Bitte schließen Sie die Zahlung über Digistore ab, damit Ihr Restaurantprofil freigeschaltet und sichtbar wird.
+                    Bitte schließen Sie die Bestellung über Digistore24 ab. Ihre Bestellung wird manuell geprüft; erst nach Freischaltung wird Ihre Zahlungsmethode belastet und Ihr Restaurantprofil sichtbar.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {monthlyUrl && (

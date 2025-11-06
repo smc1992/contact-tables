@@ -241,7 +241,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                         </h3>
                       </div>
                       <p className="text-gray-600 mb-4">
-                        Bezahlen Sie sicher über Digistore24. Ihr Restaurant wird nach Zahlung automatisch freigeschaltet.
+                        Bestellung über Digistore24. Ihre Bestellung wird manuell geprüft; erst nach Freischaltung wird Ihre Zahlungsmethode belastet und Sie erhalten eine Zahlungsbestätigung.
                       </p>
                       {p.id === 'monthly' && (
                         <p className="text-sm text-neutral-600 mb-2">{formatPrice(MONTHLY_PRICE) ? `Preis: ${formatPrice(MONTHLY_PRICE)} pro Monat` : 'Preis wird im Checkout angezeigt.'}</p>
