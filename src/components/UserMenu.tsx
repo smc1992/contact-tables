@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 const UserMenu = () => {
   const { session, user, loading, userRole } = useAuth(); // userRole aus AuthContext holen
   const [isOpen, setIsOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   // Entferne lokalen userRole State und useEffect, da wir userRole aus dem AuthContext verwenden
 
@@ -34,8 +35,13 @@ const UserMenu = () => {
   const { signOut } = useAuth();
   
   const handleSignOut = async () => {
-    await signOut();
-    setIsOpen(false);
+    try {
+      setSigningOut(true);
+      await signOut();
+      // Weiterleitung erfolgt innerhalb von signOut() über /auth/logout
+    } catch (e) {
+      // no-op
+    }
   };
 
   if (isLoading) {
@@ -175,10 +181,11 @@ const UserMenu = () => {
                 
                 <button
                   onClick={handleSignOut}
-                  className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                  disabled={signingOut}
+                  className={`flex w-full items-center px-4 py-2 text-sm ${signingOut ? 'text-gray-500' : 'text-red-600'} hover:bg-gray-100`}
                 >
-                  <FiLogOut className="mr-3 text-red-500" size={16} />
-                  Abmelden
+                  <FiLogOut className={`mr-3 ${signingOut ? 'text-gray-400' : 'text-red-500'}`} size={16} />
+                  {signingOut ? 'Wird abgemeldet…' : 'Abmelden'}
                 </button>
               </>
             ) : (

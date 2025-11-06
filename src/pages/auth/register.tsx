@@ -8,6 +8,7 @@ import { FiUserPlus, FiMail, FiLock, FiUser } from 'react-icons/fi';
 import { createBrowserClient } from '@supabase/ssr';
 import PasswordInput from '../../components/PasswordInput';
 import EmailVerificationPopup from '../../components/EmailVerificationPopup';
+import RestaurantRegisterForm from '../../components/RestaurantRegisterForm';
 
 export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
@@ -19,6 +20,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showVerificationPopup, setShowVerificationPopup] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [activeTab, setActiveTab] = useState<'CUSTOMER' | 'RESTAURANT'>('CUSTOMER');
   const router = useRouter();
 
   // Konsistente Supabase-Client-Initialisierung
@@ -110,6 +112,27 @@ export default function RegisterPage() {
             </p>
           </div>
           
+          {/* Tabs Switcher: Gast / Restaurant */}
+          <div className="flex justify-center mt-2">
+            <div className="inline-flex rounded-md shadow-sm border border-gray-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setActiveTab('CUSTOMER')}
+                className={`${activeTab === 'CUSTOMER' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700'} px-4 py-2 text-sm font-medium focus:outline-none`}
+              >
+                Gast
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('RESTAURANT')}
+                className={`${activeTab === 'RESTAURANT' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700'} px-4 py-2 text-sm font-medium border-l border-gray-200 focus:outline-none`}
+              >
+                Restaurant
+              </button>
+            </div>
+          </div>
+          
+          {activeTab === 'CUSTOMER' ? (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div className="mb-4">
@@ -217,14 +240,13 @@ export default function RegisterPage() {
               </button>
             </div>
           </form>
+          ) : (
+            <div className="mt-8">
+              <RestaurantRegisterForm />
+            </div>
+          )}
           
           <div className="text-center mt-4 space-y-4">
-            <p className="text-sm text-gray-600">
-              Sind Sie ein Restaurant?{' '}
-              <Link href="/restaurant/register" className="font-medium text-primary-600 hover:text-primary-500">
-                Hier als Restaurant registrieren
-              </Link>
-            </p>
             <p className="text-sm text-gray-600">
               Bereits registriert?{' '}
               <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
@@ -235,7 +257,7 @@ export default function RegisterPage() {
         </motion.div>
       </main>
       <Footer />
-      
+
       {/* E-Mail-Bestätigungs-Popup */}
       <EmailVerificationPopup 
         isOpen={showVerificationPopup} 
