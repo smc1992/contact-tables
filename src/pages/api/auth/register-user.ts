@@ -100,17 +100,33 @@ export default async function handler(
   }
 
   // Alle erwarteten Felder aus dem Request-Body destrukturieren
-  const { name, email, password, role, phone, address, postalCode, city, description, cuisine, capacity, openingHours } = req.body;
+  // Unterstützt sowohl "name" als auch das ältere Feld "restaurantName"
+  const {
+    name: rawName,
+    restaurantName,
+    email,
+    password,
+    role,
+    phone,
+    address,
+    postalCode,
+    city,
+    description,
+    cuisine,
+    capacity,
+    openingHours
+  } = req.body;
+
+  // Fallback-Mapping: wenn "name" fehlt, verwende "restaurantName"
+  const name = rawName || restaurantName;
 
   // Grundlegende Validierung für Kernfelder
   if (!name || !email || !password || !role) {
     return res.status(400).json({ message: 'Name, E-Mail, Passwort und Rolle sind erforderlich.' });
   }
   
-  // Spezifische Validierung für die Rolle 'RESTAURANT'
-  if (role === 'RESTAURANT' && (!phone || !address || !postalCode || !city || !description || !cuisine || capacity === undefined || !openingHours)) {
-    return res.status(400).json({ message: 'Für die Registrierung eines Restaurants sind alle Felder erforderlich.' });
-  }
+  // Für Restaurants erlauben wir eine schlanke Registrierung mit Minimalfeldern.
+  // Weitere Angaben können später im Dashboard ergänzt werden.
 
   if (typeof password !== 'string' || password.length < 8) {
     return res.status(400).json({ message: 'Das Passwort muss mindestens 8 Zeichen lang sein.' });
@@ -207,18 +223,19 @@ export default async function handler(
           await tx.restaurant.create({
             data: {
               userId: user.id,
-              name: name, // Den tatsächlichen Restaurantnamen aus dem Formular verwenden
+              name: name,
               email: user.email,
-              phone: phone,
-              address: address,
-              postal_code: postalCode,
-              city: city,
-              description: description,
-              cuisine: cuisine,
-              capacity: capacity,
-              openingHours: openingHours,
+              // optionale Felder nur setzen, wenn vorhanden
+              ...(phone ? { phone } : {}),
+              ...(address ? { address } : {}),
+              ...(postalCode ? { postal_code: postalCode } : {}),
+              ...(city ? { city } : {}),
+              ...(description ? { description } : {}),
+              ...(cuisine ? { cuisine } : {}),
+              ...(typeof capacity === 'number' ? { capacity } : {}),
+              ...(openingHours ? { openingHours } : {}),
               isVisible: false,
-              contractStatus: 'PENDING', // Startet im ausstehenden Status
+              contractStatus: 'PENDING',
             },
           });
         }
