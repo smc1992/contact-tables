@@ -69,8 +69,14 @@ const RestaurantImages = ({ restaurant: initialRestaurant, error: initialError }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Hochladen der Bilder');
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Fehler beim Hochladen der Bilder');
+        } else {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Fehler beim Hochladen der Bilder');
+        }
       }
 
       const newImages = await response.json();

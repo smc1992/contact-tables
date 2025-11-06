@@ -74,8 +74,8 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
     return `${url}${sep}custom=${encodeURIComponent(restaurant.id)}`;
   };
   const dsPlans = [
-    ...(DIGISTORE_MONTHLY_URL ? [{ id: 'monthly', name: 'Monatlich', url: String(appendCustom(DIGISTORE_MONTHLY_URL)) }] : []),
-    ...(DIGISTORE_YEARLY_URL ? [{ id: 'yearly', name: 'Jährlich', url: String(appendCustom(DIGISTORE_YEARLY_URL)) }] : []),
+    { id: 'monthly', name: 'Monatlich', url: appendCustom(DIGISTORE_MONTHLY_URL) || null },
+    { id: 'yearly', name: 'Jährlich', url: appendCustom(DIGISTORE_YEARLY_URL) || null },
   ];
 
   const plans = [
@@ -249,15 +249,26 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                       {p.id === 'yearly' && (
                         <p className="text-sm text-neutral-600 mb-2">{formatPrice(YEARLY_PRICE) ? `Preis: ${formatPrice(YEARLY_PRICE)} pro Jahr` : 'Preis wird im Checkout angezeigt.'}</p>
                       )}
-                      <a
-                        href={p.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
-                        title={p.id === 'monthly' ? (formatPrice(MONTHLY_PRICE) ? `Monatlich zahlen – ${formatPrice(MONTHLY_PRICE)}` : 'Monatlich zahlen') : (p.id === 'yearly' ? (formatPrice(YEARLY_PRICE) ? `Jährlich zahlen – ${formatPrice(YEARLY_PRICE)}` : 'Jährlich zahlen') : 'Zahlung abschließen')}
-                      >
-                        {p.id === 'monthly' ? 'Monatlich zahlen' : p.id === 'yearly' ? 'Jährlich zahlen' : 'Zahlung abschließen'}
-                      </a>
+                      {p.url ? (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
+                          title={p.id === 'monthly' ? (formatPrice(MONTHLY_PRICE) ? `Monatlich zahlen – ${formatPrice(MONTHLY_PRICE)}` : 'Monatlich zahlen') : (p.id === 'yearly' ? (formatPrice(YEARLY_PRICE) ? `Jährlich zahlen – ${formatPrice(YEARLY_PRICE)}` : 'Jährlich zahlen') : 'Zahlung abschließen')}
+                        >
+                          {p.id === 'monthly' ? 'Monatlich zahlen' : p.id === 'yearly' ? 'Jährlich zahlen' : 'Zahlung abschließen'}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-600 rounded-md font-medium cursor-not-allowed"
+                          title="Nicht konfiguriert"
+                          aria-disabled="true"
+                        >
+                          {p.id === 'monthly' ? 'Monatlich (nicht konfiguriert)' : 'Jährlich (nicht konfiguriert)'}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -383,28 +394,36 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">Tarif ändern</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {DIGISTORE_MONTHLY_URL && (
-                    <a
-                      href={String(appendCustom(DIGISTORE_MONTHLY_URL))}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors"
-                    >
-                      <span className="text-lg font-semibold text-gray-800">Monatlich</span>
-                      <span className="px-4 py-2 bg-primary-600 text-white rounded-lg">Zur Zahlung</span>
-                    </a>
-                  )}
-                  {DIGISTORE_YEARLY_URL && (
-                    <a
-                      href={String(appendCustom(DIGISTORE_YEARLY_URL))}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors"
-                    >
-                      <span className="text-lg font-semibold text-gray-800">Jährlich</span>
-                      <span className="px-4 py-2 bg-primary-600 text-white rounded-lg">Zur Zahlung</span>
-                    </a>
-                  )}
+                  <div className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors">
+                    <span className="text-lg font-semibold text-gray-800">Monatlich</span>
+                    {DIGISTORE_MONTHLY_URL ? (
+                      <a
+                        href={String(appendCustom(DIGISTORE_MONTHLY_URL))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-primary-600 text-white rounded-lg"
+                      >
+                        Zur Zahlung
+                      </a>
+                    ) : (
+                      <span className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg">Nicht konfiguriert</span>
+                    )}
+                  </div>
+                  <div className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors">
+                    <span className="text-lg font-semibold text-gray-800">Jährlich</span>
+                    {DIGISTORE_YEARLY_URL ? (
+                      <a
+                        href={String(appendCustom(DIGISTORE_YEARLY_URL))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-primary-600 text-white rounded-lg"
+                      >
+                        Zur Zahlung
+                      </a>
+                    ) : (
+                      <span className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg">Nicht konfiguriert</span>
+                    )}
+                  </div>
                 </div>
 
               </motion.div>

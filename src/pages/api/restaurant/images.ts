@@ -118,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     res.setHeader('Allow', ['DELETE', 'PUT']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+    return res.status(405).json({ message: `Method ${req.method} Not Allowed` });
 
   } catch (error: any) {
     console.error('Ein unerwarteter Fehler ist in der API-Route aufgetreten:', error);
