@@ -53,7 +53,7 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
         .from('restaurants')
         .select(`
           *,
-          profiles:userId (first_name, last_name)
+          profiles:user_id (first_name, last_name)
         `)
         .order('created_at', { ascending: false });
 

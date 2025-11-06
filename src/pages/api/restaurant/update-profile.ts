@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('restaurants')
       .update(updateData)
       .eq('id', id)
-      .eq('userId', user.id) // Korrekt, da Prisma 'userId' verwendet // Sicherheitsüberprüfung: User muss der Eigentümer sein
+      .eq('user_id', user.id) // Sicherheitsüberprüfung: User muss der Eigentümer sein (Spalte user_id)
       .select()
       .single();
 

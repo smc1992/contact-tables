@@ -43,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Restaurant in der Datenbank finden und Berechtigung prüfen
     const { data: restaurant, error: restaurantError } = await supabase
       .from('restaurants')
-      .select('id, userId, isActive')
+      .select('id, user_id, is_active')
       .eq('id', restaurantId)
       .single();
 
@@ -51,11 +51,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Restaurant nicht gefunden' });
     }
 
-    if (restaurant.userId !== user.id) {
+    if (restaurant.user_id !== user.id) {
       return res.status(403).json({ message: 'Keine Berechtigung für dieses Restaurant' });
     }
 
-    if (!restaurant.isActive) {
+    if (!restaurant.is_active) {
       return res.status(403).json({ message: 'Restaurant ist nicht aktiv. Bitte aktivieren Sie Ihr Restaurant, um Contact Tables zu bearbeiten.' });
     }
 

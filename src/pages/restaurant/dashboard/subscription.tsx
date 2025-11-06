@@ -46,8 +46,28 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
   const [success, setSuccess] = useState('');
   
   // Digistore24: zwei Zahlungspläne direkt verknüpfen (custom = Restaurant-ID)
-  const DIGISTORE_MONTHLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_BASIC_URL;
-  const DIGISTORE_YEARLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_PREMIUM_URL;
+  // Bevorzugt PLAN-URLs, fällt auf PRODUCT-URLs zurück
+  const DIGISTORE_MONTHLY_URL =
+    process.env.NEXT_PUBLIC_DIGISTORE_PLAN_MONTHLY_URL ||
+    process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL ||
+    process.env.NEXT_PUBLIC_DIGISTORE_PLAN_BASIC_URL ||
+    process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_BASIC_URL;
+  const DIGISTORE_YEARLY_URL =
+    process.env.NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_URL ||
+    process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL ||
+    process.env.NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL ||
+    process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_PREMIUM_URL;
+  // Optionale Preis-ENV-Variablen für Tooltips
+  const MONTHLY_PRICE = process.env.NEXT_PUBLIC_DIGISTORE_PLAN_MONTHLY_PRICE;
+  const YEARLY_PRICE = process.env.NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_PRICE;
+  const formatPrice = (price?: string) => {
+    if (!price) return undefined;
+    const p = Number(price);
+    if (Number.isFinite(p)) {
+      return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(p);
+    }
+    return price; // Falls kein numerischer Wert, zeige den Rohwert
+  };
   const appendCustom = (url?: string) => {
     if (!url) return undefined;
     const sep = url.includes('?') ? '&' : '?';
@@ -213,16 +233,30 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                   {dsPlans.map((p) => (
                     <div key={p.id} className="border rounded-xl p-6">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-semibold text-gray-800">{p.name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                          {p.name}
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 border">
+                            {p.id === 'monthly' ? 'Monat' : p.id === 'yearly' ? 'Jahr' : 'Plan'}
+                          </span>
+                        </h3>
                       </div>
-                      <p className="text-gray-600 mb-4">Bezahlen Sie sicher über Digistore24. Ihr Restaurant wird nach Zahlung automatisch freigeschaltet.</p>
+                      <p className="text-gray-600 mb-4">
+                        Bezahlen Sie sicher über Digistore24. Ihr Restaurant wird nach Zahlung automatisch freigeschaltet.
+                      </p>
+                      {p.id === 'monthly' && (
+                        <p className="text-sm text-neutral-600 mb-2">{formatPrice(MONTHLY_PRICE) ? `Preis: ${formatPrice(MONTHLY_PRICE)} pro Monat` : 'Preis wird im Checkout angezeigt.'}</p>
+                      )}
+                      {p.id === 'yearly' && (
+                        <p className="text-sm text-neutral-600 mb-2">{formatPrice(YEARLY_PRICE) ? `Preis: ${formatPrice(YEARLY_PRICE)} pro Jahr` : 'Preis wird im Checkout angezeigt.'}</p>
+                      )}
                       <a
                         href={p.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
+                        title={p.id === 'monthly' ? (formatPrice(MONTHLY_PRICE) ? `Monatlich zahlen – ${formatPrice(MONTHLY_PRICE)}` : 'Monatlich zahlen') : (p.id === 'yearly' ? (formatPrice(YEARLY_PRICE) ? `Jährlich zahlen – ${formatPrice(YEARLY_PRICE)}` : 'Jährlich zahlen') : 'Zahlung abschließen')}
                       >
-                        Zahlung abschließen
+                        {p.id === 'monthly' ? 'Monatlich zahlen' : p.id === 'yearly' ? 'Jährlich zahlen' : 'Zahlung abschließen'}
                       </a>
                     </div>
                   ))}

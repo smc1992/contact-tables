@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-const STORAGE_BUCKET_NAME = 'restaurant-images';
+const STORAGE_BUCKET_NAME = 'restaurant-bilder';
 
 // Hilfsfunktion zum Extrahieren des Pfades aus der Supabase Storage URL
 const getPathFromSupabaseUrl = (url: string): string | null => {
@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('restaurants')
       .select('id')
       .eq('id', restaurantId)
-      .eq('userId', user.id) // Wichtig: Spaltenname 'userId' in 'restaurants' muss korrekt sein
+      .eq('user_id', user.id)
       .single();
 
     if (restaurantOwnerError || !restaurantData) {
@@ -72,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Bild in der Datenbank finden
     const { data: image, error: imageError } = await supabase
-      .from('RestaurantImage')
+      .from('restaurant_images')
       .select('id, url, is_primary, restaurant_id')
       .eq('id', imageId)
       .eq('restaurant_id', restaurantId) // Stelle sicher, dass das Bild zum angegebenen Restaurant gehört
@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Bild aus der Datenbank löschen
     const { error: deleteDbError } = await supabase
-      .from('RestaurantImage')
+      .from('restaurant_images')
       .delete()
       .eq('id', imageId);
 
@@ -111,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Wenn es sich um das Hauptbild handelt, ein anderes Bild als Hauptbild festlegen
     if (image.is_primary) {
       const { data: otherImages, error: findOtherError } = await supabase
-        .from('RestaurantImage')
+        .from('restaurant_images')
         .select('id, url')
         .eq('restaurant_id', restaurantId)
         .order('created_at', { ascending: true }) // Nimm das älteste als nächstes Hauptbild
@@ -124,7 +124,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (otherImages && otherImages.length > 0) {
         const newPrimaryImage = otherImages[0];
         const { error: updateNewPrimaryError } = await supabase
-          .from('RestaurantImage')
+          .from('restaurant_images')
           .update({ is_primary: true })
           .eq('id', newPrimaryImage.id);
         

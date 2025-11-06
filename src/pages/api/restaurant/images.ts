@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from('restaurants')
         .select('id')
         .eq('id', restaurantId)
-        .eq('userId', user.id)
+        .eq('user_id', user.id)
         .single();
 
       if (ownerError || !restaurant) {
@@ -77,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .from('restaurants')
         .select('id')
         .eq('id', restaurantId)
-        .eq('userId', user.id)
+        .eq('user_id', user.id)
         .single();
 
       if (ownerError || !restaurant) {

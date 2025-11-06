@@ -65,6 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const { fields, files } = await parseForm(req);
 
         const restaurantId = Array.isArray(fields.restaurantId) ? fields.restaurantId[0] : fields.restaurantId;
+        const uuidV4Pattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
         const imageFiles = files.images ? (Array.isArray(files.images) ? files.images : [files.images]) : [];
 
         log({ message: '--- Image Upload Request ---', restaurantId, fileCount: imageFiles.length });
@@ -72,6 +73,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!restaurantId) {
             log('Validation failed: Restaurant ID is missing.');
             return res.status(400).json({ message: 'Restaurant ID is missing' });
+        }
+        if (typeof restaurantId !== 'string' || !uuidV4Pattern.test(restaurantId)) {
+            log(`Validation failed: Restaurant ID has invalid format. Value: ${restaurantId}`);
+            return res.status(400).json({ message: 'Ungültige Restaurant-ID. Erwartet UUID.' });
         }
         if (imageFiles.length === 0) {
             log('Validation failed: No files were uploaded.');

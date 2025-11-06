@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Zuerst das Restaurant verifizieren, um sicherzustellen, dass der Benutzer der Eigentümer ist.
     const { data: restaurant, error: restaurantError } = await supabase
       .from('restaurants')
-      .select('id, userId') // isActive ist hier nicht unbedingt nötig für die Löschberechtigung
+      .select('id, user_id') // is_active ist hier nicht unbedingt nötig für die Löschberechtigung
       .eq('id', restaurantId)
       .single();
 
@@ -39,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Zugehöriges Restaurant nicht gefunden.' });
     }
 
-    if (restaurant.userId !== user.id) {
+    if (restaurant.user_id !== user.id) {
       return res.status(403).json({ message: 'Keine Berechtigung, auf die Ressourcen dieses Restaurants zuzugreifen.' });
     }
 

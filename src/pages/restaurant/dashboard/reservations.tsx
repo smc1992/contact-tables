@@ -877,7 +877,7 @@ export const getServerSideProps: GetServerSideProps = withAuth('RESTAURANT', asy
   const { data: restaurant, error: restaurantError } = await supabase
     .from('restaurants')
     .select('id, name')
-    .eq('userId', user.id)
+    .eq('user_id', user.id)
     .single();
 
   if (restaurantError || !restaurant) {
