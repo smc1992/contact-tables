@@ -103,7 +103,7 @@ export default function RegisterPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
+          className="max-w-3xl w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
         >
           <div className="text-center">
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Konto erstellen</h2>
