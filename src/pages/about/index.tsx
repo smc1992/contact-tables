@@ -19,6 +19,12 @@ const teamMembers = [
     role: 'CTO',
     bio: 'Simon bringt über 10 Jahre Erfahrung in der Entwicklung sozialer Plattformen mit und leitet die technische Umsetzung unserer Vision.',
     image: '/images/about/simon mueller portrait.png'
+  },
+  {
+    name: 'Thomas Fußer',
+    role: 'Sales & Consulting',
+    bio: 'Als erfahrener Gastronomieprofi mit über 30 Jahren Branchenerfahrung verantwortet Thomas bei Contact‑tables die Bereiche Sales und Consulting. Er ist erster Ansprechpartner für unsere Partnerrestaurants und sorgt für eine reibungslose Umsetzung.',
+    image: ''
   }
 ];
 
@@ -194,7 +200,7 @@ export default function AboutPage() {
             
             {/* Zentrierte Team-Mitglieder */}
             <div className="flex justify-center">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-2xl">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl">
                 {teamMembers.map((member, index) => (
                   <motion.div
                     key={index}
@@ -205,11 +211,17 @@ export default function AboutPage() {
                     className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
                   >
                     <div className="relative w-full h-80">
-                      <img 
-                        src={member.image} 
-                        alt={member.name} 
-                        className="w-full h-full object-cover object-top"
-                      />
+                      {member.image ? (
+                        <img 
+                          src={member.image} 
+                          alt={member.name} 
+                          className="w-full h-full object-cover object-top"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-neutral-200">
+                          <span className="text-neutral-600 font-medium">Bild folgt</span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-6 text-center flex flex-col flex-grow">
                       <h3 className="text-2xl font-bold text-gray-900">{member.name}</h3>

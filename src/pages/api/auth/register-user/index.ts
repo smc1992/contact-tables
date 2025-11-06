@@ -165,6 +165,24 @@ export default async function handler(
     let restaurantName: string | undefined = raw.restaurantName;
     const legacyName: string | undefined = raw.name; // ältere Payloads
 
+    // Optionale Felder aus dem Payload für Restaurantdetails
+    const phone: string | undefined = raw.phone;
+    const address: string | undefined = raw.address;
+    const postalCode: string | undefined = raw.postalCode;
+    const city: string | undefined = raw.city;
+    const description: string | undefined = raw.description;
+    const cuisine: string | undefined = raw.cuisine;
+    const openingHours: any = raw.openingHours;
+    let capacity: number | undefined = undefined;
+    if (typeof raw.capacity === 'number') {
+      capacity = raw.capacity;
+    } else if (typeof raw.capacity === 'string') {
+      const parsed = parseInt(raw.capacity, 10);
+      if (!Number.isNaN(parsed)) {
+        capacity = parsed;
+      }
+    }
+
     // Falls nur ein allgemeines 'name' gesendet wird
     if (!restaurantName && legacyName) {
       restaurantName = legacyName;
@@ -259,10 +277,86 @@ export default async function handler(
       });
     }
 
-    // Erfolgreiche Antwort senden – Hinweis: Profil/Restaurant werden nach Bestätigung in /auth/confirm angelegt
-    return res.status(201).json({ 
-      success: true, 
+    // Benutzerobjekt prüfen
+    user = data?.user;
+    if (!user || !user.id) {
+      console.error('Kein Benutzerobjekt nach signUp erhalten');
+      return res.status(500).json({
+        error: 'Registrierung fehlgeschlagen',
+        details: 'Benutzer konnte nicht erstellt werden.'
+      });
+    }
+
+    // Supabase Admin-Client sicherstellen (für potenzielles Rollback)
+    try {
+      if (!supabaseAdmin) {
+        supabaseAdmin = createAdminClient();
+      }
+    } catch (adminInitError) {
+      console.error('Fehler beim Initialisieren des Supabase Admin-Clients:', adminInitError);
+      // Wir fahren fort – DB-Erstellung kann trotzdem erfolgen; Rollback wäre eingeschränkt
+    }
+
+    // Profil und ggf. Restaurant direkt erstellen, damit Dashboard verfügbar ist
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Profil anlegen
+        await tx.profile.create({
+          data: {
+            id: user.id,
+            name: restaurantName!,
+            role: (roleUpper === 'RESTAURANT' ? 'RESTAURANT' : 'CUSTOMER'),
+          }
+        });
+
+        // Restaurant nur für Restaurant-Rolle anlegen
+        if (roleUpper === 'RESTAURANT') {
+          await tx.restaurant.create({
+            data: {
+              userId: user.id,
+              name: restaurantName!,
+              email: user.email || email,
+              ...(phone ? { phone } : {}),
+              ...(address ? { address } : {}),
+              ...(postalCode ? { postal_code: postalCode } : {}),
+              ...(city ? { city } : {}),
+              ...(description ? { description } : {}),
+              ...(cuisine ? { cuisine } : {}),
+              ...(typeof capacity === 'number' ? { capacity } : {}),
+              ...(openingHours ? { openingHours } : {}),
+              isVisible: false,
+              contractStatus: 'PENDING',
+            }
+          });
+        }
+      });
+    } catch (dbError) {
+      console.error('Fehler beim Erstellen von Profil/Restaurant:', dbError);
+      // Rollback: Benutzer löschen, um Konsistenz zu wahren
+      try {
+        if (supabaseAdmin && user?.id) {
+          const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+          if (deleteError) {
+            console.error('Fehler beim Rollback-Löschen des Benutzers:', deleteError);
+          } else {
+            console.log('Rollback: Benutzer gelöscht:', user.id);
+          }
+        }
+      } catch (rollbackError) {
+        console.error('Rollback fehlgeschlagen:', rollbackError);
+      }
+      return res.status(500).json({
+        error: 'Datenbankfehler',
+        details: 'Profil/Restaurant konnten nicht erstellt werden.'
+      });
+    }
+
+    // Erfolgreich: Hinweis auf E-Mail-Bestätigung und Details zurückgeben
+    return res.status(201).json({
+      success: true,
       message: 'Benutzer erfolgreich registriert – bitte E-Mail bestätigen',
+      userId: user.id,
+      role: roleUpper
     });
 
   } catch (error: any) {
