@@ -73,7 +73,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Digistore24 führt beim Verbindungstest häufig einen GET/HEAD aus.
   // Antworten wir hier mit 200, damit der Health-Check erfolgreich ist.
   if (req.method === 'GET' || req.method === 'HEAD') {
-    return res.status(200).json({ message: 'Verbindungstest bestätigt' });
+    // Digistore Standard-Erfolgserkennung erwartet den Text "OK"
+    return res.status(200).send('OK');
   }
 
   if (req.method !== 'POST') {
@@ -99,17 +100,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       payload = Object.fromEntries(new URLSearchParams(raw)) as Record<string, string>;
     }
 
-    if (!verifyShaSign(payload)) {
-      return res.status(401).json({ message: 'Ungültige Signatur' });
-    }
-
     // Event & product filtering
     const rawEvent = (payload['event'] || payload['function_call'] || payload['event_label'] || '').toString().toLowerCase();
     const event = rawEvent.replace(/\s+/g, '_'); // normalize labels like "payment" vs "on_payment"
+
+    // Allow connection test without signature (no state change, just health check)
+    if (event === 'connection_test') {
+      return res.status(200).send('OK');
+    }
+
+    // For real events require valid signature
+    if (!verifyShaSign(payload)) {
+      return res.status(401).json({ message: 'Ungültige Signatur' });
+    }
     const productIdStr = (payload['product_id'] || payload['productid'] || '').toString();
     const productId = Number(productIdStr);
 
-    const ALLOWED_PRODUCTS = new Set([640621, 640542]); // yearly, monthly
+    const ALLOWED_PRODUCTS = new Set([640621, 640542, 644296]); // yearly, monthly, additional product
     if (!ALLOWED_PRODUCTS.has(productId)) {
       // Reply 200 to avoid retries, but ignore unknown products
       return res.status(200).json({ message: 'Produkt ignoriert', event: rawEvent, productId });
@@ -152,32 +159,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isConnectionTest = event === 'connection_test';
 
     if (isConnectionTest) {
-      // Health-check from Digistore, acknowledge
-      return res.status(200).json({ message: 'Verbindungstest bestätigt' });
+      // Health-check from Digistore, acknowledge with standard OK text
+      return res.status(200).send('OK');
     }
 
     if (isPayment) {
       await setStatus(restaurant.id, ContractStatus.ACTIVE, { isActive: true, isVisible: true });
-      return res.status(200).json({ message: 'Restaurant aktiviert', restaurantId: restaurant.id, productId });
+      return res.status(200).send('OK');
     }
 
     if (isRefund || isSubscriptionCanceled) {
       await setStatus(restaurant.id, ContractStatus.CANCELLED, { isActive: false, isVisible: false, cancellationDate: new Date() });
-      return res.status(200).json({ message: 'Abo storniert/erstattet – Restaurant deaktiviert', restaurantId: restaurant.id, productId });
+      return res.status(200).send('OK');
     }
 
     if (isChargeback) {
       await setStatus(restaurant.id, ContractStatus.REJECTED, { isActive: false, isVisible: false, cancellationDate: new Date() });
-      return res.status(200).json({ message: 'Chargeback – Restaurant deaktiviert', restaurantId: restaurant.id, productId });
+      return res.status(200).send('OK');
     }
 
     if (isPaymentMissed) {
       await setStatus(restaurant.id, ContractStatus.CANCELLED, { isActive: false, isVisible: false, cancellationDate: new Date() });
-      return res.status(200).json({ message: 'Zahlung verpasst – Restaurant deaktiviert', restaurantId: restaurant.id, productId });
+      return res.status(200).send('OK');
     }
 
     // Unknown or unsupported event – acknowledge to avoid retries
-    return res.status(200).json({ message: 'Event ignoriert', event: rawEvent, productId, restaurantId: restaurant.id });
+    return res.status(200).send('OK');
   } catch (error) {
     console.error('Fehler im Digistore-Webhook:', error);
     return res.status(500).json({ message: 'Interner Serverfehler' });
