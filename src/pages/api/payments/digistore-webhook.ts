@@ -7,6 +7,43 @@ export const config = { api: { bodyParser: false } };
 
 const prisma = new PrismaClient();
 
+// Sicheres Logging-Helferlein: vermeidet Typscript-Fehler, bis Prisma-Client neu generiert ist
+async function logPaymentEvent(data: {
+  provider: string;
+  eventType: string;
+  productId?: string | null;
+  orderId?: string | null;
+  restaurantId?: string | null;
+  statusBefore?: ContractStatus | null;
+  statusAfter?: ContractStatus | null;
+  mappedBy?: string | null;
+  mappedValue?: string | null;
+  signatureValid?: boolean | null;
+  payload: any;
+}) {
+  try {
+    const model = (prisma as any).paymentEvent;
+    if (!model) return; // Falls Prisma-Client noch nicht generiert ist
+    await model.create({
+      data: {
+        provider: data.provider,
+        eventType: data.eventType,
+        productId: data.productId ?? null,
+        orderId: data.orderId ?? null,
+        restaurantId: data.restaurantId ?? null,
+        statusBefore: data.statusBefore ?? null,
+        statusAfter: data.statusAfter ?? null,
+        mappedBy: data.mappedBy ?? null,
+        mappedValue: data.mappedValue ?? null,
+        signatureValid: data.signatureValid ?? null,
+        payload: data.payload ?? {},
+      },
+    });
+  } catch (_) {
+    // Logging-Fehler ignorieren
+  }
+}
+
 function verifyShaSign(params: Record<string, string>): boolean {
   const secret = process.env.DIGISTORE_POSTBACK_SECRET;
   if (!secret) {
@@ -106,11 +143,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Allow connection test without signature (no state change, just health check)
     if (event === 'connection_test') {
+      await logPaymentEvent({
+        provider: 'DIGISTORE',
+        eventType: 'connection_test',
+        productId: (payload['product_id'] || payload['productid'] || '').toString() || null,
+        orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+        payload,
+      });
       return res.status(200).send('OK');
     }
 
     // For real events require valid signature
-    if (!verifyShaSign(payload)) {
+    const signatureValid = verifyShaSign(payload);
+    if (!signatureValid) {
       return res.status(401).json({ message: 'Ungültige Signatur' });
     }
     const productIdStr = (payload['product_id'] || payload['productid'] || '').toString();
@@ -119,6 +164,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ALLOWED_PRODUCTS = new Set([640621, 640542, 644296]); // yearly, monthly, additional product
     if (!ALLOWED_PRODUCTS.has(productId)) {
       // Reply 200 to avoid retries, but ignore unknown products
+      await logPaymentEvent({
+        provider: 'DIGISTORE',
+        eventType: event,
+        productId: productIdStr || null,
+        orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+        signatureValid,
+        payload,
+      });
       return res.status(200).json({ message: 'Produkt ignoriert', event: rawEvent, productId });
     }
 
@@ -163,27 +216,94 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).send('OK');
     }
 
+    const mappedBy = restaurantIdParam ? 'custom' : 'email';
+    const mappedValue = restaurantIdParam || (restaurant ? restaurant.email ?? undefined : undefined);
+
     if (isPayment) {
+      await logPaymentEvent({
+        provider: 'DIGISTORE',
+        eventType: event,
+        productId: productIdStr || null,
+        orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+        restaurantId: restaurant.id,
+        statusBefore: restaurant.contractStatus,
+        statusAfter: ContractStatus.ACTIVE,
+        mappedBy,
+        mappedValue: mappedValue || null,
+        signatureValid,
+        payload,
+      });
       await setStatus(restaurant.id, ContractStatus.ACTIVE, { isActive: true, isVisible: true });
       return res.status(200).send('OK');
     }
 
     if (isRefund || isSubscriptionCanceled) {
+      await logPaymentEvent({
+        provider: 'DIGISTORE',
+        eventType: event,
+        productId: productIdStr || null,
+        orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+        restaurantId: restaurant.id,
+        statusBefore: restaurant.contractStatus,
+        statusAfter: ContractStatus.CANCELLED,
+        mappedBy,
+        mappedValue: mappedValue || null,
+        signatureValid,
+        payload,
+      });
       await setStatus(restaurant.id, ContractStatus.CANCELLED, { isActive: false, isVisible: false, cancellationDate: new Date() });
       return res.status(200).send('OK');
     }
 
     if (isChargeback) {
+      await logPaymentEvent({
+        provider: 'DIGISTORE',
+        eventType: event,
+        productId: productIdStr || null,
+        orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+        restaurantId: restaurant.id,
+        statusBefore: restaurant.contractStatus,
+        statusAfter: ContractStatus.REJECTED,
+        mappedBy,
+        mappedValue: mappedValue || null,
+        signatureValid,
+        payload,
+      });
       await setStatus(restaurant.id, ContractStatus.REJECTED, { isActive: false, isVisible: false, cancellationDate: new Date() });
       return res.status(200).send('OK');
     }
 
     if (isPaymentMissed) {
+      await logPaymentEvent({
+        provider: 'DIGISTORE',
+        eventType: event,
+        productId: productIdStr || null,
+        orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+        restaurantId: restaurant.id,
+        statusBefore: restaurant.contractStatus,
+        statusAfter: ContractStatus.CANCELLED,
+        mappedBy,
+        mappedValue: mappedValue || null,
+        signatureValid,
+        payload,
+      });
       await setStatus(restaurant.id, ContractStatus.CANCELLED, { isActive: false, isVisible: false, cancellationDate: new Date() });
       return res.status(200).send('OK');
     }
 
     // Unknown or unsupported event – acknowledge to avoid retries
+    await logPaymentEvent({
+      provider: 'DIGISTORE',
+      eventType: event,
+      productId: productIdStr || null,
+      orderId: (payload['order_id'] || payload['orderid'] || payload['order'] || '') as string || null,
+      restaurantId: restaurant.id,
+      statusBefore: restaurant.contractStatus,
+      mappedBy,
+      mappedValue: mappedValue || null,
+      signatureValid,
+      payload,
+    });
     return res.status(200).send('OK');
   } catch (error) {
     console.error('Fehler im Digistore-Webhook:', error);

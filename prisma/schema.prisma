@@ -185,6 +185,26 @@ model Contract {
   @@schema("public")
 }
 
+// Audit-Logging für Zahlungs-/Webhook-Events (Digistore24, Stripe, etc.)
+model PaymentEvent {
+  id             String          @id @default(cuid())
+  provider       String          // z.B. "DIGISTORE" oder "STRIPE"
+  eventType      String          // z.B. "on_payment", "customer.subscription.updated"
+  productId      String?         @map("product_id")
+  orderId        String?         @map("order_id")
+  restaurantId   String?         @map("restaurant_id") @db.Uuid
+  statusBefore   ContractStatus? @map("status_before")
+  statusAfter    ContractStatus? @map("status_after")
+  mappedBy       String?         @map("mapped_by")      // "custom", "email", "stripe"
+  mappedValue    String?         @map("mapped_value")    // tatsächlicher Identifier-Wert
+  signatureValid Boolean?        @map("signature_valid")
+  payload        Json            // Roh-Payload des Providers
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  @@map("payment_events")
+  @@schema("public")
+}
+
 model Translation {
   id           String   @id @default(cuid())
   key          String

@@ -2,10 +2,45 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { createUniqueSlug } from '../../../utils/slugify';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ContractStatus } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
+
+// Safe payment event logging helper to avoid TS errors until Prisma is regenerated
+async function logPaymentEvent(data: {
+  provider: string;
+  eventType: string;
+  restaurantId?: string | null;
+  statusBefore?: ContractStatus | null;
+  statusAfter?: ContractStatus | null;
+  mappedBy?: string | null;
+  mappedValue?: string | null;
+  payload: any;
+  productId?: string | null;
+  orderId?: string | null;
+}) {
+  try {
+    const model = (prisma as any).paymentEvent;
+    if (!model) return; // Prisma client may not have been regenerated yet
+    await model.create({
+      data: {
+        provider: data.provider,
+        eventType: data.eventType,
+        restaurantId: data.restaurantId ?? null,
+        statusBefore: data.statusBefore ?? null,
+        statusAfter: data.statusAfter ?? null,
+        mappedBy: data.mappedBy ?? null,
+        mappedValue: data.mappedValue ?? null,
+        payload: data.payload ?? {},
+        productId: data.productId ?? null,
+        orderId: data.orderId ?? null,
+      },
+    });
+  } catch (_) {
+    // swallow logging errors
+  }
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-08-27.basil' as any,
@@ -134,7 +169,7 @@ export default async function handler(
             if (session.metadata && session.metadata.userId && session.metadata.restaurantName) {
               const slug = await createUniqueSlug(session.metadata.restaurantName);
 
-              await prisma.restaurant.create({
+              const createdRestaurant = await prisma.restaurant.create({
                 data: {
                   userId: session.metadata.userId,
                   name: session.metadata.restaurantName,
@@ -148,6 +183,18 @@ export default async function handler(
                   latitude: latitude, 
                   longitude: longitude,
                 },
+              });
+
+              // Logging: erfolgreicher Restaurant-Checkout
+              await logPaymentEvent({
+                provider: 'STRIPE',
+                eventType: 'checkout.session.completed',
+                restaurantId: createdRestaurant.id,
+                statusBefore: null,
+                statusAfter: ContractStatus.ACTIVE,
+                mappedBy: 'stripe',
+                mappedValue: session.customer as string,
+                payload: session as unknown as object,
               });
 
               await prisma.profile.update({
@@ -177,6 +224,21 @@ export default async function handler(
           where: { id: user.id },
           data: { isPaying: status === 'active', updatedAt: new Date() },
         });
+
+        // Logging: Subscription-Status aktualisiert
+        try {
+          const restaurant = await prisma.restaurant.findFirst({ where: { userId: user.id } });
+          await logPaymentEvent({
+            provider: 'STRIPE',
+            eventType: 'customer.subscription.updated',
+            restaurantId: restaurant?.id ?? null,
+            statusBefore: restaurant?.contractStatus ?? null,
+            statusAfter: status === 'active' ? ContractStatus.ACTIVE : ContractStatus.CANCELLED,
+            mappedBy: 'stripe',
+            mappedValue: customerId,
+            payload: subscription as unknown as object,
+          });
+        } catch (_) {}
         break;
       }
 
@@ -206,6 +268,21 @@ export default async function handler(
             where: { userId: user.id },
             data: { contractStatus: 'CANCELLED', updatedAt: new Date() },
           });
+
+          // Logging: Subscription gelöscht
+          try {
+            const restaurant = await prisma.restaurant.findFirst({ where: { userId: user.id } });
+            await logPaymentEvent({
+              provider: 'STRIPE',
+              eventType: 'customer.subscription.deleted',
+              restaurantId: restaurant?.id ?? null,
+              statusBefore: restaurant?.contractStatus ?? null,
+              statusAfter: ContractStatus.CANCELLED,
+              mappedBy: 'stripe',
+              mappedValue: customerId,
+              payload: subscription as unknown as object,
+            });
+          } catch (_) {}
         }
         break;
       }
