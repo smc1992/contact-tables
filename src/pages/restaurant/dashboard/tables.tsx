@@ -100,7 +100,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       }
       
       if (formData.maxParticipants < 2) {
-        throw new Error('Ein Contact Table muss mindestens 2 Teilnehmer haben');
+        throw new Error('Ein Contact table muss mindestens 2 Teilnehmer haben');
       }
       
       // API-Aufruf zum Erstellen oder Aktualisieren des Contact Tables
@@ -128,7 +128,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Speichern des Contact Tables');
+        throw new Error(errorData.message || 'Fehler beim Speichern des Contact table');
       }
       
       const data = await response.json();
@@ -145,11 +145,11 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
         setTables(prev => prev.map(table => 
           table.id === currentTableId ? newTableData : table
         ));
-        setSuccess('Contact Table erfolgreich aktualisiert');
+        setSuccess('Contact table erfolgreich aktualisiert');
       } else {
         // Füge den neuen Tisch zur lokalen Liste hinzu
         setTables(prev => [...prev, newTableData]);
-        setSuccess('Contact Table erfolgreich erstellt');
+        setSuccess('Contact table erfolgreich erstellt');
       }
       
       // Schließe das Modal
@@ -161,7 +161,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
   };
   
   const handleDelete = async (tableId: string) => {
-    if (!confirm('Sind Sie sicher, dass Sie diesen Contact Table löschen möchten?')) {
+    if (!confirm('Sind Sie sicher, dass Sie diesen Contact table löschen möchten?')) {
       return;
     }
     
@@ -182,12 +182,12 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Löschen des Contact Tables');
+        throw new Error(errorData.message || 'Fehler beim Löschen des Contact table');
       }
       
       // Entferne den Tisch aus der lokalen Liste
       setTables(prev => prev.filter(table => table.id !== tableId));
-      setSuccess('Contact Table erfolgreich gelöscht');
+      setSuccess('Contact table erfolgreich gelöscht');
     } catch (error: any) {
       console.error('Fehler beim Löschen des Contact Tables:', error);
       setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
@@ -223,7 +223,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                   className="mt-4 md:mt-0 flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 >
                   <FiPlus className="mr-2" />
-                  Neuen Contact Table erstellen
+                  Neuen Contact table erstellen
                 </button>
               ) : (
                 <div className="mt-4 md:mt-0 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg">
@@ -299,7 +299,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                   <h3 className="text-lg font-medium text-gray-700 mb-1">Keine Contact Tables vorhanden</h3>
                   <p className="text-gray-500">
                     {restaurant.isActive 
-                      ? 'Erstellen Sie Ihren ersten Contact Table, um Menschen zusammenzubringen!' 
+                      ? 'Erstellen Sie Ihren ersten Contact table, um Menschen zusammenzubringen!' 
                       : 'Aktivieren Sie Ihr Restaurant, um Contact Tables zu erstellen.'}
                   </p>
                   {restaurant.isActive && (
@@ -308,7 +308,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                       className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                     >
                       <FiPlus className="inline mr-2" />
-                      Ersten Contact Table erstellen
+                      Ersten Contact table erstellen
                     </button>
                   )}
                 </div>
@@ -397,9 +397,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
               </p>
               <h4 className="font-medium text-blue-800 mb-1">So funktioniert's:</h4>
               <ol className="list-decimal pl-5 text-blue-700 space-y-1">
-                <li>Sie erstellen einen Contact Table mit Datum, Uhrzeit und maximaler Teilnehmerzahl.</li>
+                <li>Sie erstellen einen Contact table mit Datum, Uhrzeit und maximaler Teilnehmerzahl.</li>
                 <li>Interessierte Nutzer können sich für diesen Tisch anmelden.</li>
-                <li>Die Reservierung erfolgt direkt bei Ihnen über Ihr bestehendes Reservierungssystem.</li>
+                <li>Die Reservierung erfolgt direkt bei Ihnen telefonisch oder über Ihr bestehendes Reservierungssystem.</li>
                 <li>Die Teilnehmer treffen sich zum angegebenen Zeitpunkt in Ihrem Restaurant.</li>
               </ol>
             </div>
@@ -417,7 +417,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
           >
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-800">
-                {isEditing ? 'Contact Table bearbeiten' : 'Neuen Contact Table erstellen'}
+                {isEditing ? 'Contact table bearbeiten' : 'Neuen Contact table erstellen'}
               </h2>
             </div>
             
@@ -454,7 +454,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     required
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Beschreiben Sie den Contact Table, z.B. Thema des Abends, besondere Angebote, etc.
+                    Beschreiben Sie den Contact table, z.B. Thema des Abends, besondere Angebote, etc.
                   </p>
                 </div>
                 
