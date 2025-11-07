@@ -248,7 +248,14 @@ export const getServerSideProps: GetServerSideProps = async (context: GetServerS
       },
     });
 
-    if (!event) {
+    // SSR Guarding: Nur anzeigen, wenn öffentlich und Restaurant sichtbar + aktiv
+    if (
+      !event ||
+      event.isPublic !== true ||
+      !event.restaurant ||
+      event.restaurant.isVisible !== true ||
+      event.restaurant.contractStatus !== 'ACTIVE'
+    ) {
       return { notFound: true };
     }
 
