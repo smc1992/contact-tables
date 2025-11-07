@@ -141,8 +141,11 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
   // Corrected query, ordering by datetime
   const { data: tables, error } = await supabase
     .from('contact_tables')
-    .select('*, restaurant:restaurants(*)')
-    
+    // Nur öffentliche Tische laden und Restaurants nur, wenn sie sichtbar/aktiv sind
+    .select('*, restaurant:restaurants!inner(*)')
+    .eq('is_public', true)
+    .eq('restaurant.is_visible', true)
+    .eq('restaurant.contract_status', 'ACTIVE')
     .order('datetime', { ascending: true });
 
   if (error) {
