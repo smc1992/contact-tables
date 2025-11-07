@@ -391,10 +391,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
             
             {/* Informationsbox */}
             <div className="mt-8 bg-blue-50 p-6 rounded-xl">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">Was sind Contact Tables?</h3>
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">Was sind contact-tables?</h3>
               <p className="text-blue-700 mb-4">
-                Contact Tables sind spezielle Tische in Ihrem Restaurant, an denen sich Menschen treffen können, 
-                die neue Kontakte knüpfen möchten. Sie helfen dabei, Einsamkeit zu bekämpfen und echte Gespräche zu fördern.
+                Contact-tables sind spezielle Tische in Ihrem Restaurant – für Menschen, die allein essen gehen, aber offen für Gesellschaft und Gespräche sind. Hier darf man sich dazusetzen, austauschen, gemeinsam lachen oder einfach einen netten Abend in angenehmer Runde verbringen.
               </p>
               <h4 className="font-medium text-blue-800 mb-1">So funktioniert's:</h4>
               <ol className="list-decimal pl-5 text-blue-700 space-y-1">
