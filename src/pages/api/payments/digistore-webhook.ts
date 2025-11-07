@@ -70,6 +70,12 @@ async function setStatus(
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Digistore24 führt beim Verbindungstest häufig einen GET/HEAD aus.
+  // Antworten wir hier mit 200, damit der Health-Check erfolgreich ist.
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return res.status(200).json({ message: 'Verbindungstest bestätigt' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
