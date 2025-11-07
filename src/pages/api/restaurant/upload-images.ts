@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '../../../utils/supabase/server'; // Correct import
-import { supabaseAdmin } from '../../../lib/supabaseClient';
+import { createAdminClient } from '../../../utils/supabase/server';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
@@ -13,12 +13,26 @@ export const config = {
   },
 };
 
-// Create a logger that writes to a file
+// Create a safe logger (file logging only in development; never crash on failure)
 const logFilePath = path.join(process.cwd(), 'upload-debug.log');
+const enableFileLogging = process.env.NODE_ENV === 'development';
 const log = (message: any) => {
-    const timestamp = new Date().toISOString();
-    const logMessage = typeof message === 'object' ? JSON.stringify(message, null, 2) : message;
-    fs.appendFileSync(logFilePath, `${timestamp}: ${logMessage}\n`, 'utf8');
+    try {
+        const timestamp = new Date().toISOString();
+        const logMessage = typeof message === 'object' ? JSON.stringify(message, null, 2) : message;
+        if (enableFileLogging) {
+            fs.appendFileSync(logFilePath, `${timestamp}: ${logMessage}\n`, 'utf8');
+        }
+        // Always mirror to console for platform logs
+        // Avoid printing huge objects in production
+        if (typeof message === 'object') {
+            console.log('[upload-images]', timestamp, JSON.stringify(message));
+        } else {
+            console.log('[upload-images]', timestamp, message);
+        }
+    } catch (_) {
+        // Swallow logging errors to avoid breaking the route in serverless envs
+    }
 };
 
 // Promisify formidable
@@ -36,9 +50,15 @@ const parseForm = (req: NextApiRequest): Promise<{ fields: formidable.Fields; fi
 
 // Main handler
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    // Clear log file for new request for easier debugging
-    if (fs.existsSync(logFilePath)) {
-        fs.unlinkSync(logFilePath);
+    // Clear log file only in development and never throw
+    if (enableFileLogging) {
+        try {
+            if (fs.existsSync(logFilePath)) {
+                fs.unlinkSync(logFilePath);
+            }
+        } catch (_) {
+            // ignore
+        }
     }
     
     log(`API Route /api/restaurant/upload-images called, Method: ${req.method}`);
@@ -49,8 +69,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(405).json({ message: `Method ${req.method} Not Allowed` });
         }
 
-        log('Creating Supabase server client using shared utility...');
-        const supabase = createClient({ req, res }); // Correct initialization
+        log('Creating Supabase server and admin clients...');
+        const supabase = createClient({ req, res });
+        const supabaseAdmin = createAdminClient();
         
         log('Getting user from Supabase...');
         const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -87,8 +108,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Use the user-context client to respect RLS
         const { data: restaurant, error: ownerError } = await supabase
             .from('restaurants')
-            .select('id, image_url')
+            .select('id, image_url, userId')
             .eq('id', restaurantId)
+            .eq('userId', user.id)
             .single();
 
         if (ownerError || !restaurant) {
