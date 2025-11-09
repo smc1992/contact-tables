@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdminSidebar from '@/components/AdminSidebar';
-import { FiList, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiEye, FiMapPin } from 'react-icons/fi';
+import { FiList, FiPlus, FiEdit2, FiTrash2, FiRefreshCw, FiEye, FiMapPin, FiCheckCircle } from 'react-icons/fi';
 import { withAuth } from '@/utils/withAuth';
 import dynamic from 'next/dynamic';
 
@@ -145,6 +145,33 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
     } catch (error) {
       console.error('Fehler beim Löschen des Restaurants:', error);
       alert('Fehler beim Löschen des Restaurants');
+    }
+  };
+
+  // Zahlungsstatus prüfen und ggf. freischalten (Digistore Verify)
+  const handleVerifyRestaurant = async (id: string) => {
+    try {
+      const resp = await fetch(`/api/digistore/verify?restaurantId=${encodeURIComponent(id)}&update=1`, {
+        method: 'GET',
+        headers: { 'Cache-Control': 'no-cache' },
+        credentials: 'same-origin',
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        const msg = data?.error || `HTTP ${resp.status}`;
+        alert(`Fehler beim Status prüfen: ${msg}`);
+        return;
+      }
+      if (data?.status?.isPaid) {
+        alert('Zahlung bestätigt. Restaurant wurde freigeschaltet (falls noch nicht aktiv).');
+        fetchRestaurants();
+      } else {
+        const msg = data?.status?.billingStatusMsg || data?.status?.billingStatus || 'kein Zahlungsnachweis';
+        alert(`Kein Zahlungsnachweis gefunden: ${msg}`);
+      }
+    } catch (error) {
+      console.error('Verify-Fehler:', error);
+      alert('Unerwarteter Fehler beim Status prüfen');
     }
   };
 
@@ -309,6 +336,13 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                               title="Ansehen"
                             >
                               <FiEye />
+                            </button>
+                            <button
+                              onClick={() => handleVerifyRestaurant(restaurant.id)}
+                              className="text-green-600 hover:text-green-900 mr-3"
+                              title="Status prüfen"
+                            >
+                              <FiCheckCircle />
                             </button>
                             <button
                               onClick={() => handleEditRestaurant(restaurant.id)}

@@ -1,5 +1,7 @@
 import { GetServerSideProps } from 'next';
-import { createClient } from '../../../utils/supabase/server';
+import { useEffect, useState } from 'react';
+import { createClient as createServerClient } from '../../../utils/supabase/server';
+import { createClient as createBrowserClient } from '../../../utils/supabase/client';
 import { PrismaClient } from '@prisma/client';
 import { FiEdit, FiImage, FiCalendar, FiBarChart2 } from 'react-icons/fi';
 import Header from '../../../components/Header';
@@ -42,11 +44,39 @@ interface DashboardProps {
 
 export default function SimpleDashboard({ restaurant }: DashboardProps) {
   // Vereinfachte Version ohne Animationen und komplexe Berechnungen
+  const [restaurantState, setRestaurantState] = useState<RestaurantData>(restaurant);
+  const supabase = createBrowserClient();
+
+  useEffect(() => {
+    if (!restaurantState?.id) return;
+    // Nur abonnieren, wenn noch nicht aktiv/sichtbar
+    const needsActivation = !restaurantState?.isVisible || restaurantState?.contractStatus !== 'ACTIVE';
+    if (!needsActivation) return;
+
+    const channel = supabase
+      .channel('restaurants-status')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'restaurants',
+        filter: `id=eq.${restaurantState.id}`,
+      }, (payload) => {
+        const next = (payload as any)?.new || {};
+        if (next && next.id === restaurantState.id) {
+          setRestaurantState((prev) => ({ ...prev, ...next }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      try { supabase.removeChannel(channel); } catch {}
+    };
+  }, [restaurantState?.id]);
   
   const resolveUrl = (base?: string) => {
     if (!base) return undefined;
     const sep = base.includes('?') ? '&' : '?';
-    return `${base}${sep}custom=${encodeURIComponent(restaurant.id)}`;
+    return `${base}${sep}custom=${encodeURIComponent(restaurantState.id)}`;
   };
   const monthlyBase = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_MONTHLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_BASIC_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_BASIC_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#';
   const yearlyBase = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#';
@@ -73,7 +103,7 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
             </div>
             
             {/* Zahlungs-/Aktivierungs-Hinweis */}
-            {(!restaurant?.isVisible || restaurant?.contractStatus !== 'ACTIVE') && (
+            {(!restaurantState?.isVisible || restaurantState?.contractStatus !== 'ACTIVE') && (
               <div className="mb-8">
                 <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-6">
                   <h2 className="text-lg font-semibold text-yellow-800 mb-2">Profil noch nicht freigeschaltet</h2>
@@ -115,7 +145,7 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
             {/* Willkommensbereich */}
             <div className="bg-primary-500 rounded-lg shadow-md p-8 mb-8 text-white">
               <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                Willkommen zurück, {restaurant?.name || 'Restaurant'}!
+                Willkommen zurück, {restaurantState?.name || 'Restaurant'}!
               </h1>
               <p className="text-white opacity-90 max-w-2xl mb-4">
                 Hier können Sie Ihr Restaurantprofil verwalten, Kontakttische erstellen und Ihre Statistiken einsehen.
@@ -186,7 +216,7 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const supabase = createClient(context);
+  const supabase = createServerClient(context);
   
   const { data: { user } } = await supabase.auth.getUser();
   

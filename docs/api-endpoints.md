@@ -67,3 +67,62 @@ Fehler wie `net::ERR_FILE_NOT_FOUND` für Dateien wie `utils.js`, `extensionStat
    - `DIRECT_URL`
 
 3. **Supabase-Client:** Verwenden Sie immer die zentrale `createClient`-Funktion aus `utils/supabase/server.ts` für serverseitige Supabase-Interaktionen.
+
+## Digistore24
+
+### Checkout-URL für Restaurant (mit Zuordnung)
+- **Endpunkt:** `/api/payments/digistore-checkout-url`
+- **Methode:** GET
+- **Beschreibung:** Generiert eine Digistore-Checkout-URL mit `custom=<restaurantId>`, sodass Bestellungen einem Restaurant zugeordnet werden.
+- **Query-Parameter:**
+  - `type` (optional): `monthly` | `yearly` | `default`
+- **Antwort:** `{ url: string }`
+
+### Pläne aus Digistore laden (Fallback möglich)
+- **Endpunkt:** `/api/digistore/plans`
+- **Methode:** GET
+- **Beschreibung:** Liest verfügbare Produkte/Pläne aus Digistore. Fällt auf ENV-Links zurück, wenn API nicht verfügbar ist.
+- **Antwort:** `{ plans: Array<{ id, name, url, price?, currency? }> }`
+
+### Verify-Endpoint: Zahlungsstatus prüfen und optional freischalten
+- **Endpunkt:** `/api/digistore/verify`
+- **Methode:** GET
+- **Beschreibung:** Prüft via Digistore API (Transaktionen + getPurchase), ob eine Bestellung bezahlt ist. Optional kann bei bestätigter Zahlung das Restaurant freigeschaltet werden.
+- **Authentifizierung:** Erfordert eingeloggten Benutzer mit Rolle `ADMIN` oder `STAFF`.
+- **Query-Parameter:**
+  - `restaurantId` (optional): bevorzugter Identifikator (kommt aus `custom` im Checkout-Link)
+  - `email` (optional): Fallback-Identifikator (Käufer-E-Mail)
+  - `purchase_id` (optional): direkte Abfrage einer konkreten Bestellung
+  - `currency` (optional): z. B. `EUR`
+  - `update` (optional): `1` oder `true` ⇒ bei bestätigter Zahlung Restaurant auf `ACTIVE` setzen
+- **Erfolgsantwort:**
+  ```json
+  {
+    "result": "success",
+    "status": {
+      "isPaid": true,
+      "billingStatus": "paid",
+      "billingStatusMsg": "Zahlung bestätigt",
+      "billingType": "single_payment",
+      "amount": 10.00,
+      "currency": "EUR",
+      "paymentMethod": "visa"
+    },
+    "matched": {
+      "purchaseId": "ZMZV26HF",
+      "productId": 640621,
+      "buyerEmail": "kunde@example.com",
+      "custom": "<restaurantId>"
+    },
+    "urls": {
+      "receiptUrl": "https://digistore24.com/receipt/...",
+      "renewUrl": "https://digistore24.com/renew/..."
+    }
+  }
+  ```
+
+### Webhook: Zahlungsereignisse verarbeiten
+- **Endpunkt:** `/api/payments/digistore-webhook`
+- **Methode:** POST (Digistore24 S2S/IPN)
+- **Beschreibung:** Verifiziert `sha_sign` und setzt je nach Ereignis den Vertragsstatus (z. B. `ACTIVE` bei Zahlung, `CANCELLED` bei Rückerstattung/Kündigung).
+- **Konfiguration:** Digistore Backoffice → S2S Postback URL auf diesen Endpunkt setzen, Secret: `DIGISTORE_POSTBACK_SECRET`.

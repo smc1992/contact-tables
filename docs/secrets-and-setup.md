@@ -21,6 +21,7 @@ NEXTAUTH_URL=http://localhost:3000
 
 # Digistore24
 NEXT_PUBLIC_DIGISTORE_PRODUCT_URL=https://www.checkout-ds24.com/product/<produkt-id>
+DIGISTORE_API_KEY=<readonly-oder-writable-api-key>
 DIGISTORE_POSTBACK_SECRET=<starker-geheimer-string>
 
 # Stripe
@@ -76,7 +77,7 @@ Hinweis: Variablen mit `NEXT_PUBLIC_…` sind clientseitig sichtbar und sollten 
 - Benötigt:
   - `NEXT_PUBLIC_DIGISTORE_PRODUCT_URL` (Öffentlicher Checkout-Link)
   - `DIGISTORE_POSTBACK_SECRET` (Secret zur `sha_sign`-Verifikation)
-  - `DIGISTORE_API_KEY` (Server-seitig; API-Zugriff auf Produkte/Pläne)
+  - `DIGISTORE_API_KEY` (Server-seitig; API-Zugriff auf Produkte/Pläne/Bestellungen)
 - Optional (monatlich/jährlich eindeutig):
   - `NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL` (Checkout-Link „Monatlich“)
   - `NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL` (Checkout-Link „Jährlich“)
@@ -96,6 +97,7 @@ Hinweis: Variablen mit `NEXT_PUBLIC_…` sind clientseitig sichtbar und sollten 
   - Produkte/Pläne werden, falls möglich, per Digistore API geladen; andernfalls greift ein Fallback auf die obigen Plan-URLs.
 - Test:
   - Verbindungstest im Digistore24-Backend ausführen, Logs in deiner App prüfen.
+  - Admin-Statusabfrage: `GET /api/digistore/purchase-status?purchase_id=<ID>` (erfordert eingeloggten Admin/Staff). Antwort enthält `billing_status` und relevante Bestelldetails.
 
 ## Stripe
 - Benötigt:
