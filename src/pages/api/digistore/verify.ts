@@ -170,22 +170,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   // Optional: Freischalten
-  if (doUpdate && isPaid && matched?.custom) {
+  if (doUpdate && matched?.custom) {
     try {
       const supabase = createClient({ req, res });
-      // Restaurant aktiv/visible setzen
-      const { error: rErr } = await supabase
-        .from('restaurants')
-        .update({ contractStatus: 'ACTIVE', isActive: true, isVisible: true })
-        .eq('id', matched.custom);
-      if (rErr) {
-        console.warn('Aktualisierung Restaurant fehlgeschlagen:', rErr);
+      if (isPaid) {
+        // Restaurant aktiv/visible setzen (snake_case)
+        const { error: rErr } = await supabase
+          .from('restaurants')
+          .update({ contract_status: 'ACTIVE', is_active: true, is_visible: true })
+          .eq('id', matched.custom);
+        if (rErr) {
+          console.warn('Aktualisierung Restaurant fehlgeschlagen:', rErr);
+        }
+        // Optionale Vertrags-Tabelle aktualisieren, wenn vorhanden
+        await supabase
+          .from('contracts')
+          .update({ status: 'ACTIVE', cancellation_date: null })
+          .eq('restaurant_id', matched.custom);
       }
-      // Optionale Vertrags-Tabelle aktualisieren, wenn vorhanden
+      // Logge die Verify-Überprüfung als PaymentEvent
       await supabase
-        .from('contracts')
-        .update({ status: 'ACTIVE', cancellationDate: null })
-        .eq('restaurantId', matched.custom);
+        .from('payment_events')
+        .insert({
+          provider: 'DIGISTORE',
+          event_type: 'verify_check',
+          product_id: matched?.productId ? String(matched.productId) : null,
+          order_id: matched?.purchaseId || null,
+          restaurant_id: matched?.custom || null,
+          status_before: null,
+          status_after: isPaid ? 'ACTIVE' : null,
+          mapped_by: matched?.custom ? 'custom' : (matched?.buyerEmail ? 'email' : null),
+          mapped_value: matched?.custom || matched?.buyerEmail || null,
+          signature_valid: null,
+          payload: { billingStatus, billingStatusMsg, billingType, amount, currency: curr, paymentMethod },
+        });
     } catch (_) {
       // Fehler beim Update nicht fatal für den Verify-Call
     }

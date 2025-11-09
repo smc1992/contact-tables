@@ -21,6 +21,8 @@ interface Restaurant {
   email: string;
   website: string;
   is_active: boolean;
+  is_visible?: boolean;
+  contract_status?: 'PENDING' | 'ACTIVE' | 'CANCELLED' | string;
   is_featured: boolean;
   owner_id: string;
   owner_name?: string;
@@ -29,6 +31,7 @@ interface Restaurant {
   rating: number;
   review_count: number;
   image_url?: string;
+  last_verified_at?: string | null;
 }
 
 interface RestaurantsPageProps {
@@ -80,7 +83,28 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
         };
       });
 
-      setRestaurants(formattedData);
+      // Last verified: Latest payment_events per restaurant (verify_check or on_payment)
+      const ids = formattedData.map((r: any) => r.id).filter(Boolean);
+      let lastMap: Record<string, string> = {};
+      if (ids.length > 0) {
+        const { data: events } = await supabase
+          .from('payment_events')
+          .select('restaurant_id, created_at, event_type')
+          .in('restaurant_id', ids)
+          .order('created_at', { ascending: false });
+        (events || []).forEach((ev: any) => {
+          const rid = ev?.restaurant_id;
+          if (!rid) return;
+          if (!lastMap[rid]) {
+            lastMap[rid] = ev?.created_at;
+          }
+        });
+      }
+
+      setRestaurants(formattedData.map((r: any) => ({
+        ...r,
+        last_verified_at: lastMap[r.id] || null,
+      })));
     } catch (error) {
       console.error('Fehler beim Laden der Restaurants:', error);
       alert('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
@@ -180,6 +204,19 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
     return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
 
+  const getContractBadgeColor = (status?: string) => {
+    switch ((status || '').toUpperCase()) {
+      case 'ACTIVE':
+        return 'bg-green-100 text-green-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   // Kürzen des Textes
   const truncateText = (text: string, maxLength: number) => {
     if (!text) return '';
@@ -237,6 +274,9 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Zuletzt geprüft
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Bewertung
@@ -298,16 +338,29 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">{restaurant.owner_name}</div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(restaurant.is_active)}`}>
-                              {restaurant.is_active ? 'Aktiv' : 'Inaktiv'}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(restaurant.is_active)}`}>
+                            {restaurant.is_active ? 'Aktiv' : 'Inaktiv'}
+                          </span>
+                          {typeof restaurant.contract_status !== 'undefined' && (
+                            <span className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getContractBadgeColor(restaurant.contract_status)}`}>
+                              Vertrag: {String(restaurant.contract_status || '').toUpperCase() || 'UNBEKANNT'}
                             </span>
-                            {restaurant.is_featured && (
-                              <span className="ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                Featured
-                              </span>
-                            )}
-                          </td>
+                          )}
+                          {typeof restaurant.is_visible !== 'undefined' && (
+                            <span className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${restaurant.is_visible ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                              {restaurant.is_visible ? 'Sichtbar' : 'Nicht sichtbar'}
+                            </span>
+                          )}
+                          {restaurant.is_featured && (
+                            <span className="ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                              Featured
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {restaurant.last_verified_at ? formatDate(restaurant.last_verified_at) : '—'}
+                        </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               {(() => {
