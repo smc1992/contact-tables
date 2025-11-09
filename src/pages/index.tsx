@@ -10,6 +10,7 @@ import RestaurantCard from '../components/RestaurantCard';
 import { restaurantApi } from '../utils/api';
 import Image from 'next/image';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useAuth } from '../contexts/AuthContext';
 import LaunchPopup from '../components/LaunchPopup';
 import SEO from '../components/SEO';
@@ -70,6 +71,38 @@ const LanguageSlider = () => {
 };
 
 const prisma = new PrismaClient();
+
+// Podigee Player als Inline-Embed im gewünschten DOM-Container
+const PodigeeEmbed = ({ configUrl }: { configUrl: string }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Container leeren, um Doppelinjektionen zu vermeiden
+    container.innerHTML = '';
+
+    // Zuerst die Konfigurations-Script-Tag IM Container platzieren
+    const embedScript = document.createElement('script');
+    embedScript.className = 'podigee-podcast-player';
+    embedScript.setAttribute('data-configuration', `${configUrl}?context=external`);
+    container.appendChild(embedScript);
+
+    // Danach den Loader nur einmal global laden
+    const loaderSrc = 'https://player.podigee-cdn.net/podcast-player/javascripts/podigee-podcast-player.js';
+    const existingLoader = document.querySelector(`script[src='${loaderSrc}']`);
+    if (!existingLoader) {
+      const loader = document.createElement('script');
+      loader.src = loaderSrc;
+      loader.async = true;
+      // Loader im Head platzieren, damit kein Script am Body-Ende erscheint
+      (document.head || document.body).appendChild(loader);
+    }
+  }, [configUrl]);
+
+  return <div ref={containerRef} className="podigee-player-container" />;
+};
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
 
@@ -542,6 +575,71 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
         </div>
       </section>
       
+
+      {/* Medien-Sektion: Interview, Podcast und Pitch Call */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start">
+              {/* Video-Container */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="bg-white rounded-xl shadow-md overflow-hidden"
+              >
+                <div className="p-6 border-b">
+                  <h2 className="text-2xl font-bold text-secondary-800">🎤 Interview: Die Geschichte hinter Contact‑tables</h2>
+                  <p className="mt-2 text-gray-600">Gründerin Anette Rapp spricht über die Idee, die Reise bis hierhin – und warum gemeinsame Tische mehr verändern können, als man denkt.</p>
+                </div>
+                <div className="w-full bg-black h-[420px] md:h-[560px]">
+                  <iframe
+                    className="w-full h-full"
+                    src="https://www.youtube.com/embed/Ptl1Mf3tM8Y"
+                    title="Interview mit der Gründerin Anette Rapp"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+                <div className="p-6">
+                  <a
+                    href="https://www.youtube.com/watch?v=Ptl1Mf3tM8Y"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    Video auf YouTube ansehen
+                  </a>
+                </div>
+              </motion.div>
+
+              {/* Textblöcke */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="space-y-6"
+              >
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-xl font-semibold text-secondary-800">🎧 Zu Gast im Podcast</h3>
+                  <p className="mt-2 text-gray-600">Ein Gespräch über Menschen, Begegnungen und die Vision hinter Contact‑tables – ganz persönlich und direkt.</p>
+                  <div className="mt-4">
+                    <PodigeeEmbed configUrl="https://kreactiveserfolgsprogramm.podigee.io/s1e132-neue-episode/embed" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-xl font-semibold text-secondary-800">🚀 Eingeladen zum Pitch Call bei „Die Höhle der Löwen“</h3>
+                  <p className="mt-2 text-gray-600">Contact‑tables wurde zur Vorauswahl der VOX‑Gründershow eingeladen – ein großer Moment für unsere noch junge Idee. Wir sind gespannt, wohin die Reise führt!</p>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* CTA-Sektion für Kunden */}
       <section className="py-16 bg-primary-600 text-white">
