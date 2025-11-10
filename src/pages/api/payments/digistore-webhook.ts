@@ -2,10 +2,18 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, ContractStatus } from '@prisma/client';
 import crypto from 'crypto';
 import { buffer } from 'micro';
+import { createClient } from '@supabase/supabase-js';
 
 export const config = { api: { bodyParser: false } };
 
 const prisma = new PrismaClient();
+
+// Supabase Admin-Client (Service Role) vorbereiten – sicherheitsbewusst und optional
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = supabaseUrl && supabaseServiceRoleKey
+  ? createClient(supabaseUrl, supabaseServiceRoleKey)
+  : null;
 
 // Sicheres Logging-Helferlein: vermeidet Typscript-Fehler, bis Prisma-Client neu generiert ist
 async function logPaymentEvent(data: {
@@ -106,6 +114,51 @@ async function setStatus(
   }
 }
 
+// Supabase-Status-Update spiegeln (Restaurant-Tabelle + optional Benutzerrolle)
+async function updateSupabaseActivation(restaurant: any, status: ContractStatus) {
+  if (!supabaseAdmin) {
+    // In Umgebungen ohne Service Role Key kein Fehler – nur Logging
+    console.warn('Supabase Admin-Client nicht konfiguriert – Status wird nur in Prisma aktualisiert.');
+    return;
+  }
+
+  try {
+    const isActive = status === ContractStatus.ACTIVE;
+    const isVisible = status === ContractStatus.ACTIVE;
+    const { error: supabaseUpdateError } = await supabaseAdmin
+      .from('restaurants')
+      .update({
+        contract_status: status,
+        is_active: isActive,
+        is_visible: isVisible,
+        contract_accepted_at: isActive ? new Date().toISOString() : undefined,
+      })
+      .eq('id', restaurant.id);
+
+    if (supabaseUpdateError) {
+      console.error('Fehler beim Aktualisieren des Supabase-Restaurantdatensatzes:', supabaseUpdateError);
+    }
+  } catch (e) {
+    console.error('Unerwarteter Fehler beim Supabase-Update des Restaurantdatensatzes:', e);
+  }
+
+  // Benutzerrolle nur auf ACTIVE setzen
+  const supabaseAuthUserId = restaurant?.profile?.id;
+  if (supabaseAuthUserId && status === ContractStatus.ACTIVE) {
+    try {
+      const { error: adminUserError } = await supabaseAdmin!.auth.admin.updateUserById(
+        supabaseAuthUserId,
+        { user_metadata: { role: 'RESTAURANT' } }
+      );
+      if (adminUserError) {
+        console.error(`Fehler beim Aktualisieren der Supabase Benutzerrolle (Benutzer-ID ${supabaseAuthUserId}):`, adminUserError);
+      }
+    } catch (e) {
+      console.error(`Unerwarteter Fehler beim Aktualisieren der Supabase Benutzerrolle (Benutzer-ID ${supabaseAuthUserId}):`, e);
+    }
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Digistore24 führt beim Verbindungstest häufig einen GET/HEAD aus.
   // Antworten wir hier mit 200, damit der Health-Check erfolgreich ist.
@@ -177,11 +230,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Identify restaurant by custom id first, then fallback to email
     const restaurantIdParam = (payload['custom'] || payload['sub_id'] || payload['order_custom'] || undefined) as string | undefined;
-    let restaurant = null as Awaited<ReturnType<typeof prisma.restaurant.findUnique>> | null;
+    let restaurant: any = null;
 
     if (restaurantIdParam && typeof restaurantIdParam === 'string') {
       try {
-        restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantIdParam } });
+        restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantIdParam }, include: { profile: true } });
       } catch (e) {
         // ignore; will fallback to email
       }
@@ -196,7 +249,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const normalizedEmail = normalizeEmail(rawEmail);
-      restaurant = await prisma.restaurant.findFirst({ where: { email: normalizedEmail } });
+      restaurant = await prisma.restaurant.findFirst({ where: { email: normalizedEmail }, include: { profile: true } });
 
       if (!restaurant) {
         return res.status(404).json({ message: 'Restaurant nicht gefunden', identifier: normalizedEmail });
@@ -235,6 +288,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         payload,
       });
       await setStatus(restaurant.id, ContractStatus.ACTIVE, { isActive: true, isVisible: true });
+      await updateSupabaseActivation(restaurant, ContractStatus.ACTIVE);
       return res.status(200).send('OK');
     }
 
@@ -253,6 +307,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         payload,
       });
       await setStatus(restaurant.id, ContractStatus.CANCELLED, { isActive: false, isVisible: false, cancellationDate: new Date() });
+      await updateSupabaseActivation(restaurant, ContractStatus.CANCELLED);
       return res.status(200).send('OK');
     }
 
@@ -271,6 +326,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         payload,
       });
       await setStatus(restaurant.id, ContractStatus.REJECTED, { isActive: false, isVisible: false, cancellationDate: new Date() });
+      await updateSupabaseActivation(restaurant, ContractStatus.REJECTED);
       return res.status(200).send('OK');
     }
 
@@ -289,6 +345,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         payload,
       });
       await setStatus(restaurant.id, ContractStatus.CANCELLED, { isActive: false, isVisible: false, cancellationDate: new Date() });
+      await updateSupabaseActivation(restaurant, ContractStatus.CANCELLED);
       return res.status(200).send('OK');
     }
 
