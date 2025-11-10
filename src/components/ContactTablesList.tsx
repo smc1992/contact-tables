@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { type Database } from '../types/supabase';
 import Link from 'next/link';
-import { FiCalendar, FiClock, FiMapPin, FiHeart, FiInfo } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin, FiHeart, FiInfo, FiPhone, FiGlobe } from 'react-icons/fi';
 import { supabase } from '../utils/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -23,6 +23,7 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
   // The internal data fetching logic has been removed to prevent the error.
   const [contactTables] = useState<ContactTableWithRestaurant[]>(initialContactTables || []);
   const [joining, setJoining] = useState<string | null>(null); // Track joining status by table id
+  const [reserveOpen, setReserveOpen] = useState<string | null>(null); // Show reservation CTA per table
   const [favorites, setFavorites] = useState<string[]>([]); // Array of restaurant IDs that are favorites
   const [favoritesLoading, setFavoritesLoading] = useState<boolean>(true);
   const { user } = useAuth();
@@ -78,6 +79,10 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
     } finally {
       setJoining(null);
     }
+  };
+
+  const toggleReserve = (tableId: string) => {
+    setReserveOpen(prev => (prev === tableId ? null : tableId));
   };
   
   // Füge ein Restaurant zu den Favoriten hinzu oder entferne es
@@ -137,6 +142,7 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
         // Participant count is removed as it's causing issues.
         // We can display max_participants directly.
         const availableSeats = table.max_participants;
+        const dt = table.datetime ? new Date(table.datetime) : null;
         
         return (
           <div key={table.id} className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-xl flex flex-col">
@@ -145,12 +151,14 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
                 <div>
                   <p className="text-sm text-neutral-500 flex items-center">
                     <FiCalendar className="mr-2" />
-                    {new Date(table.datetime).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {dt ? dt.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                   </p>
-                  <p className="text-sm text-neutral-500 flex items-center mt-1">
-                    <FiClock className="mr-2" />
-                    {new Date(table.datetime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                  </p>
+                  {dt && (
+                    <p className="text-sm text-neutral-500 flex items-center mt-1">
+                      <FiClock className="mr-2" />
+                      {dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                    </p>
+                  )}
                 </div>
                 <span className="px-3 py-1 text-xs font-semibold text-primary-800 bg-primary-100 rounded-full">
                   {/* Displaying max participants instead of available seats */}
@@ -183,17 +191,24 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
             </div>
 
             <div className="bg-neutral-50 px-6 py-4">
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex gap-3 items-center mb-3">
                 {userRole === 'CUSTOMER' && (
                   <button 
                     onClick={() => handleJoin(table.id)}
                     disabled={joining === table.id}
-                    className="flex-grow bg-primary-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-neutral-400 disabled:cursor-not-allowed flex items-center justify-center mr-2"
+                    className="flex-1 bg-primary-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-neutral-400 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {joining === table.id ? 'Beitreten...' : 'Teilnehmen'}
                   </button>
                 )}
-                
+
+                <button
+                  onClick={() => toggleReserve(table.id)}
+                  className="flex-1 border border-primary-300 text-primary-700 font-medium py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors"
+                >
+                  Reservieren
+                </button>
+
                 {user && table.restaurant && (
                   <button
                     onClick={() => toggleFavorite(table.restaurant?.id || '')}
@@ -211,12 +226,32 @@ export default function ContactTablesList({ initialContactTables, userRole }: Co
                   </button>
                 )}
               </div>
-              
-              <Link href={`/contact-tables/${table.id}`} className="block">
-                <button className="w-full border border-neutral-300 text-neutral-700 font-medium py-2 px-4 rounded-lg hover:bg-neutral-100 transition-colors">
-                  Details ansehen
-                </button>
-              </Link>
+              {reserveOpen === table.id && (
+                <div className="mt-2 bg-white border border-neutral-200 rounded-lg p-3 text-sm text-neutral-700">
+                  <div className="flex flex-wrap gap-3">
+                    {table.restaurant?.phone && (
+                      <a href={`tel:${table.restaurant.phone}`} className="inline-flex items-center px-3 py-1 rounded bg-primary-50 text-primary-700 hover:bg-primary-100">
+                        <FiPhone className="mr-2" />
+                        Anrufen
+                      </a>
+                    )}
+                    {(table.restaurant?.website || table.restaurant?.booking_url) && (
+                      <a href={table.restaurant?.website || table.restaurant?.booking_url || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-1 rounded bg-neutral-100 text-neutral-800 hover:bg-neutral-200">
+                        <FiGlobe className="mr-2" />
+                        Zur Webseite
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3">
+                <Link href={`/contact-tables/${table.id}`} className="block">
+                  <button className="w-full border border-neutral-300 text-neutral-700 font-medium py-2 px-4 rounded-lg hover:bg-neutral-100 transition-colors">
+                    Details ansehen
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
         );

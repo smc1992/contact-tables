@@ -32,7 +32,7 @@ interface RestaurantData {
 }
 
 interface TablesPageProps {
-  restaurant: RestaurantData;
+  restaurant: RestaurantData | null;
   contactTables: ContactTable[];
 }
 
@@ -55,6 +55,29 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
     pauseStart: '',
     pauseEnd: '',
   });
+
+  // Fallback-Rendering, wenn Restaurant-Daten nicht geladen werden konnten
+  if (!restaurant) {
+    return (
+      <div className="min-h-screen bg-neutral-50">
+        <Header />
+        <main className="pt-20 px-4 md:px-8 pb-12">
+          <div className="max-w-3xl mx-auto">
+            <div className="mb-6 p-4 bg-red-100 text-red-800 rounded-lg">
+              <div className="flex items-center">
+                <FiAlertCircle className="mr-2" />
+                <p>Restaurant-Daten konnten nicht geladen werden. Bitte melden Sie sich erneut an oder registrieren Ihr Restaurant.</p>
+              </div>
+            </div>
+            <a href="/restaurant/register" className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+              Restaurant registrieren
+            </a>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -170,7 +193,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
             max_participants: formData.maxParticipants,
             price: 0,
             restaurant_id: restaurant.id,
-            is_public: restaurant.isActive ? formData.isPublic : false,
+            is_public: restaurant?.isActive ? formData.isPublic : false,
             paused: formData.paused,
             is_indefinite: true,
             pause_start: formData.paused && formData.pauseStart ? `${formData.pauseStart}T00:00:00` : null,
@@ -306,11 +329,11 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                       name="isPublic"
                       checked={formData.isPublic}
                       onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
-                      disabled={!restaurant.isActive}
+                      disabled={!restaurant?.isActive}
                       className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                     />
                     <span className="ml-2 text-sm text-gray-600">
-                      {restaurant.isActive ? 'Wenn aktiviert, erscheint der Tisch öffentlich.' : 'Aktivieren Sie Ihr Restaurant, um Tische öffentlich sichtbar zu machen.'}
+                      {restaurant?.isActive ? 'Wenn aktiviert, erscheint der Tisch öffentlich.' : 'Aktivieren Sie Ihr Restaurant, um Tische öffentlich sichtbar zu machen.'}
                     </span>
                   </div>
                 </div>
@@ -343,7 +366,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
             )}
             
             {/* Status-Banner */}
-            {!restaurant.isActive && (
+            {!restaurant?.isActive && (
               <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -354,14 +377,14 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                   <div>
                     <h3 className="font-medium text-amber-800">Ihr Restaurant ist noch nicht aktiv</h3>
                     <p className="text-amber-700 mt-1">
-                      {restaurant.contractStatus === 'PENDING' && 
+                      {restaurant?.contractStatus === 'PENDING' && 
                         'Ihre Anfrage wird derzeit geprüft. Sie können bereits Contact-tables anlegen; diese sind öffentlich sichtbar, sobald Ihr Restaurant aktiviert wurde.'}
-                      {restaurant.contractStatus === 'APPROVED' && 
+                      {restaurant?.contractStatus === 'APPROVED' && 
                         'Ihre Anfrage wurde genehmigt! Bitte schließen Sie die Zahlung und den Vertragsabschluss ab, um Ihr Restaurant zu aktivieren. Bis dahin angelegte Contact-tables bleiben nicht öffentlich sichtbar.'}
-                      {restaurant.contractStatus === 'REJECTED' && 
+                      {restaurant?.contractStatus === 'REJECTED' && 
                         'Leider wurde Ihre Anfrage abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.'}
                     </p>
-                    {restaurant.contractStatus === 'APPROVED' && (
+                    {restaurant?.contractStatus === 'APPROVED' && (
                       <>
                         <a 
                           href={`/restaurant/payment/${restaurant.id}`}
@@ -373,7 +396,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                           <p className="text-sm text-amber-800 mb-2">AGB lesen und bestätigen, um den Vertrag zu aktivieren.</p>
                           <div className="flex flex-col md:flex-row md:items-center gap-3">
                             <a
-                              href={`/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}&token=${encodeURIComponent(restaurant.contractToken || '')}`}
+                              href={`/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}&token=${encodeURIComponent(restaurant?.contractToken || '')}`}
                               className="text-amber-700 underline underline-offset-2"
                               target="_blank"
                               rel="noopener noreferrer"
@@ -391,9 +414,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                             </label>
                             <button
                               type="button"
-                              disabled={!termsAccepted || accepting || !restaurant.contractToken}
+                              disabled={!termsAccepted || accepting || !restaurant?.contractToken}
                               onClick={async () => {
-                                if (!restaurant.contractToken) return;
+                                if (!restaurant?.contractToken) return;
                                 setAccepting(true);
                                 setError('');
                                 setSuccess('');

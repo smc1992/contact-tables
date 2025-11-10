@@ -1,22 +1,20 @@
-2025-08-13T22:40:08.967Z: API Route /api/restaurant/upload-images called, Method: POST
-2025-08-13T22:40:08.968Z: Creating Supabase server client using shared utility...
-2025-08-13T22:40:08.969Z: Getting user from Supabase...
-2025-08-13T22:40:09.100Z: User authenticated: 51ce6ebb-c478-447e-ae43-f463b5f42139
-2025-08-13T22:40:09.100Z: Parsing form data...
-2025-08-13T22:40:09.109Z: {
+2025-11-10T19:07:59.650Z: API Route /api/restaurant/upload-images called, Method: POST
+2025-11-10T19:07:59.651Z: Creating Supabase server and admin clients...
+2025-11-10T19:07:59.652Z: Getting user from Supabase...
+2025-11-10T19:07:59.767Z: User authenticated: 64ba2bf2-d6eb-44e1-aa63-c2c836d42c47
+2025-11-10T19:07:59.767Z: Parsing form data...
+2025-11-10T19:07:59.776Z: {
   "message": "--- Image Upload Request ---",
-  "restaurantId": "33d03dfc-6c4b-4867-8e3c-98887ea7facf",
+  "restaurantId": "c0b5131b-cd2e-4b3d-bc49-6129b3f5d381",
   "fileCount": 1
 }
-2025-08-13T22:40:09.109Z: Verifying restaurant ownership...
-2025-08-13T22:40:09.168Z: Ownership verified.
-2025-08-13T22:40:09.168Z: Processing file: WhatsApp Image 2025-07-15 at 21.30.11.jpeg
-2025-08-13T22:40:09.169Z: Uploading WhatsApp Image 2025-07-15 at 21.30.11.jpeg to Supabase Storage at path: 33d03dfc-6c4b-4867-8e3c-98887ea7facf/592dc02b-4f72-4af0-b21b-19f5c1318f1f
-2025-08-13T22:40:09.554Z: Upload to storage successful.
-2025-08-13T22:40:09.554Z: Getting public URL...
-2025-08-13T22:40:09.555Z: Public URL: https://efmbzrmroyetcqxcwxka.supabase.co/storage/v1/object/public/restaurant-bilder/33d03dfc-6c4b-4867-8e3c-98887ea7facf/592dc02b-4f72-4af0-b21b-19f5c1318f1f
-2025-08-13T22:40:09.555Z: Inserting DB record for WhatsApp Image 2025-07-15 at 21.30.11.jpeg. Is primary: true
-2025-08-13T22:40:09.626Z: DB insert successful.
-2025-08-13T22:40:09.627Z: This is the primary image. Updating restaurant table for ID: 33d03dfc-6c4b-4867-8e3c-98887ea7facf
-2025-08-13T22:40:09.690Z: Restaurant table updated with new primary image URL and visibility.
-2025-08-13T22:40:09.690Z: Image upload process completed successfully.
+2025-11-10T19:07:59.776Z: Verifying restaurant ownership...
+2025-11-10T19:07:59.866Z: Ownership verified.
+2025-11-10T19:07:59.866Z: Processing file: 0ca1c540-6751-42fa-aaac-53a7c97812b4.png
+2025-11-10T19:07:59.867Z: Uploading 0ca1c540-6751-42fa-aaac-53a7c97812b4.png to Supabase Storage at path: c0b5131b-cd2e-4b3d-bc49-6129b3f5d381/82910865-2b9f-427b-a37a-e30ff95e6e5a
+2025-11-10T19:08:01.227Z: Upload to storage successful.
+2025-11-10T19:08:01.227Z: Getting public URL...
+2025-11-10T19:08:01.227Z: Public URL: https://efmbzrmroyetcqxcwxka.supabase.co/storage/v1/object/public/restaurant-bilder/c0b5131b-cd2e-4b3d-bc49-6129b3f5d381/82910865-2b9f-427b-a37a-e30ff95e6e5a
+2025-11-10T19:08:01.227Z: Inserting DB record for 0ca1c540-6751-42fa-aaac-53a7c97812b4.png. Is primary: false
+2025-11-10T19:08:01.347Z: DB insert successful.
+2025-11-10T19:08:01.347Z: Image upload process completed successfully.
