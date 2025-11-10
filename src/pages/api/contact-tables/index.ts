@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '../../../utils/supabase/server';
+import { randomUUID } from 'crypto';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const supabase = createClient({ req, res });
@@ -202,9 +203,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Kontakttisch erstellen
+      // Einige Projekte haben keinen Default für die Spalte `id`; daher generieren wir eine UUID clientseitig.
+      const generatedId = randomUUID();
       const { data: newTable, error: insertError } = await supabase
         .from('contact_tables')
         .insert({
+          id: generatedId,
           title,
           description,
           datetime,
@@ -223,7 +227,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (insertError) {
-        return res.status(500).json({ error: 'Fehler beim Erstellen des Kontakttisches' });
+        // Detailierte Fehlerausgabe zur einfacheren Fehlersuche im Frontend
+        return res.status(500).json({ 
+          error: 'Fehler beim Erstellen des Kontakttisches',
+          details: insertError?.message || insertError
+        });
       }
 
       return res.status(201).json({ 

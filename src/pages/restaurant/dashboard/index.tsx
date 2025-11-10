@@ -170,13 +170,13 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
                 Willkommen zurück, {restaurantState?.name || 'Restaurant'}!
               </h1>
               <p className="text-white opacity-90 max-w-2xl mb-4">
-                Hier können Sie Ihr Restaurantprofil verwalten, Kontakttische erstellen und Ihre Statistiken einsehen.
+                Hier können Sie Ihr Restaurantprofil verwalten, Contact-tables erstellen und Ihre Statistiken einsehen.
               </p>
               <a 
-                href="/restaurant/dashboard/contact-tables/new" 
+                href="/restaurant/contact-tables" 
                 className="inline-flex items-center px-4 py-2 bg-white text-primary-600 rounded-md font-medium hover:bg-primary-50 transition-colors shadow-sm"
               >
-                Neuen Kontakttisch erstellen
+                Neuen Contact-table erstellen
               </a>
             </div>
 
@@ -245,14 +245,14 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
                   </div>
                 </a>
                 
-                {/* Neuer Kontakttisch */}
+                {/* Neuer Contact-table */}
                 <a href="/restaurant/dashboard/contact-tables/new" className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
                   <div className="flex items-center">
                     <div className="bg-primary-100 p-3 rounded-full mr-4">
                       <FiCalendar className="text-primary-600" size={20} />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-800">Neuer Kontakttisch</h3>
+                      <h3 className="font-medium text-gray-800">Neuer Contact-table</h3>
                       <p className="text-sm text-gray-500">Erstellen Sie einen neuen Tisch</p>
                     </div>
                   </div>
