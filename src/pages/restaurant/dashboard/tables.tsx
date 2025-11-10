@@ -28,6 +28,7 @@ interface RestaurantData {
   city: string;
   isActive: boolean;
   contractStatus: string;
+  contractToken?: string | null;
 }
 
 interface TablesPageProps {
@@ -42,6 +43,8 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
   const [currentTableId, setCurrentTableId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -346,12 +349,70 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                         'Leider wurde Ihre Anfrage abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.'}
                     </p>
                     {restaurant.contractStatus === 'APPROVED' && (
-                      <a 
-                        href={`/restaurant/payment/${restaurant.id}`}
-                        className="inline-block mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-                      >
-                        Zahlung abschließen
-                      </a>
+                      <>
+                        <a 
+                          href={`/restaurant/payment/${restaurant.id}`}
+                          className="inline-block mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                        >
+                          Zahlung abschließen
+                        </a>
+                        <div className="mt-4 bg-white border border-amber-200 rounded-lg p-3">
+                          <p className="text-sm text-amber-800 mb-2">AGB lesen und bestätigen, um den Vertrag zu aktivieren.</p>
+                          <div className="flex flex-col md:flex-row md:items-center gap-3">
+                            <a
+                              href={`/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}&token=${encodeURIComponent(restaurant.contractToken || '')}`}
+                              className="text-amber-700 underline underline-offset-2"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              AGB für Restaurants öffnen
+                            </a>
+                            <label className="flex items-center gap-2 text-sm text-amber-900">
+                              <input
+                                type="checkbox"
+                                checked={termsAccepted}
+                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                className="h-4 w-4 border-amber-300 rounded"
+                              />
+                              Ich akzeptiere die AGB.
+                            </label>
+                            <button
+                              type="button"
+                              disabled={!termsAccepted || accepting || !restaurant.contractToken}
+                              onClick={async () => {
+                                if (!restaurant.contractToken) return;
+                                setAccepting(true);
+                                setError('');
+                                setSuccess('');
+                                try {
+                                  const res = await fetch('/api/restaurant/accept-contract', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ restaurantId: restaurant.id, token: restaurant.contractToken })
+                                  });
+                                  if (!res.ok) {
+                                    const err = await res.json().catch(() => ({}));
+                                    throw new Error(err.message || 'Fehler beim Vertragsabschluss');
+                                  }
+                                  setSuccess('Vertrag erfolgreich akzeptiert. Restaurant wird aktiviert.');
+                                  setTermsAccepted(false);
+                                  setTimeout(() => { window.location.reload(); }, 1200);
+                                } catch (e: any) {
+                                  setError(e.message || 'Ein Fehler ist aufgetreten');
+                                } finally {
+                                  setAccepting(false);
+                                }
+                              }}
+                              className={`px-3 py-2 rounded-md text-white text-sm font-medium ${termsAccepted && !accepting && restaurant.contractToken ? 'bg-amber-600 hover:bg-amber-700' : 'bg-amber-300 cursor-not-allowed'}`}
+                            >
+                              {accepting ? 'Wird bestätigt…' : 'AGB akzeptieren'}
+                            </button>
+                          </div>
+                          {!restaurant.contractToken && (
+                            <p className="mt-2 text-xs text-amber-700">Kein Vertrags-Token gefunden. Bitte öffnen Sie den AGB-Link aus der E-Mail.</p>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -670,6 +731,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         city: true,
         isActive: true,
         contractStatus: true,
+        contractToken: true,
       },
     });
 
@@ -694,7 +756,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       orderBy: {
         datetime: 'asc',
       },
-    });
+    }) as any[];
 
     // Serialize and transform data for the client component
     const contactTables: ContactTable[] = tablesFromDb.map(table => {
@@ -706,11 +768,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         description: table.description || '',
         date: dt.toISOString().split('T')[0], // Format: YYYY-MM-DD
         time: dt.toTimeString().split(' ')[0].substring(0, 5), // Format: HH:MM
-        endTime: edt ? edt.toTimeString().split(' ')[0].substring(0, 5) : undefined,
+        endTime: edt ? edt.toTimeString().split(' ')[0].substring(0, 5) : '',
         maxParticipants: table.maxParticipants,
         currentParticipants: table._count.participants,
         status: table.status,
-        paused: table.paused,
+        paused: !!table.paused,
       };
     });
 
