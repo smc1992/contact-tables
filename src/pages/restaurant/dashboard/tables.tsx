@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { createClient } from '../../../utils/supabase/server';
-import { PrismaClient } from '@prisma/client';
+// Prisma wird hier nicht benötigt; wir laden Daten über Supabase, damit die Seite
+// auch in Produktionsumgebungen ohne Prisma-Verbindung zuverlässig funktioniert.
 import { motion } from 'framer-motion';
 import { FiPlus, FiCalendar, FiUsers, FiEdit, FiTrash2, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import Header from '../../../components/Header';
@@ -735,34 +736,35 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const supabase = createClient(context);
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user || user.user_metadata.role !== 'RESTAURANT') {
+  if (!user) {
     return {
       redirect: {
-        destination: '/auth/login',
+        destination: '/auth/login?redirect=/restaurant/dashboard/tables',
         permanent: false,
       },
     };
   }
 
-  const prisma = new PrismaClient();
+  // Nur Restaurant-Benutzer zulassen
+  const userRole = user.user_metadata?.role;
+  if (userRole !== 'RESTAURANT') {
+    return {
+      redirect: {
+        destination: '/',
+        permanent: false,
+      },
+    };
+  }
 
   try {
-    const restaurant = await prisma.restaurant.findUnique({
-      where: {
-        userId: user.id,
-      },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        city: true,
-        isActive: true,
-        contractStatus: true,
-        contractToken: true,
-      },
-    });
+    // Restaurant über Supabase laden
+    const { data: restaurantData, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('userId', user.id)
+      .single();
 
-    if (!restaurant) {
+    if (restaurantError || !restaurantData) {
       return {
         redirect: {
           destination: '/restaurant/register?message=Restaurant nicht gefunden.',
@@ -771,37 +773,62 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       };
     }
 
-    const tablesFromDb = await prisma.event.findMany({
-      where: {
-        restaurantId: restaurant.id,
-      },
-      include: {
-        _count: {
-          select: { participants: true },
-        },
-      },
-      orderBy: {
-        datetime: 'asc',
-      },
-    }) as any[];
+    const restaurant: RestaurantData = {
+      id: restaurantData.id,
+      name: restaurantData.name,
+      address: restaurantData.address || '',
+      city: restaurantData.city || '',
+      isActive: Boolean(restaurantData.is_active ?? restaurantData.isActive),
+      contractStatus: restaurantData.contract_status || restaurantData.contractStatus || 'PENDING',
+      contractToken: restaurantData.contract_token || restaurantData.contractToken || null,
+    };
 
-    // Serialize and transform data for the client component
-    const contactTables: ContactTable[] = tablesFromDb.map(table => {
-      const pauseStart = table.pauseStart ? new Date(table.pauseStart) : null;
-      const pauseEnd = table.pauseEnd ? new Date(table.pauseEnd) : null;
-      return {
-        id: table.id,
-        title: table.title,
-        description: table.description || '',
-        maxParticipants: table.maxParticipants,
-        currentParticipants: table._count.participants,
-        status: table.status,
-        paused: !!table.paused,
-        isIndefinite: table.isIndefinite ?? !table.datetime,
-        pauseStart: pauseStart ? pauseStart.toISOString().split('T')[0] : null,
-        pauseEnd: pauseEnd ? pauseEnd.toISOString().split('T')[0] : null,
-      };
-    });
+    // Contact-tables über Supabase laden
+    const { data: tablesData, error: tablesError } = await supabase
+      .from('contact_tables')
+      .select('*')
+      .eq('restaurant_id', restaurant.id)
+      .order('datetime', { ascending: true });
+
+    if (tablesError) {
+      console.error('Supabase Fehler beim Laden der Contact-tables:', tablesError);
+    }
+
+    const tablesBase = Array.isArray(tablesData) ? tablesData : [];
+
+    // Teilnehmerzahlen laden (Count) pro Tisch
+    const contactTables: ContactTable[] = await Promise.all(
+      tablesBase.map(async (table: any) => {
+        let participantsCount = 0;
+        try {
+          const { count, error: countError } = await supabase
+            .from('participations')
+            .select('user_id', { count: 'exact', head: true })
+            .eq('contact_table_id', table.id);
+          if (!countError && typeof count === 'number') {
+            participantsCount = count;
+          }
+        } catch (e) {
+          // still proceed
+        }
+
+        const pauseStart = table.pause_start || table.pauseStart || null;
+        const pauseEnd = table.pause_end || table.pauseEnd || null;
+
+        return {
+          id: table.id,
+          title: table.title,
+          description: table.description || '',
+          maxParticipants: table.max_participants ?? table.maxParticipants ?? 4,
+          currentParticipants: participantsCount,
+          status: table.status || 'OPEN',
+          paused: Boolean(table.paused),
+          isIndefinite: Boolean(table.is_indefinite ?? table.isIndefinite ?? !table.datetime),
+          pauseStart: pauseStart ? String(pauseStart).split('T')[0] : null,
+          pauseEnd: pauseEnd ? String(pauseEnd).split('T')[0] : null,
+        } as ContactTable;
+      })
+    );
 
     return {
       props: {
@@ -810,8 +837,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       },
     };
   } catch (error) {
-    console.error('Error fetching restaurant tables data:', error);
-    // Return empty props or handle error appropriately
+    console.error('Error fetching restaurant tables data (Supabase):', error);
     return {
       props: {
         restaurant: null,
@@ -819,7 +845,5 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         error: 'Fehler beim Laden der Daten.',
       },
     };
-  } finally {
-    await prisma.$disconnect();
   }
 };

@@ -148,7 +148,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
         // 3. Alle Teilnehmer in einer einzigen Batch-Anfrage laden
         const { data: allParticipations, error: participationsError } = await supabase
           .from('participations')
-          .select('user_id, status, contact_table_id, profiles!inner(email, first_name, last_name)')
+          .select('user_id, status, contact_table_id, profiles!inner(first_name, last_name)')
           .in('contact_table_id', tableIds);
         
         if (participationsError) {
@@ -230,7 +230,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
       // 1. Teilnehmer für diese Reservierung abrufen
       const { data: participants, error: participantsError } = await supabase
         .from('participations')
-        .select('user_id, profiles!inner(email)')
+        .select('user_id, profiles!inner(first_name, last_name)')
         .eq('contact_table_id', reservationId);
       
       if (participantsError) throw participantsError;

@@ -102,8 +102,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status,
           created_at,
           profiles:user_id (
-            name,
-            email
+            first_name,
+            last_name
           )
         `)
         .eq('contact_table_id', id);
@@ -118,8 +118,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           let name = 'Anonymer Teilnehmer';
           
           if (p.profiles && typeof p.profiles === 'object' && p.profiles !== null) {
-            if ('name' in p.profiles && typeof p.profiles.name === 'string' && p.profiles.name) {
-              name = p.profiles.name;
+            const first = (p.profiles as any).first_name || '';
+            const last = (p.profiles as any).last_name || '';
+            const full = `${first} ${last}`.trim();
+            if (full) {
+              name = full;
             }
           }
           
