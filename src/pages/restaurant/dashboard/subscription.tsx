@@ -89,7 +89,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
       price: 29.99,
       features: [
         'Grundlegende Restaurant-Präsenz',
-        'Bis zu 3 Contact Tables pro Monat',
+        'Bis zu 3 Contact-tables pro Monat',
         'E-Mail-Support'
       ]
     },
@@ -99,7 +99,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
       price: 49.99,
       features: [
         'Erweiterte Restaurant-Präsenz',
-        'Bis zu 10 Contact Tables pro Monat',
+        'Bis zu 10 Contact-tables pro Monat',
         'Hervorgehobene Platzierung in Suchergebnissen',
         'Prioritäts-E-Mail-Support'
       ]
@@ -110,7 +110,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
       price: 99.99,
       features: [
         'Premium Restaurant-Präsenz',
-        'Unbegrenzte Contact Tables',
+        'Unbegrenzte Contact-tables',
         'Höchste Platzierung in Suchergebnissen',
         'Dedizierter Kundenservice',
         'Monatliche Statistiken und Berichte'
@@ -225,7 +225,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-800">Abonnement</h1>
               <p className="text-gray-600 mt-2">
-                Verwalten Sie Ihr Contact Tables Abonnement und sehen Sie Ihre Rechnungen ein.
+                Verwalten Sie Ihr Contact-tables Abonnement und sehen Sie Ihre Rechnungen ein.
               </p>
             </div>
 
@@ -275,6 +275,78 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                       )}
                     </div>
                   ))}
+                </div>
+                {/* AGB-Akzeptanz Bereich (zentral im Tab) */}
+                <div className="mt-6 border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">AGB & Vertrag</h3>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Bitte lesen und akzeptieren Sie die AGB für Restaurants, um den Vertrag zu aktivieren.
+                  </p>
+                  <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <a
+                      href={`/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}&token=${encodeURIComponent(restaurant.contractToken || '')}`}
+                      className="text-primary-700 underline underline-offset-2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      AGB für Restaurants öffnen
+                    </a>
+                    <label className="flex items-center gap-2 text-sm text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={termsAccepted}
+                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                        className="h-4 w-4 border-gray-300 rounded"
+                      />
+                      Ich akzeptiere die AGB.
+                    </label>
+                    <button
+                      type="button"
+                      disabled={
+                        !termsAccepted || accepting || !restaurant.contractToken || restaurant.contractStatus === 'PENDING' || restaurant.contractStatus === 'REJECTED'
+                      }
+                      onClick={async () => {
+                        if (!restaurant.contractToken) return;
+                        setAccepting(true);
+                        setError('');
+                        setSuccess('');
+                        try {
+                          const res = await fetch('/api/restaurant/accept-contract', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ restaurantId: restaurant.id, token: restaurant.contractToken })
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.message || 'Fehler beim Vertragsabschluss');
+                          }
+                          setSuccess('Vertrag erfolgreich akzeptiert. Restaurant wird aktiviert.');
+                          setTermsAccepted(false);
+                          setTimeout(() => { window.location.reload(); }, 1200);
+                        } catch (e: any) {
+                          setError(e.message || 'Ein Fehler ist aufgetreten');
+                        } finally {
+                          setAccepting(false);
+                        }
+                      }}
+                      className={`px-3 py-2 rounded-md text-white text-sm font-medium ${
+                        termsAccepted && !accepting && restaurant.contractToken && restaurant.contractStatus === 'APPROVED'
+                          ? 'bg-primary-600 hover:bg-primary-700'
+                          : 'bg-gray-300 cursor-not-allowed'
+                      }`}
+                    >
+                      {accepting ? 'Wird bestätigt…' : 'AGB akzeptieren'}
+                    </button>
+                  </div>
+                  {restaurant.contractStatus === 'PENDING' && (
+                    <p className="mt-2 text-xs text-amber-700">Ihre Anfrage wird derzeit geprüft. Die AGB können erst nach Genehmigung bestätigt werden.</p>
+                  )}
+                  {restaurant.contractStatus === 'REJECTED' && (
+                    <p className="mt-2 text-xs text-red-700">Ihre Anfrage wurde abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.</p>
+                  )}
+                  {!restaurant.contractToken && (
+                    <p className="mt-2 text-xs text-gray-600">Kein Vertrags-Token gefunden. Bitte öffnen Sie den AGB-Link aus der E-Mail.</p>
+                  )}
                 </div>
               </div>
             )}
@@ -326,70 +398,12 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                         'Leider wurde Ihre Anfrage abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.'}
                     </p>
                     {restaurant.contractStatus === 'APPROVED' && (
-                      <>
-                        <a 
-                          href={`/restaurant/payment/${restaurant.id}`}
-                          className="inline-block mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-                        >
-                          Zahlung abschließen
-                        </a>
-                        <div className="mt-4 bg-white border border-amber-200 rounded-lg p-3">
-                          <p className="text-sm text-amber-800 mb-2">AGB lesen und bestätigen, um den Vertrag zu aktivieren.</p>
-                          <div className="flex flex-col md:flex-row md:items-center gap-3">
-                            <a
-                              href={`/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}&token=${encodeURIComponent(restaurant.contractToken || '')}`}
-                              className="text-amber-700 underline underline-offset-2"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              AGB für Restaurants öffnen
-                            </a>
-                            <label className="flex items-center gap-2 text-sm text-amber-900">
-                              <input
-                                type="checkbox"
-                                checked={termsAccepted}
-                                onChange={(e) => setTermsAccepted(e.target.checked)}
-                                className="h-4 w-4 border-amber-300 rounded"
-                              />
-                              Ich akzeptiere die AGB.
-                            </label>
-                            <button
-                              type="button"
-                              disabled={!termsAccepted || accepting || !restaurant.contractToken}
-                              onClick={async () => {
-                                if (!restaurant.contractToken) return;
-                                setAccepting(true);
-                                setError('');
-                                setSuccess('');
-                                try {
-                                  const res = await fetch('/api/restaurant/accept-contract', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ restaurantId: restaurant.id, token: restaurant.contractToken })
-                                  });
-                                  if (!res.ok) {
-                                    const err = await res.json().catch(() => ({}));
-                                    throw new Error(err.message || 'Fehler beim Vertragsabschluss');
-                                  }
-                                  setSuccess('Vertrag erfolgreich akzeptiert. Restaurant wird aktiviert.');
-                                  setTermsAccepted(false);
-                                  setTimeout(() => { window.location.reload(); }, 1200);
-                                } catch (e: any) {
-                                  setError(e.message || 'Ein Fehler ist aufgetreten');
-                                } finally {
-                                  setAccepting(false);
-                                }
-                              }}
-                              className={`px-3 py-2 rounded-md text-white text-sm font-medium ${termsAccepted && !accepting && restaurant.contractToken ? 'bg-amber-600 hover:bg-amber-700' : 'bg-amber-300 cursor-not-allowed'}`}
-                            >
-                              {accepting ? 'Wird bestätigt…' : 'AGB akzeptieren'}
-                            </button>
-                          </div>
-                          {!restaurant.contractToken && (
-                            <p className="mt-2 text-xs text-amber-700">Kein Vertrags-Token gefunden. Bitte öffnen Sie den AGB-Link aus der E-Mail.</p>
-                          )}
-                        </div>
-                      </>
+                      <a 
+                        href={`/restaurant/payment/${restaurant.id}`}
+                        className="inline-block mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                      >
+                        Zahlung abschließen
+                      </a>
                     )}
                   </div>
                 </div>

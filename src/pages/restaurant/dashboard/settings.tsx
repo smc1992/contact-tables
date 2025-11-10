@@ -250,8 +250,8 @@ export default function RestaurantSettings({ restaurant }: SettingsPageProps) {
                   
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-gray-800 font-medium">Contact Table Updates</h3>
-                      <p className="text-gray-600 text-sm">Erhalten Sie Benachrichtigungen über Änderungen an Ihren Contact Tables</p>
+                      <h3 className="text-gray-800 font-medium">Contact-table Updates</h3>
+                      <p className="text-gray-600 text-sm">Erhalten Sie Benachrichtigungen über Änderungen an Ihren Contact-tables</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer group">
                       <input

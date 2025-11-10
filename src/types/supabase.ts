@@ -205,7 +205,7 @@ export type Database = {
           id: string;
           title: string;
           description: string | null;
-          datetime: string;
+          datetime: string | null;
           end_datetime: string | null;
           max_participants: number;
           price: number;
@@ -213,6 +213,10 @@ export type Database = {
           status: Database["public"]["Enums"]["EventStatus"];
           is_public: boolean;
           paused: boolean;
+          // Neue Felder für unbestimmte Aktivierung und Pausenzeitraum
+          is_indefinite: boolean;
+          pause_start: string | null;
+          pause_end: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -220,7 +224,7 @@ export type Database = {
           id?: string;
           title: string;
           description?: string | null;
-          datetime: string;
+          datetime?: string | null;
           end_datetime?: string | null;
           max_participants: number;
           price?: number;
@@ -228,6 +232,10 @@ export type Database = {
           status?: Database["public"]["Enums"]["EventStatus"];
           is_public?: boolean;
           paused?: boolean;
+          // Neue Felder für unbestimmte Aktivierung und Pausenzeitraum
+          is_indefinite?: boolean;
+          pause_start?: string | null;
+          pause_end?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -235,7 +243,7 @@ export type Database = {
           id?: string;
           title?: string;
           description?: string | null;
-          datetime?: string;
+          datetime?: string | null;
           end_datetime?: string | null;
           max_participants?: number;
           price?: number;
@@ -243,6 +251,10 @@ export type Database = {
           status?: Database["public"]["Enums"]["EventStatus"];
           is_public?: boolean;
           paused?: boolean;
+          // Neue Felder für unbestimmte Aktivierung und Pausenzeitraum
+          is_indefinite?: boolean;
+          pause_start?: string | null;
+          pause_end?: string | null;
           created_at?: string;
           updated_at?: string;
         };

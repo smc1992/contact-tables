@@ -24,17 +24,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     restaurantId, // ID des Restaurants zur Verifizierung
     title, 
     description, 
-    date, 
-    time, 
     maxParticipants,
     status, // Status kann optional auch aktualisiert werden
-    endDate,
-    endTime,
     paused = false,
+    isIndefinite = true,
+    pauseStart = null,
+    pauseEnd = null,
   } = req.body;
 
-  if (!tableId || !restaurantId || !title || !description || !date || !time || maxParticipants === undefined) {
-    return res.status(400).json({ message: 'Alle erforderlichen Felder müssen ausgefüllt sein (tableId, restaurantId, title, description, date, time, maxParticipants)' });
+  if (!tableId || !restaurantId || !title || !description || maxParticipants === undefined) {
+    return res.status(400).json({ message: 'Alle erforderlichen Felder müssen ausgefüllt sein (tableId, restaurantId, title, description, maxParticipants)' });
   }
 
   const parsedMaxParticipants = Number(maxParticipants);
@@ -62,55 +61,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ message: 'Restaurant ist nicht aktiv. Bitte aktivieren Sie Ihr Restaurant, um Contact Tables zu bearbeiten.' });
     }
 
-    // Datum und Uhrzeit kombinieren und validieren
-    const dateTimeString = `${date}T${time}:00`;
-    const eventDateTime = new Date(dateTimeString);
-    if (isNaN(eventDateTime.getTime())) {
-        return res.status(400).json({ message: 'Ungültiges Datums- oder Zeitformat.' });
-    }
-    let endDateTimeString: string | null = null;
-    let endDateTime: Date | null = null;
-    if (endDate && endTime) {
-      endDateTimeString = `${endDate}T${endTime}:00`;
-      endDateTime = new Date(endDateTimeString);
-      if (isNaN(endDateTime.getTime())) {
-        return res.status(400).json({ message: 'Ungültiges Datums- oder Zeitformat für Endzeit.' });
+    // Pause-Zeitraum validieren, falls pausiert
+    if (paused) {
+      if (!pauseStart || !pauseEnd) {
+        return res.status(400).json({ message: 'Bitte Pausenzeitraum (von/bis) angeben.' });
       }
-      if (endDateTime <= eventDateTime) {
-        return res.status(400).json({ message: 'Endzeit muss nach der Startzeit liegen.' });
+      const ps = new Date(pauseStart);
+      const pe = new Date(pauseEnd);
+      if (isNaN(ps.getTime()) || isNaN(pe.getTime())) {
+        return res.status(400).json({ message: 'Ungültiges Datumsformat für Pausenzeitraum.' });
       }
-    }
-    const now = new Date();
-    // Erlaube Aktualisierungen für Events, die bereits begonnen haben, aber nicht für solche, die in der Vergangenheit endeten (optional)
-    // Für diese Implementierung: Das Datum darf nicht in der Vergangenheit liegen, wenn es geändert wird.
-    // Wenn das Datum nicht geändert wird, ist diese Prüfung möglicherweise nicht erforderlich oder anders zu handhaben.
-    // Hier gehen wir davon aus, dass das Datum immer neu validiert wird.
-    if (eventDateTime < now) {
-      // Ausnahme: Wenn das Event bereits existiert und das Datum/Zeit nicht geändert wird, könnte man dies erlauben.
-      // Für Einfachheit wird hier immer geprüft.
-      // return res.status(400).json({ message: 'Das Datum und die Uhrzeit dürfen nicht in der Vergangenheit liegen' });
+      if (pe <= ps) {
+        return res.status(400).json({ message: 'Pause bis muss nach Pause von liegen.' });
+      }
     }
 
     const updateData: any = {
       title,
       description,
-      // Wir halten weiterhin die Felder date/time für Kompatibilität im System
-      date,
-      time,
-      // Setzen zusätzlich das kombinierte datetime-Feld
-      datetime: dateTimeString,
       max_participants: parsedMaxParticipants,
       paused,
+      is_indefinite: isIndefinite,
+      // Datum/Uhrzeit werden entfernt, Tisch ist unbestimmt aktiv
+      datetime: null,
+      end_datetime: null,
+      pause_start: paused && pauseStart ? pauseStart : null,
+      pause_end: paused && pauseEnd ? pauseEnd : null,
     };
     if (status) {
       updateData.status = status;
     }
-    if (endDateTimeString) {
-      updateData.end_datetime = endDateTimeString;
-    } else {
-      // explizit auf null setzen, wenn Endzeit entfernt werden soll
-      updateData.end_datetime = null;
-    }
+    // Endzeit-Felder werden nicht mehr verwendet
 
     const { data: updatedTable, error: updateError } = await supabase
       .from('contact_tables')

@@ -60,7 +60,7 @@ export default function ContactTablePage({ events: initialEvents }: ContactTable
             <div className="flex items-center justify-between mb-8">
               <h1 className="text-2xl font-bold text-gray-800 flex items-center">
                 <FiCalendar className="mr-3 text-primary-500" />
-                Ihre Contact Tables
+                Ihre Contact-tables
               </h1>
               <Link href="/restaurant/dashboard/contact-tables/new" legacyBehavior>
                 <a className="bg-primary-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-primary-700 transition-colors">
@@ -72,8 +72,8 @@ export default function ContactTablePage({ events: initialEvents }: ContactTable
 
             {events.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-lg shadow border">
-                <h3 className="text-xl font-semibold text-gray-700">Noch keine Contact Tables erstellt</h3>
-                <p className="text-gray-500 mt-2 mb-6">Erstellen Sie Ihren ersten Contact Table, um Gäste zu verbinden.</p>
+                <h3 className="text-xl font-semibold text-gray-700">Noch keine Contact-tables erstellt</h3>
+                <p className="text-gray-500 mt-2 mb-6">Erstellen Sie Ihren ersten Contact-table, um Gäste zu verbinden.</p>
                 <Link href="/restaurant/dashboard/contact-tables/new" legacyBehavior>
                   <a className="bg-primary-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-primary-700 transition-colors">
                     Jetzt erstellen

@@ -651,7 +651,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
               <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
                 <FiInfo className="mx-auto text-gray-400 mb-4" size={48} />
                 <p className="text-gray-500 text-lg font-medium">Sie haben noch keine Reservierungen.</p>
-                <p className="text-gray-400 mt-2">Erstellen Sie Contact Tables, damit Kunden Reservierungen vornehmen können.</p>
+        <p className="text-gray-400 mt-2">Erstellen Sie Contact-tables, damit Kunden Reservierungen vornehmen können.</p>
               </div>
             )}
           </div>

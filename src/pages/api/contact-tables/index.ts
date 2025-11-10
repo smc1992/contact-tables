@@ -137,24 +137,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { 
         title, 
         description, 
-        datetime, 
+        datetime = null, 
         end_datetime = null,
         max_participants, 
         price, 
         restaurant_id, 
         is_public = true,
         paused = false,
+        is_indefinite = true,
+        pause_start = null,
+        pause_end = null,
       } = req.body;
 
       // Pflichtfelder prüfen
-      if (!title || !datetime || !max_participants || !restaurant_id) {
+      if (!title || !max_participants || !restaurant_id) {
         return res.status(400).json({ 
-          error: 'Titel, Datum/Uhrzeit, maximale Teilnehmerzahl und Restaurant-ID sind erforderlich' 
+          error: 'Titel, maximale Teilnehmerzahl und Restaurant-ID sind erforderlich' 
         });
       }
 
       // Endzeit validieren (optional)
-      if (end_datetime) {
+      if (end_datetime && datetime) {
         const start = new Date(datetime);
         const end = new Date(end_datetime);
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
@@ -162,6 +165,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         if (end <= start) {
           return res.status(400).json({ error: 'Endzeit muss nach der Startzeit liegen' });
+        }
+      }
+
+      // Pause-Zeitraum validieren (optional)
+      if (paused) {
+        if (!pause_start || !pause_end) {
+          return res.status(400).json({ error: 'Bitte Pausenzeitraum (von/bis) angeben' });
+        }
+        const ps = new Date(pause_start);
+        const pe = new Date(pause_end);
+        if (isNaN(ps.getTime()) || isNaN(pe.getTime())) {
+          return res.status(400).json({ error: 'Ungültiges Datumsformat für Pausenzeitraum' });
+        }
+        if (pe <= ps) {
+          return res.status(400).json({ error: 'Pause bis muss nach Pause von liegen' });
         }
       }
 
@@ -196,7 +214,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           restaurant_id,
           status: 'OPEN',
           is_public,
-          paused
+          paused,
+          is_indefinite,
+          pause_start,
+          pause_end
         })
         .select()
         .single();

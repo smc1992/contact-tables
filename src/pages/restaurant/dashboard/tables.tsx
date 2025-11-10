@@ -3,7 +3,7 @@ import { GetServerSideProps } from 'next';
 import { createClient } from '../../../utils/supabase/server';
 import { PrismaClient } from '@prisma/client';
 import { motion } from 'framer-motion';
-import { FiPlus, FiCalendar, FiClock, FiUsers, FiEdit, FiTrash2, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiCalendar, FiUsers, FiEdit, FiTrash2, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import RestaurantSidebar from '../../../components/restaurant/RestaurantSidebar';
@@ -12,13 +12,13 @@ interface ContactTable {
   id: string;
   title: string;
   description: string;
-  date: string;
-  time: string;
-  endTime?: string;
   maxParticipants: number;
   currentParticipants: number;
   status: string;
   paused?: boolean;
+  isIndefinite?: boolean;
+  pauseStart?: string | null;
+  pauseEnd?: string | null;
 }
 
 interface RestaurantData {
@@ -47,21 +47,20 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
   const [accepting, setAccepting] = useState(false);
   
   const [formData, setFormData] = useState({
-    title: '',
+    restaurantName: restaurant?.name || '',
     description: '',
-    date: '',
-    time: '',
-    endTime: '',
     maxParticipants: 4,
     isPublic: !!restaurant?.isActive,
-    paused: false
+    paused: false,
+    pauseStart: '',
+    pauseEnd: '',
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'maxParticipants' ? parseInt(value) || 4 : value
+      [name]: name === 'maxParticipants' ? (value === '' ? '' as any : parseInt(value) || 4) : value
     }));
   };
   
@@ -71,28 +70,26 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       setIsEditing(true);
       setCurrentTableId(table.id);
       setFormData({
-        title: table.title,
+        restaurantName: table.title || restaurant?.name || '',
         description: table.description,
-        date: table.date,
-        time: table.time,
-        endTime: table.endTime || '',
         maxParticipants: table.maxParticipants,
         isPublic: !!restaurant?.isActive,
-        paused: !!table.paused
+        paused: !!table.paused,
+        pauseStart: table.pauseStart || '',
+        pauseEnd: table.pauseEnd || '',
       });
     } else {
       // Neu-Modus
       setIsEditing(false);
       setCurrentTableId(null);
       setFormData({
-        title: '',
+        restaurantName: restaurant?.name || '',
         description: '',
-        date: '',
-        time: '',
-        endTime: '',
         maxParticipants: 4,
         isPublic: !!restaurant?.isActive,
-        paused: false
+        paused: false,
+        pauseStart: '',
+        pauseEnd: '',
       });
     }
     setIsModalOpen(true);
@@ -109,26 +106,45 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
     
     try {
       // Validierung
-      if (!formData.title || !formData.description || !formData.date || !formData.time) {
-        throw new Error('Bitte füllen Sie alle erforderlichen Felder aus');
-      }
-      
-      if (formData.maxParticipants < 2) {
-        throw new Error('Ein Contact table muss mindestens 2 Teilnehmer haben');
+      if (!formData.restaurantName) {
+        throw new Error('Bitte geben Sie den Restaurantnamen an');
       }
 
-      if (formData.endTime) {
-        const start = new Date(`${formData.date}T${formData.time}:00`);
-        const end = new Date(`${formData.date}T${formData.endTime}:00`);
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-          throw new Error('Ungültiges Datums- oder Zeitformat');
+      if (formData.maxParticipants < 2) {
+        throw new Error('Ein Contact-table muss mindestens 2 Teilnehmer haben');
+      }
+
+      if (formData.paused) {
+        const start = formData.pauseStart ? new Date(`${formData.pauseStart}T00:00:00`) : null;
+        const end = formData.pauseEnd ? new Date(`${formData.pauseEnd}T23:59:59`) : null;
+        if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+          throw new Error('Bitte gültige Pausendaten (von/bis) angeben');
         }
         if (end <= start) {
-          throw new Error('Endzeit muss nach der Startzeit liegen');
+          throw new Error('Pause bis muss nach Pause von liegen');
         }
       }
       
-      // API-Aufruf zum Erstellen oder Aktualisieren des Contact Tables
+      // Vorab: Restaurantname mit Supabase validieren
+      try {
+        const validateRes = await fetch('/api/restaurant/validate-name', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ restaurantId: restaurant.id, name: formData.restaurantName })
+        });
+        if (!validateRes.ok) {
+          const err = await validateRes.json().catch(() => ({}));
+          throw new Error(err.message || 'Restaurantname konnte nicht validiert werden');
+        }
+        const v = await validateRes.json();
+        if (!v.valid) {
+          throw new Error('Restaurantname stimmt nicht mit Supabase überein');
+        }
+      } catch (ve: any) {
+        throw new Error(ve.message || 'Validierung des Restaurantnamens fehlgeschlagen');
+      }
+
+      // API-Aufruf zum Erstellen oder Aktualisieren des Contact-tables
       const url = isEditing 
         ? '/api/restaurant/update-contact-table' 
         : '/api/contact-tables';
@@ -138,25 +154,27 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
         ? {
             tableId: currentTableId,
             restaurantId: restaurant.id,
-            title: formData.title,
+            title: formData.restaurantName,
             description: formData.description,
-            date: formData.date,
-            time: formData.time,
-            endDate: formData.endTime ? formData.date : undefined,
-            endTime: formData.endTime || undefined,
             maxParticipants: formData.maxParticipants,
             paused: formData.paused,
+            isIndefinite: true,
+            pauseStart: formData.paused && formData.pauseStart ? `${formData.pauseStart}T00:00:00` : null,
+            pauseEnd: formData.paused && formData.pauseEnd ? `${formData.pauseEnd}T23:59:59` : null,
           }
         : {
-            title: formData.title,
+            title: formData.restaurantName,
             description: formData.description,
-            datetime: `${formData.date}T${formData.time}:00`,
-            end_datetime: formData.endTime ? `${formData.date}T${formData.endTime}:00` : null,
+            datetime: null,
+            end_datetime: null,
             max_participants: formData.maxParticipants,
             price: 0,
             restaurant_id: restaurant.id,
             is_public: restaurant.isActive ? formData.isPublic : false,
-            paused: formData.paused
+            paused: formData.paused,
+            is_indefinite: true,
+            pause_start: formData.paused && formData.pauseStart ? `${formData.pauseStart}T00:00:00` : null,
+            pause_end: formData.paused && formData.pauseEnd ? `${formData.pauseEnd}T23:59:59` : null,
           };
 
       const response = await fetch(url, {
@@ -169,30 +187,24 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Speichern des Contact table');
+        throw new Error(errorData.message || 'Fehler beim Speichern des Contact-table');
       }
       
       const resp = await response.json();
 
       // Response je nach Endpoint formen
       const payload = isEditing ? resp.contactTable : resp.data;
-      const hasDateTime = payload && payload.datetime;
-      const hasEndDateTime = payload && payload.end_datetime;
-      const newTableData = {
-        ...payload,
-        date: hasDateTime
-          ? new Date(payload.datetime).toISOString().split('T')[0]
-          : payload.date,
-        time: hasDateTime
-          ? new Date(payload.datetime).toTimeString().split(' ')[0].substring(0, 5)
-          : payload.time,
-        endTime: hasEndDateTime
-          ? new Date(payload.end_datetime).toTimeString().split(' ')[0].substring(0, 5)
-          : payload.endTime,
-        currentParticipants: payload?.currentParticipants ?? 0,
-        maxParticipants: payload?.maxParticipants ?? formData.maxParticipants,
+      const newTableData: ContactTable = {
+        id: payload.id,
+        title: payload.title,
+        description: payload.description || '',
+        currentParticipants: payload?.current_participants ?? payload?.currentParticipants ?? 0,
+        maxParticipants: payload?.max_participants ?? payload?.maxParticipants ?? formData.maxParticipants,
         status: payload?.status ?? 'OPEN',
-        paused: !!payload?.paused
+        paused: !!(payload?.paused ?? formData.paused),
+        isIndefinite: true,
+        pauseStart: payload?.pause_start ?? null,
+        pauseEnd: payload?.pause_end ?? null,
       };
 
       if (isEditing) {
@@ -200,23 +212,23 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
         setTables(prev => prev.map(table => 
           table.id === currentTableId ? newTableData : table
         ));
-        setSuccess('Contact table erfolgreich aktualisiert');
+        setSuccess('Contact-table erfolgreich aktualisiert');
       } else {
         // Füge den neuen Tisch zur lokalen Liste hinzu
         setTables(prev => [...prev, newTableData]);
-        setSuccess('Contact table erfolgreich erstellt');
+        setSuccess('Contact-table erfolgreich erstellt');
       }
       
       // Schließe das Modal
       closeModal();
     } catch (error: any) {
-      console.error('Fehler beim Speichern des Contact Tables:', error);
+      console.error('Fehler beim Speichern des Contact-tables:', error);
       setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
     }
   };
   
   const handleDelete = async (tableId: string) => {
-    if (!confirm('Sind Sie sicher, dass Sie diesen Contact table löschen möchten?')) {
+    if (!confirm('Sind Sie sicher, dass Sie diesen Contact-table löschen möchten?')) {
       return;
     }
     
@@ -237,20 +249,21 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Fehler beim Löschen des Contact table');
+        throw new Error(errorData.message || 'Fehler beim Löschen des Contact-table');
       }
       
       // Entferne den Tisch aus der lokalen Liste
       setTables(prev => prev.filter(table => table.id !== tableId));
-      setSuccess('Contact table erfolgreich gelöscht');
+      setSuccess('Contact-table erfolgreich gelöscht');
     } catch (error: any) {
-      console.error('Fehler beim Löschen des Contact Tables:', error);
+      console.error('Fehler beim Löschen des Contact-tables:', error);
       setError(error.message || 'Ein unerwarteter Fehler ist aufgetreten');
     }
   };
   
   // Hilfsfunktion zum Formatieren des Datums
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '–';
     const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' };
     return new Date(dateString).toLocaleDateString('de-DE', options);
   };
@@ -266,9 +279,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
           <div className="max-w-5xl mx-auto">
             <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-800">Contact Tables</h1>
+                <h1 className="text-3xl font-bold text-gray-800">Contact-tables</h1>
                 <p className="text-gray-600 mt-2">
-                  Erstellen und verwalten Sie Contact Tables für Ihr Restaurant.
+                  Erstellen und verwalten Sie Contact-tables für Ihr Restaurant.
                 </p>
               </div>
               
@@ -277,7 +290,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                 className="mt-4 md:mt-0 flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <FiPlus className="mr-2" />
-                Neuen Contact table erstellen
+                Neuen Contact-table erstellen
               </button>
             </div>
                 
@@ -342,9 +355,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     <h3 className="font-medium text-amber-800">Ihr Restaurant ist noch nicht aktiv</h3>
                     <p className="text-amber-700 mt-1">
                       {restaurant.contractStatus === 'PENDING' && 
-                        'Ihre Anfrage wird derzeit geprüft. Sie können bereits Contact tables anlegen; diese sind öffentlich sichtbar, sobald Ihr Restaurant aktiviert wurde.'}
+                        'Ihre Anfrage wird derzeit geprüft. Sie können bereits Contact-tables anlegen; diese sind öffentlich sichtbar, sobald Ihr Restaurant aktiviert wurde.'}
                       {restaurant.contractStatus === 'APPROVED' && 
-                        'Ihre Anfrage wurde genehmigt! Bitte schließen Sie die Zahlung und den Vertragsabschluss ab, um Ihr Restaurant zu aktivieren. Bis dahin angelegte Contact tables bleiben nicht öffentlich sichtbar.'}
+                        'Ihre Anfrage wurde genehmigt! Bitte schließen Sie die Zahlung und den Vertragsabschluss ab, um Ihr Restaurant zu aktivieren. Bis dahin angelegte Contact-tables bleiben nicht öffentlich sichtbar.'}
                       {restaurant.contractStatus === 'REJECTED' && 
                         'Leider wurde Ihre Anfrage abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.'}
                     </p>
@@ -419,21 +432,21 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
               </motion.div>
             )}
             
-            {/* Contact Tables Liste */}
+            {/* Contact-tables Liste */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               {tables.length === 0 ? (
                 <div className="p-8 text-center">
                   <FiCalendar className="mx-auto text-gray-400 mb-3" size={48} />
-                  <h3 className="text-lg font-medium text-gray-700 mb-1">Keine Contact Tables vorhanden</h3>
+                  <h3 className="text-lg font-medium text-gray-700 mb-1">Keine Contact-tables vorhanden</h3>
                   <p className="text-gray-500">
-                    Erstellen Sie Ihren ersten Contact table, um Menschen zusammenzubringen! Angelegte Tische werden öffentlich sichtbar, sobald Ihr Restaurant aktiviert ist.
+                    Erstellen Sie Ihren ersten Contact-table, um Menschen zusammenzubringen! Angelegte Tische werden öffentlich sichtbar, sobald Ihr Restaurant aktiviert ist.
                   </p>
                   <button
                     onClick={() => openModal()}
                     className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                   >
                     <FiPlus className="inline mr-2" />
-                    Ersten Contact table erstellen
+                    Ersten Contact-table erstellen
                   </button>
                 </div>
               ) : (
@@ -442,7 +455,7 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titel</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum & Uhrzeit</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktivierung</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teilnehmer</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
@@ -458,12 +471,12 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <FiCalendar className="text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-900">{formatDate(table.date)}</span>
-                            </div>
-                            <div className="flex items-center mt-1">
-                              <FiClock className="text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-500">
-                                {table.time} Uhr{table.endTime ? ` – ${table.endTime} Uhr` : ''}
+                              <span className="text-sm text-gray-900">
+                                {table.paused && table.pauseStart && table.pauseEnd
+                                  ? `Pausiert von ${formatDate(table.pauseStart)} bis ${formatDate(table.pauseEnd)}`
+                                  : table.isIndefinite
+                                  ? 'Aktiv (unbestimmte Zeit)'
+                                  : '–'}
                               </span>
                             </div>
                           </td>
@@ -522,23 +535,23 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
             
             {/* Informationsbox */}
             <div className="mt-8 bg-blue-50 p-6 rounded-xl">
-              <h3 className="text-lg font-semibold text-blue-800 mb-2">Was sind contact-tables?</h3>
+              <h3 className="text-lg font-semibold text-blue-800 mb-2">Was sind Contact-tables?</h3>
               <p className="text-blue-700 mb-4">
                 Contact-tables sind spezielle Tische in Ihrem Restaurant – für Menschen, die allein essen gehen, aber offen für Gesellschaft und Gespräche sind. Hier darf man sich dazusetzen, austauschen, gemeinsam lachen oder einfach einen netten Abend in angenehmer Runde verbringen.
               </p>
               <h4 className="font-medium text-blue-800 mb-1">So funktioniert's:</h4>
               <ol className="list-decimal pl-5 text-blue-700 space-y-1">
-                <li>Sie erstellen einen Contact table mit Datum, Uhrzeit und maximaler Teilnehmerzahl.</li>
+                <li>Sie erstellen einen Contact-table ohne Datum/Uhrzeit; er ist dauerhaft aktiv.</li>
+                <li>Optional können Sie einen Pausenzeitraum (von/bis) definieren, danach wird der Tisch automatisch reaktiviert.</li>
                 <li>Interessierte Nutzer können sich für diesen Tisch anmelden.</li>
                 <li>Die Reservierung erfolgt direkt bei Ihnen telefonisch oder über Ihr bestehendes Reservierungssystem.</li>
-                <li>Die Teilnehmer treffen sich zum angegebenen Zeitpunkt in Ihrem Restaurant.</li>
               </ol>
             </div>
           </div>
         </main>
       </div>
       
-      {/* Modal für das Erstellen/Bearbeiten von Contact Tables */}
+              {/* Modal für das Erstellen/Bearbeiten von Contact-tables */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <motion.div 
@@ -548,32 +561,33 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
           >
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-800">
-                {isEditing ? 'Contact table bearbeiten' : 'Neuen Contact table erstellen'}
+                {isEditing ? 'Contact-table bearbeiten' : 'Contact-table erstellen'}
               </h2>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6">
               <div className="space-y-4">
-                {/* Titel */}
+                {/* Restaurantname */}
                 <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                    Titel *
+                  <label htmlFor="restaurantName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Restaurantname *
                   </label>
                   <input
                     type="text"
-                    id="title"
-                    name="title"
-                    value={formData.title}
+                    id="restaurantName"
+                    name="restaurantName"
+                    value={formData.restaurantName}
                     onChange={handleChange}
                     className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
+                  <p className="mt-1 text-xs text-gray-500">Wird mit Supabase abgeglichen.</p>
                 </div>
                 
                 {/* Beschreibung */}
                 <div>
                   <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                    Beschreibung *
+                    Beschreibung (optional)
                   </label>
                   <textarea
                     id="description"
@@ -582,65 +596,23 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     onChange={handleChange}
                     rows={3}
                     className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Beschreiben Sie den Contact table, z.B. Thema des Abends, besondere Angebote, etc.
+                    Beschreiben Sie den Contact-table, z.B. Thema des Abends, besondere Angebote, etc.
                   </p>
                 </div>
                 
-                {/* Datum */}
-                <div>
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-                    Datum *
-                  </label>
-                  <input
-                    type="date"
-                    id="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                
-                {/* Uhrzeit */}
-                <div>
-                  <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
-                    Uhrzeit *
-                  </label>
-                  <input
-                    type="time"
-                    id="time"
-                    name="time"
-                    value={formData.time}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                {/* Endzeit */}
-                <div>
-                  <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
-                    Endzeit (optional)
-                  </label>
-                  <input
-                    type="time"
-                    id="endTime"
-                    name="endTime"
-                    value={formData.endTime}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Legen Sie fest, bis wann der Contact table gilt.</p>
+                {/* Hinweis: Dieser Contact-table ist auf unbestimmte Zeit aktiv */}
+                <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                  <p className="text-sm text-gray-700">
+                    Dieser Contact-table ist ohne Datum/Uhrzeit auf unbestimmte Zeit aktiv.
+                  </p>
                 </div>
                 
                 {/* Maximale Teilnehmerzahl */}
                 <div>
                   <label htmlFor="maxParticipants" className="block text-sm font-medium text-gray-700 mb-1">
-                    Maximale Teilnehmerzahl *
+                    Maximale Teilnehmerzahl (optional)
                   </label>
                   <input
                     type="number"
@@ -651,10 +623,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     min="2"
                     max="20"
                     className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    required
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Empfohlen: 4-8 Personen für optimale Gesprächsdynamik
+                    Optional. Standard ist 4. Empfohlen: 4-8 Personen für optimale Gesprächsdynamik
                   </p>
                 </div>
 
@@ -672,9 +643,42 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                       onChange={(e) => setFormData(prev => ({ ...prev, paused: e.target.checked }))}
                       className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                     />
-                    <span className="ml-2 text-sm text-gray-600">Wenn aktiviert, ist der Contact table vorübergehend pausiert.</span>
+                    <span className="ml-2 text-sm text-gray-600">Wenn aktiviert, ist der Contact-table vorübergehend pausiert.</span>
                   </div>
                 </div>
+
+                {/* Pause-Zeitraum */}
+                {formData.paused && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="pauseStart" className="block text-sm font-medium text-gray-700 mb-1">
+                        Pause von (Datum)
+                      </label>
+                      <input
+                        type="date"
+                        id="pauseStart"
+                        name="pauseStart"
+                        value={formData.pauseStart}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="pauseEnd" className="block text-sm font-medium text-gray-700 mb-1">
+                        Pause bis (Datum)
+                      </label>
+                      <input
+                        type="date"
+                        id="pauseEnd"
+                        name="pauseEnd"
+                        value={formData.pauseEnd}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Nach diesem Datum wird der Tisch automatisch wieder aktiv.</p>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="mt-6 flex justify-end space-x-3">
@@ -760,19 +764,19 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
     // Serialize and transform data for the client component
     const contactTables: ContactTable[] = tablesFromDb.map(table => {
-      const dt = new Date(table.datetime);
-      const edt = table.endDatetime ? new Date(table.endDatetime) : null;
+      const pauseStart = table.pauseStart ? new Date(table.pauseStart) : null;
+      const pauseEnd = table.pauseEnd ? new Date(table.pauseEnd) : null;
       return {
         id: table.id,
         title: table.title,
         description: table.description || '',
-        date: dt.toISOString().split('T')[0], // Format: YYYY-MM-DD
-        time: dt.toTimeString().split(' ')[0].substring(0, 5), // Format: HH:MM
-        endTime: edt ? edt.toTimeString().split(' ')[0].substring(0, 5) : '',
         maxParticipants: table.maxParticipants,
         currentParticipants: table._count.participants,
         status: table.status,
         paused: !!table.paused,
+        isIndefinite: table.isIndefinite ?? !table.datetime,
+        pauseStart: pauseStart ? pauseStart.toISOString().split('T')[0] : null,
+        pauseEnd: pauseEnd ? pauseEnd.toISOString().split('T')[0] : null,
       };
     });
 
