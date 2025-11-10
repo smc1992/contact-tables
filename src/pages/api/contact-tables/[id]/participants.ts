@@ -95,6 +95,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Teilnehmer abrufen
+      // Spalten-Fallback für participations (contact_table_id vs event_id)
+      const idColumn = await resolveParticipationIdColumn(supabase);
       const { data: participants, error: participantsError } = await supabase
         .from('participations')
         .select(`
@@ -106,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             last_name
           )
         `)
-        .eq('contact_table_id', id);
+        .eq(idColumn, id);
 
       if (participantsError) {
         return res.status(500).json({ error: 'Fehler beim Abrufen der Teilnehmer' });
@@ -193,10 +195,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Prüfen, ob der Tisch voll ist
+      const idColumn = await resolveParticipationIdColumn(supabase);
       const { data: participantsCount, error: countError } = await supabase
         .from('participations')
         .select('*', { count: 'exact', head: true })
-        .eq('contact_table_id', id);
+        .eq(idColumn, id);
 
       if (countError) {
         console.error('Fehler beim Zählen der Teilnehmer:', countError);
@@ -228,7 +231,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data: existingParticipation } = await supabase
         .from('participations')
         .select('*')
-        .eq('contact_table_id', id)
+        .eq(idColumn, id)
         .eq('user_id', targetUserId)
         .single();
 
@@ -237,13 +240,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Teilnahme erstellen
+      const payload: any = { user_id: targetUserId, status: 'CONFIRMED' };
+      payload[idColumn] = id;
       const { error: participationError } = await supabase
         .from('participations')
-        .insert({
-          user_id: targetUserId,
-          contact_table_id: id,
-          status: 'CONFIRMED'
-        });
+        .insert(payload);
 
       if (participationError) {
         return res.status(500).json({ error: 'Fehler beim Hinzufügen des Teilnehmers' });
@@ -253,7 +254,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data: updatedParticipants, error: updateError } = await supabase
         .from('participations')
         .select('*', { count: 'exact' })
-        .eq('contact_table_id', id);
+        .eq(idColumn, id);
 
       if (updateError) {
         console.error('Fehler beim Aktualisieren des Tischstatus:', updateError);
@@ -283,7 +284,7 @@ async function checkIfUserIsParticipant(
   const { data, error } = await supabase
     .from('participations')
     .select('*')
-    .eq('contact_table_id', tableId)
+    .or(`contact_table_id.eq.${tableId},event_id.eq.${tableId}`)
     .eq('user_id', userId)
     .single();
     
@@ -293,4 +294,22 @@ async function checkIfUserIsParticipant(
   }
   
   return !!data;
+}
+
+// Hilfsfunktion: prüft, welche Spalte existiert (contact_table_id oder event_id)
+async function resolveParticipationIdColumn(supabase: SupabaseClient<Database>): Promise<'contact_table_id' | 'event_id'> {
+  try {
+    const { error } = await supabase
+      .from('participations')
+      .select('contact_table_id', { head: true, count: 'exact' })
+      .limit(1);
+    if (!error) return 'contact_table_id';
+    const msg = (error?.message || '').toLowerCase();
+    if (msg.includes('could not find') || msg.includes('column') || msg.includes('schema')) {
+      return 'event_id';
+    }
+    return 'contact_table_id';
+  } catch (_) {
+    return 'event_id';
+  }
 }

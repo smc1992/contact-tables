@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Authentifizierung prüfen
-    const supabase = createClient(req);
+    const supabase = createClient({ req, res });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -59,14 +59,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Dieser Kontakttisch ist bereits voll' });
     }
 
+    // Dynamische Spalte für participations ermitteln (contact_table_id vs event_id)
+    const column = await resolveParticipationIdColumn(supabase);
+
     // Teilnahme erstellen
+    const payload: any = { user_id: user.id, status: 'CONFIRMED' };
+    payload[column] = tableId;
     const { error: participationError } = await supabase
       .from('participations')
-      .insert({
-        user_id: user.id,
-        contact_table_id: tableId,
-        status: 'CONFIRMED'
-      });
+      .insert(payload);
 
     if (participationError) {
       return res.status(500).json({ error: 'Fehler beim Erstellen der Teilnahme' });
@@ -76,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { data: updatedParticipations } = await supabase
       .from('participations')
       .select('*')
-      .eq('contact_table_id', tableId);
+      .eq(column, tableId);
 
     if (updatedParticipations && updatedParticipations.length >= table.max_participants) {
       await supabase
@@ -89,5 +90,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: any) {
     console.error('Fehler beim Beitreten zum Kontakttisch:', error);
     return res.status(500).json({ error: 'Interner Serverfehler' });
+  }
+}
+
+// Hilfsfunktion: prüft, welche Spalte existiert (contact_table_id oder event_id)
+async function resolveParticipationIdColumn(supabase: ReturnType<typeof createClient>): Promise<'contact_table_id' | 'event_id'> {
+  try {
+    const { error } = await supabase
+      .from('participations')
+      .select('contact_table_id', { head: true, count: 'exact' })
+      .limit(1);
+    if (!error) return 'contact_table_id';
+    const msg = (error?.message || '').toLowerCase();
+    if (msg.includes('could not find') || msg.includes('column') || msg.includes('schema')) {
+      return 'event_id';
+    }
+    return 'contact_table_id';
+  } catch (_) {
+    return 'event_id';
   }
 }

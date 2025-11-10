@@ -188,17 +188,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!restaurant) {
-      const email: string | undefined =
+      const rawEmail: string | undefined =
         payload['buyer_email'] || payload['customer_email'] || payload['email'] || payload['payer_email'] || payload['buyeremail'];
 
-      if (!email) {
+      if (!rawEmail) {
         return res.status(400).json({ message: 'Identifikation fehlt (custom oder E-Mail)' });
       }
 
-      restaurant = await prisma.restaurant.findFirst({ where: { email } });
+      const normalizedEmail = normalizeEmail(rawEmail);
+      restaurant = await prisma.restaurant.findFirst({ where: { email: normalizedEmail } });
 
       if (!restaurant) {
-        return res.status(404).json({ message: 'Restaurant nicht gefunden', identifier: email });
+        return res.status(404).json({ message: 'Restaurant nicht gefunden', identifier: normalizedEmail });
       }
     }
 
@@ -311,4 +312,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } finally {
     await prisma.$disconnect();
   }
+}
+
+// Hilfsfunktion: E-Mail normalisieren
+// - Kleinbuchstaben
+// - Entfernt "+tag" vor dem "@" (Plus-Alias), damit buyer@example+test@domain.com zu buyer@domain.com wird
+function normalizeEmail(input?: string): string | undefined {
+  if (!input) return undefined;
+  const s = input.trim().toLowerCase();
+  const atIndex = s.indexOf('@');
+  if (atIndex === -1) return s;
+  const local = s.slice(0, atIndex);
+  const domain = s.slice(atIndex + 1);
+  const plusIdx = local.indexOf('+');
+  const localNoPlus = plusIdx >= 0 ? local.slice(0, plusIdx) : local;
+  return `${localNoPlus}@${domain}`;
 }
