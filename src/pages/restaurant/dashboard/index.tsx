@@ -46,6 +46,10 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
   // Vereinfachte Version ohne Animationen und komplexe Berechnungen
   const [restaurantState, setRestaurantState] = useState<RestaurantData>(restaurant);
   const supabase = createBrowserClient();
+  // AGB-Modal Flow
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [termsModalChecked, setTermsModalChecked] = useState(false);
+  const [pendingRedirectUrl, setPendingRedirectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!restaurantState?.id) return;
@@ -82,6 +86,26 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
   const yearlyBase = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_YEARLY_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PLAN_PREMIUM_URL || process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_URL || '#';
   const monthlyUrl = resolveUrl(monthlyBase);
   const yearlyUrl = resolveUrl(yearlyBase);
+  const TERMS_URL = `/agb#restaurants?restaurantId=${encodeURIComponent(restaurantState.id)}`;
+
+  const openTermsModal = (url?: string | null) => {
+    if (!url) return;
+    setPendingRedirectUrl(url);
+    setTermsModalChecked(false);
+    setIsTermsModalOpen(true);
+  };
+
+  const closeTermsModal = () => {
+    setIsTermsModalOpen(false);
+    setPendingRedirectUrl(null);
+    setTermsModalChecked(false);
+  };
+
+  const proceedToPayment = () => {
+    if (!termsModalChecked || !pendingRedirectUrl) return;
+    window.location.href = pendingRedirectUrl;
+    closeTermsModal();
+  };
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -112,24 +136,22 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {monthlyUrl && (
-                      <a
-                        href={monthlyUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => openTermsModal(monthlyUrl)}
                         className="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md font-medium transition-colors"
                       >
                         Monatlich zahlen
-                      </a>
+                      </button>
                     )}
                     {yearlyUrl && (
-                      <a
-                        href={yearlyUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => openTermsModal(yearlyUrl)}
                         className="inline-flex items-center px-4 py-2 border border-yellow-600 text-yellow-800 hover:bg-yellow-100 rounded-md font-medium transition-colors"
                       >
                         Jährlich zahlen
-                      </a>
+                      </button>
                     )}
                     <a
                       href="/restaurant/dashboard/subscription"
@@ -157,6 +179,53 @@ export default function SimpleDashboard({ restaurant }: DashboardProps) {
                 Neuen Kontakttisch erstellen
               </a>
             </div>
+
+            {/* AGB-Modal zur Bestätigung vor der Weiterleitung */}
+            {isTermsModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">AGB bestätigen</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Bitte lesen und akzeptieren Sie die AGB für Restaurants, bevor Sie mit der Zahlung fortfahren.
+                  </p>
+                  <a
+                    href={TERMS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-700 underline underline-offset-2"
+                  >
+                    AGB für Restaurants öffnen
+                  </a>
+                  <div className="mt-4 flex items-center gap-2">
+                    <input
+                      id="terms-modal-checkbox"
+                      type="checkbox"
+                      checked={termsModalChecked}
+                      onChange={(e) => setTermsModalChecked(e.target.checked)}
+                      className="h-4 w-4 border-gray-300 rounded"
+                    />
+                    <label htmlFor="terms-modal-checkbox" className="text-sm text-gray-800">Ich akzeptiere die AGB.</label>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={closeTermsModal}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!termsModalChecked || !pendingRedirectUrl}
+                      onClick={proceedToPayment}
+                      className={`px-4 py-2 rounded-md text-white ${termsModalChecked && pendingRedirectUrl ? 'bg-primary-600 hover:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                    >
+                      Weiter zur Zahlung
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Schnellzugriff */}
             <div className="bg-white rounded-lg shadow p-6 mb-8">

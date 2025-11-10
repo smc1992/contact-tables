@@ -46,8 +46,11 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
   const [selectedPlan, setSelectedPlan] = useState(restaurant.plan || '');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [accepting, setAccepting] = useState(false);
+  // AGB-Modal Flow
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [termsModalChecked, setTermsModalChecked] = useState(false);
+  const [pendingRedirectUrl, setPendingRedirectUrl] = useState<string | null>(null);
+  const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   
   // Digistore24: zwei Zahlungspläne direkt verknüpfen (custom = Restaurant-ID)
   // Bevorzugt PLAN-URLs, fällt auf PRODUCT-URLs zurück
@@ -72,6 +75,7 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
     }
     return price; // Falls kein numerischer Wert, zeige den Rohwert
   };
+  const TERMS_URL = `/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}`;
   const appendCustom = (url?: string) => {
     if (!url) return undefined;
     const sep = url.includes('?') ? '&' : '?';
@@ -124,6 +128,29 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
   
   const handlePlanSelect = (planId: string) => {
     setSelectedPlan(planId);
+  };
+
+  // Modal öffnen, wenn ein Zahlungsplan gewählt wird
+  const openTermsModal = (url: string | null, planId: string) => {
+    if (!url) return; // Kein Ziel – nichts tun
+    setPendingRedirectUrl(url);
+    setPendingPlanId(planId);
+    setTermsModalChecked(false);
+    setIsTermsModalOpen(true);
+  };
+
+  const closeTermsModal = () => {
+    setIsTermsModalOpen(false);
+    setPendingRedirectUrl(null);
+    setPendingPlanId(null);
+    setTermsModalChecked(false);
+  };
+
+  const proceedToPayment = () => {
+    if (!termsModalChecked || !pendingRedirectUrl) return;
+    // Weiterleitung zur jeweiligen Digistore-Checkout-URL
+    window.location.href = pendingRedirectUrl;
+    closeTermsModal();
   };
   
   const handleUpgradeSubmit = async () => {
@@ -254,15 +281,14 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                         <p className="text-sm text-neutral-600 mb-2">{formatPrice(YEARLY_PRICE) ? `Preis: ${formatPrice(YEARLY_PRICE)} pro Jahr` : 'Preis wird im Checkout angezeigt.'}</p>
                       )}
                       {p.url ? (
-                        <a
-                          href={p.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => openTermsModal(p.url, p.id)}
                           className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
                           title={p.id === 'monthly' ? (formatPrice(MONTHLY_PRICE) ? `Monatlich zahlen – ${formatPrice(MONTHLY_PRICE)}` : 'Monatlich zahlen') : (p.id === 'yearly' ? (formatPrice(YEARLY_PRICE) ? `Jährlich zahlen – ${formatPrice(YEARLY_PRICE)}` : 'Jährlich zahlen') : 'Zahlung abschließen')}
                         >
                           {p.id === 'monthly' ? 'Monatlich zahlen' : p.id === 'yearly' ? 'Jährlich zahlen' : 'Zahlung abschließen'}
-                        </a>
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -276,77 +302,52 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                     </div>
                   ))}
                 </div>
-                {/* AGB-Akzeptanz Bereich (zentral im Tab) */}
-                <div className="mt-6 border-t pt-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">AGB & Vertrag</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Bitte lesen und akzeptieren Sie die AGB für Restaurants, um den Vertrag zu aktivieren.
+              </div>
+            )}
+
+            {/* AGB-Modal zur Bestätigung vor der Weiterleitung */}
+            {isTermsModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">AGB bestätigen</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Bitte lesen und akzeptieren Sie die AGB für Restaurants, bevor Sie mit der Zahlung fortfahren.
                   </p>
-                  <div className="flex flex-col md:flex-row md:items-center gap-3">
-                    <a
-                      href={`/agb#restaurants?restaurantId=${encodeURIComponent(restaurant.id)}&token=${encodeURIComponent(restaurant.contractToken || '')}`}
-                      className="text-primary-700 underline underline-offset-2"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      AGB für Restaurants öffnen
-                    </a>
-                    <label className="flex items-center gap-2 text-sm text-gray-800">
-                      <input
-                        type="checkbox"
-                        checked={termsAccepted}
-                        onChange={(e) => setTermsAccepted(e.target.checked)}
-                        className="h-4 w-4 border-gray-300 rounded"
-                      />
-                      Ich akzeptiere die AGB.
-                    </label>
+                  <a
+                    href={TERMS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-700 underline underline-offset-2"
+                  >
+                    AGB für Restaurants öffnen
+                  </a>
+                  <div className="mt-4 flex items-center gap-2">
+                    <input
+                      id="terms-modal-checkbox"
+                      type="checkbox"
+                      checked={termsModalChecked}
+                      onChange={(e) => setTermsModalChecked(e.target.checked)}
+                      className="h-4 w-4 border-gray-300 rounded"
+                    />
+                    <label htmlFor="terms-modal-checkbox" className="text-sm text-gray-800">Ich akzeptiere die AGB.</label>
+                  </div>
+                  <div className="mt-6 flex justify-end gap-3">
                     <button
                       type="button"
-                      disabled={
-                        !termsAccepted || accepting || !restaurant.contractToken || restaurant.contractStatus === 'PENDING' || restaurant.contractStatus === 'REJECTED'
-                      }
-                      onClick={async () => {
-                        if (!restaurant.contractToken) return;
-                        setAccepting(true);
-                        setError('');
-                        setSuccess('');
-                        try {
-                          const res = await fetch('/api/restaurant/accept-contract', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ restaurantId: restaurant.id, token: restaurant.contractToken })
-                          });
-                          if (!res.ok) {
-                            const err = await res.json().catch(() => ({}));
-                            throw new Error(err.message || 'Fehler beim Vertragsabschluss');
-                          }
-                          setSuccess('Vertrag erfolgreich akzeptiert. Restaurant wird aktiviert.');
-                          setTermsAccepted(false);
-                          setTimeout(() => { window.location.reload(); }, 1200);
-                        } catch (e: any) {
-                          setError(e.message || 'Ein Fehler ist aufgetreten');
-                        } finally {
-                          setAccepting(false);
-                        }
-                      }}
-                      className={`px-3 py-2 rounded-md text-white text-sm font-medium ${
-                        termsAccepted && !accepting && restaurant.contractToken && restaurant.contractStatus === 'APPROVED'
-                          ? 'bg-primary-600 hover:bg-primary-700'
-                          : 'bg-gray-300 cursor-not-allowed'
-                      }`}
+                      onClick={closeTermsModal}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                     >
-                      {accepting ? 'Wird bestätigt…' : 'AGB akzeptieren'}
+                      Abbrechen
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!termsModalChecked || !pendingRedirectUrl}
+                      onClick={proceedToPayment}
+                      className={`px-4 py-2 rounded-md text-white ${termsModalChecked && pendingRedirectUrl ? 'bg-primary-600 hover:bg-primary-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                    >
+                      Weiter zur Zahlung
                     </button>
                   </div>
-                  {restaurant.contractStatus === 'PENDING' && (
-                    <p className="mt-2 text-xs text-amber-700">Ihre Anfrage wird derzeit geprüft. Die AGB können erst nach Genehmigung bestätigt werden.</p>
-                  )}
-                  {restaurant.contractStatus === 'REJECTED' && (
-                    <p className="mt-2 text-xs text-red-700">Ihre Anfrage wurde abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.</p>
-                  )}
-                  {!restaurant.contractToken && (
-                    <p className="mt-2 text-xs text-gray-600">Kein Vertrags-Token gefunden. Bitte öffnen Sie den AGB-Link aus der E-Mail.</p>
-                  )}
                 </div>
               </div>
             )}
@@ -473,14 +474,13 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                   <div className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors">
                     <span className="text-lg font-semibold text-gray-800">Monatlich</span>
                     {DIGISTORE_MONTHLY_URL ? (
-                      <a
-                        href={String(appendCustom(DIGISTORE_MONTHLY_URL))}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => openTermsModal(String(appendCustom(DIGISTORE_MONTHLY_URL)), 'monthly')}
                         className="px-4 py-2 bg-primary-600 text-white rounded-lg"
                       >
                         Zur Zahlung
-                      </a>
+                      </button>
                     ) : (
                       <span className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg">Nicht konfiguriert</span>
                     )}
@@ -488,14 +488,13 @@ export default function RestaurantSubscription({ restaurant }: SubscriptionPageP
                   <div className="border rounded-xl p-6 flex items-center justify-between hover:border-primary-500 transition-colors">
                     <span className="text-lg font-semibold text-gray-800">Jährlich</span>
                     {DIGISTORE_YEARLY_URL ? (
-                      <a
-                        href={String(appendCustom(DIGISTORE_YEARLY_URL))}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => openTermsModal(String(appendCustom(DIGISTORE_YEARLY_URL)), 'yearly')}
                         className="px-4 py-2 bg-primary-600 text-white rounded-lg"
                       >
                         Zur Zahlung
-                      </a>
+                      </button>
                     ) : (
                       <span className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg">Nicht konfiguriert</span>
                     )}
