@@ -14,9 +14,11 @@ interface ContactTable {
   description: string;
   date: string;
   time: string;
+  endTime?: string;
   maxParticipants: number;
   currentParticipants: number;
   status: string;
+  paused?: boolean;
 }
 
 interface RestaurantData {
@@ -46,7 +48,10 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
     description: '',
     date: '',
     time: '',
-    maxParticipants: 4
+    endTime: '',
+    maxParticipants: 4,
+    isPublic: !!restaurant?.isActive,
+    paused: false
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -67,7 +72,10 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
         description: table.description,
         date: table.date,
         time: table.time,
-        maxParticipants: table.maxParticipants
+        endTime: table.endTime || '',
+        maxParticipants: table.maxParticipants,
+        isPublic: !!restaurant?.isActive,
+        paused: !!table.paused
       });
     } else {
       // Neu-Modus
@@ -78,7 +86,10 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
         description: '',
         date: '',
         time: '',
-        maxParticipants: 4
+        endTime: '',
+        maxParticipants: 4,
+        isPublic: !!restaurant?.isActive,
+        paused: false
       });
     }
     setIsModalOpen(true);
@@ -102,21 +113,48 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
       if (formData.maxParticipants < 2) {
         throw new Error('Ein Contact table muss mindestens 2 Teilnehmer haben');
       }
+
+      if (formData.endTime) {
+        const start = new Date(`${formData.date}T${formData.time}:00`);
+        const end = new Date(`${formData.date}T${formData.endTime}:00`);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          throw new Error('Ungültiges Datums- oder Zeitformat');
+        }
+        if (end <= start) {
+          throw new Error('Endzeit muss nach der Startzeit liegen');
+        }
+      }
       
       // API-Aufruf zum Erstellen oder Aktualisieren des Contact Tables
       const url = isEditing 
         ? '/api/restaurant/update-contact-table' 
-        : '/api/contact-tables/create';
-      
-      const dataToSend = {
-        title: formData.title,
-        description: formData.description,
-        datetime: `${formData.date}T${formData.time}:00`,
-        maxParticipants: formData.maxParticipants, // Korrekter Feldname
-        price: 0, // Standardwert, da im Formular nicht vorhanden
-        isPublic: true, // Standardwert, da im Formular nicht vorhanden
-        ...(isEditing && { id: currentTableId }),
-      };
+        : '/api/contact-tables';
+
+      // Payload je nach Endpunkt korrekt benennen
+      const dataToSend = isEditing 
+        ? {
+            tableId: currentTableId,
+            restaurantId: restaurant.id,
+            title: formData.title,
+            description: formData.description,
+            date: formData.date,
+            time: formData.time,
+            endDate: formData.endTime ? formData.date : undefined,
+            endTime: formData.endTime || undefined,
+            maxParticipants: formData.maxParticipants,
+            paused: formData.paused,
+          }
+        : {
+            title: formData.title,
+            description: formData.description,
+            datetime: `${formData.date}T${formData.time}:00`,
+            end_datetime: formData.endTime ? `${formData.date}T${formData.endTime}:00` : null,
+            max_participants: formData.maxParticipants,
+            price: 0,
+            restaurant_id: restaurant.id,
+            is_public: restaurant.isActive ? formData.isPublic : false,
+            paused: formData.paused
+          };
 
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
@@ -131,13 +169,27 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
         throw new Error(errorData.message || 'Fehler beim Speichern des Contact table');
       }
       
-      const data = await response.json();
-      
+      const resp = await response.json();
+
+      // Response je nach Endpoint formen
+      const payload = isEditing ? resp.contactTable : resp.data;
+      const hasDateTime = payload && payload.datetime;
+      const hasEndDateTime = payload && payload.end_datetime;
       const newTableData = {
-        ...data,
-        date: new Date(data.datetime).toISOString().split('T')[0],
-        time: new Date(data.datetime).toTimeString().split(' ')[0].substring(0, 5),
-        currentParticipants: 0, // Neu erstellte Tische haben 0 Teilnehmer
+        ...payload,
+        date: hasDateTime
+          ? new Date(payload.datetime).toISOString().split('T')[0]
+          : payload.date,
+        time: hasDateTime
+          ? new Date(payload.datetime).toTimeString().split(' ')[0].substring(0, 5)
+          : payload.time,
+        endTime: hasEndDateTime
+          ? new Date(payload.end_datetime).toTimeString().split(' ')[0].substring(0, 5)
+          : payload.endTime,
+        currentParticipants: payload?.currentParticipants ?? 0,
+        maxParticipants: payload?.maxParticipants ?? formData.maxParticipants,
+        status: payload?.status ?? 'OPEN',
+        paused: !!payload?.paused
       };
 
       if (isEditing) {
@@ -217,20 +269,35 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                 </p>
               </div>
               
-              {restaurant.isActive ? (
-                <button
-                  onClick={() => openModal()}
-                  className="mt-4 md:mt-0 flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                >
-                  <FiPlus className="mr-2" />
-                  Neuen Contact table erstellen
-                </button>
-              ) : (
-                <div className="mt-4 md:mt-0 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg">
-                  Ihr Restaurant ist noch nicht aktiv
-                </div>
-              )}
+              <button
+                onClick={() => openModal()}
+                className="mt-4 md:mt-0 flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <FiPlus className="mr-2" />
+                Neuen Contact table erstellen
+              </button>
             </div>
+                
+                {/* Öffentlich sichtbar */}
+                <div>
+                  <label htmlFor="isPublic" className="block text-sm font-medium text-gray-700 mb-1">
+                    Öffentlich sichtbar
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isPublic"
+                      name="isPublic"
+                      checked={formData.isPublic}
+                      onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
+                      disabled={!restaurant.isActive}
+                      className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-600">
+                      {restaurant.isActive ? 'Wenn aktiviert, erscheint der Tisch öffentlich.' : 'Aktivieren Sie Ihr Restaurant, um Tische öffentlich sichtbar zu machen.'}
+                    </span>
+                  </div>
+                </div>
             
             {/* Erfolgs- oder Fehlermeldung */}
             {success && (
@@ -272,9 +339,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     <h3 className="font-medium text-amber-800">Ihr Restaurant ist noch nicht aktiv</h3>
                     <p className="text-amber-700 mt-1">
                       {restaurant.contractStatus === 'PENDING' && 
-                        'Ihre Anfrage wird derzeit geprüft. Wir werden Sie benachrichtigen, sobald sie genehmigt wurde.'}
+                        'Ihre Anfrage wird derzeit geprüft. Sie können bereits Contact tables anlegen; diese sind öffentlich sichtbar, sobald Ihr Restaurant aktiviert wurde.'}
                       {restaurant.contractStatus === 'APPROVED' && 
-                        'Ihre Anfrage wurde genehmigt! Bitte schließen Sie die Zahlung und den Vertragsabschluss ab, um Ihr Restaurant zu aktivieren.'}
+                        'Ihre Anfrage wurde genehmigt! Bitte schließen Sie die Zahlung und den Vertragsabschluss ab, um Ihr Restaurant zu aktivieren. Bis dahin angelegte Contact tables bleiben nicht öffentlich sichtbar.'}
                       {restaurant.contractStatus === 'REJECTED' && 
                         'Leider wurde Ihre Anfrage abgelehnt. Bitte kontaktieren Sie uns für weitere Informationen.'}
                     </p>
@@ -298,19 +365,15 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                   <FiCalendar className="mx-auto text-gray-400 mb-3" size={48} />
                   <h3 className="text-lg font-medium text-gray-700 mb-1">Keine Contact Tables vorhanden</h3>
                   <p className="text-gray-500">
-                    {restaurant.isActive 
-                      ? 'Erstellen Sie Ihren ersten Contact table, um Menschen zusammenzubringen!' 
-                      : 'Aktivieren Sie Ihr Restaurant, um Contact Tables zu erstellen.'}
+                    Erstellen Sie Ihren ersten Contact table, um Menschen zusammenzubringen! Angelegte Tische werden öffentlich sichtbar, sobald Ihr Restaurant aktiviert ist.
                   </p>
-                  {restaurant.isActive && (
-                    <button
-                      onClick={() => openModal()}
-                      className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                    >
-                      <FiPlus className="inline mr-2" />
-                      Ersten Contact table erstellen
-                    </button>
-                  )}
+                  <button
+                    onClick={() => openModal()}
+                    className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  >
+                    <FiPlus className="inline mr-2" />
+                    Ersten Contact table erstellen
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -338,7 +401,9 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                             </div>
                             <div className="flex items-center mt-1">
                               <FiClock className="text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-500">{table.time} Uhr</span>
+                              <span className="text-sm text-gray-500">
+                                {table.time} Uhr{table.endTime ? ` – ${table.endTime} Uhr` : ''}
+                              </span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -364,6 +429,11 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                               {table.status === 'CLOSED' && 'Geschlossen'}
                               {table.status === 'PAST' && 'Vergangen'}
                             </span>
+                            {table.paused && (
+                              <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Pausiert
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <button
@@ -489,6 +559,22 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                     required
                   />
                 </div>
+
+                {/* Endzeit */}
+                <div>
+                  <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+                    Endzeit (optional)
+                  </label>
+                  <input
+                    type="time"
+                    id="endTime"
+                    name="endTime"
+                    value={formData.endTime}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Legen Sie fest, bis wann der Contact table gilt.</p>
+                </div>
                 
                 {/* Maximale Teilnehmerzahl */}
                 <div>
@@ -509,6 +595,24 @@ export default function RestaurantTables({ restaurant, contactTables = [] }: Tab
                   <p className="mt-1 text-xs text-gray-500">
                     Empfohlen: 4-8 Personen für optimale Gesprächsdynamik
                   </p>
+                </div>
+
+                {/* Pause-Toggle */}
+                <div>
+                  <label htmlFor="paused" className="block text-sm font-medium text-gray-700 mb-1">
+                    Pausieren (z.B. Betriebsferien)
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="paused"
+                      name="paused"
+                      checked={formData.paused}
+                      onChange={(e) => setFormData(prev => ({ ...prev, paused: e.target.checked }))}
+                      className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-600">Wenn aktiviert, ist der Contact table vorübergehend pausiert.</span>
+                  </div>
                 </div>
               </div>
               
@@ -578,37 +682,37 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       };
     }
 
-    let contactTables: ContactTable[] = [];
-    if (restaurant.isActive) {
-      const tablesFromDb = await prisma.event.findMany({
-        where: {
-          restaurantId: restaurant.id,
+    const tablesFromDb = await prisma.event.findMany({
+      where: {
+        restaurantId: restaurant.id,
+      },
+      include: {
+        _count: {
+          select: { participants: true },
         },
-        include: {
-          _count: {
-            select: { participants: true },
-          },
-        },
-        orderBy: {
-          datetime: 'asc',
-        },
-      });
+      },
+      orderBy: {
+        datetime: 'asc',
+      },
+    });
 
-      // Serialize and transform data for the client component
-      contactTables = tablesFromDb.map(table => {
-        const dt = new Date(table.datetime);
-        return {
-          id: table.id,
-          title: table.title,
-          description: table.description || '',
-          date: dt.toISOString().split('T')[0], // Format: YYYY-MM-DD
-          time: dt.toTimeString().split(' ')[0].substring(0, 5), // Format: HH:MM
-          maxParticipants: table.maxParticipants,
-          currentParticipants: table._count.participants,
-          status: table.status,
-        };
-      });
-    }
+    // Serialize and transform data for the client component
+    const contactTables: ContactTable[] = tablesFromDb.map(table => {
+      const dt = new Date(table.datetime);
+      const edt = table.endDatetime ? new Date(table.endDatetime) : null;
+      return {
+        id: table.id,
+        title: table.title,
+        description: table.description || '',
+        date: dt.toISOString().split('T')[0], // Format: YYYY-MM-DD
+        time: dt.toTimeString().split(' ')[0].substring(0, 5), // Format: HH:MM
+        endTime: edt ? edt.toTimeString().split(' ')[0].substring(0, 5) : undefined,
+        maxParticipants: table.maxParticipants,
+        currentParticipants: table._count.participants,
+        status: table.status,
+        paused: table.paused,
+      };
+    });
 
     return {
       props: {

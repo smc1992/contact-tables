@@ -95,11 +95,13 @@ model Event {
   title           String
   description     String?
   datetime        DateTime
+  endDatetime     DateTime?          @map("end_datetime")
   maxParticipants Int                @map("max_participants")
   price           Float              @default(0)
   restaurantId    String             @map("restaurant_id") @db.Uuid
   status          EventStatus        @default(OPEN)
   isPublic        Boolean            @default(true) @map("is_public")
+  paused          Boolean            @default(false)
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
   restaurant      Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)

@@ -64,6 +64,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
+    // Supabase: Restaurant-Datensatz aktualisieren (Status und Akzeptanzdatum)
+    try {
+      const { error: supabaseUpdateError } = await supabaseAdmin
+        .from('restaurants')
+        .update({
+          contract_status: 'ACTIVE',
+          is_active: true,
+          contract_accepted_at: new Date().toISOString(),
+        })
+        .eq('id', restaurantId);
+
+      if (supabaseUpdateError) {
+        console.error('Fehler beim Aktualisieren des Supabase-Restaurantdatensatzes:', supabaseUpdateError);
+      }
+    } catch (e) {
+      console.error('Unerwarteter Fehler beim Supabase-Update des Restaurantdatensatzes:', e);
+    }
+
     // Supabase Benutzerrolle aktualisieren
     // Annahme: restaurant.user.id ist die Supabase auth.users.id
     // oder restaurant.userId, falls es eine direkte Spalte ist.

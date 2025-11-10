@@ -23,6 +23,7 @@ export default function AgbPage() {
       description="Allgemeine Geschäftsbedingungen für Verbraucher und Restaurants bei contact-tables"
       className="bg-white"
     >
+      {/* Hinweis: Die AGB-Akzeptanz erfolgt ausschließlich im Restaurant-Dashboard. */}
       <div className="relative overflow-hidden">
         <div className="bg-gradient-to-r from-primary-900 via-primary-800 to-primary-700">
           <div className="container mx-auto px-4 py-16 text-white">

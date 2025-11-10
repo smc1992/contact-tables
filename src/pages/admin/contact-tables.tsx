@@ -18,12 +18,20 @@ interface ContactTableEvent {
   maxParticipants: number;
   availableSeats: number;
   status: 'OPEN' | 'FULL' | 'PAST';
+  // Sichtbarkeit
+  isPublic?: boolean;
+  is_public?: boolean;
+  is_public_ready?: boolean;
   restaurant: {
     id: string;
     name: string;
     address: string;
     city: string;
     imageUrl?: string;
+    // Restaurant-Sichtbarkeit/Aktivität
+    is_visible?: boolean;
+    is_active?: boolean;
+    contract_status?: string;
   };
   participants: {
     id: string;
@@ -241,7 +249,18 @@ export default function AdminContactTables({ user }: AdminContactTablesProps) {
                           </div>
                           <div className="flex items-center">
                             <FiMapPin className="mr-2 text-blue-600" />
-                            {table.restaurant.name}, {table.restaurant.city}
+                            <span>{table.restaurant.name}, {table.restaurant.city}</span>
+                            {(
+                              table.is_public_ready === true ||
+                              ((table.isPublic ?? table.is_public) === true &&
+                               table.restaurant?.is_visible === true &&
+                               table.restaurant?.is_active === true &&
+                               table.restaurant?.contract_status === 'ACTIVE')
+                            ) && (
+                              <span className="ml-2 inline-flex items-center rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                Öffentlich bereit
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

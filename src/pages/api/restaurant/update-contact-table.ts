@@ -27,7 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     date, 
     time, 
     maxParticipants,
-    status // Status kann optional auch aktualisiert werden
+    status, // Status kann optional auch aktualisiert werden
+    endDate,
+    endTime,
+    paused = false,
   } = req.body;
 
   if (!tableId || !restaurantId || !title || !description || !date || !time || maxParticipants === undefined) {
@@ -65,6 +68,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (isNaN(eventDateTime.getTime())) {
         return res.status(400).json({ message: 'Ungültiges Datums- oder Zeitformat.' });
     }
+    let endDateTimeString: string | null = null;
+    let endDateTime: Date | null = null;
+    if (endDate && endTime) {
+      endDateTimeString = `${endDate}T${endTime}:00`;
+      endDateTime = new Date(endDateTimeString);
+      if (isNaN(endDateTime.getTime())) {
+        return res.status(400).json({ message: 'Ungültiges Datums- oder Zeitformat für Endzeit.' });
+      }
+      if (endDateTime <= eventDateTime) {
+        return res.status(400).json({ message: 'Endzeit muss nach der Startzeit liegen.' });
+      }
+    }
     const now = new Date();
     // Erlaube Aktualisierungen für Events, die bereits begonnen haben, aber nicht für solche, die in der Vergangenheit endeten (optional)
     // Für diese Implementierung: Das Datum darf nicht in der Vergangenheit liegen, wenn es geändert wird.
@@ -79,14 +94,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const updateData: any = {
       title,
       description,
+      // Wir halten weiterhin die Felder date/time für Kompatibilität im System
       date,
       time,
+      // Setzen zusätzlich das kombinierte datetime-Feld
+      datetime: dateTimeString,
       max_participants: parsedMaxParticipants,
-      // current_participants wird hier nicht direkt aktualisiert; das sollte durch separate Aktionen (Anmeldung/Abmeldung) geschehen.
-      // status kann optional aktualisiert werden, wenn im Body mitgegeben
+      paused,
     };
     if (status) {
       updateData.status = status;
+    }
+    if (endDateTimeString) {
+      updateData.end_datetime = endDateTimeString;
+    } else {
+      // explizit auf null setzen, wenn Endzeit entfernt werden soll
+      updateData.end_datetime = null;
     }
 
     const { data: updatedTable, error: updateError } = await supabase

@@ -217,6 +217,19 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
     }
   };
 
+  const getContractBadgeLabel = (status?: string) => {
+    switch ((status || '').toUpperCase()) {
+      case 'ACTIVE':
+        return 'Aktiv';
+      case 'PENDING':
+        return 'Ausstehend';
+      case 'CANCELLED':
+        return 'Gekündigt';
+      default:
+        return 'Unbekannt';
+    }
+  };
+
   // Kürzen des Textes
   const truncateText = (text: string, maxLength: number) => {
     if (!text) return '';
@@ -344,7 +357,7 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                           </span>
                           {typeof restaurant.contract_status !== 'undefined' && (
                             <span className={`ml-2 px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getContractBadgeColor(restaurant.contract_status)}`}>
-                              Vertrag: {String(restaurant.contract_status || '').toUpperCase() || 'UNBEKANNT'}
+                              Vertrag: {getContractBadgeLabel(restaurant.contract_status)}
                             </span>
                           )}
                           {typeof restaurant.is_visible !== 'undefined' && (

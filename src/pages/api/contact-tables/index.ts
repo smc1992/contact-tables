@@ -28,11 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .select(`
           *,
           restaurant:restaurant_id (
-            id, 
-            name, 
-            address, 
-            city, 
-            image_url
+            id,
+            name,
+            address,
+            city,
+            image_url,
+            is_visible,
+            is_active,
+            contract_status
           ),
           participations (
             user_id
@@ -77,7 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Verarbeite die Ergebnisse, um zusätzliche Informationen hinzuzufügen
-      const processedTables = tables?.map(table => {
+      const processedTablesRaw = tables ?? [];
+      const processedTables = processedTablesRaw.map((table: any) => {
         const currentParticipants = table.participations?.length || 0;
         let isParticipating = false;
         
@@ -87,16 +91,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ) || false;
         }
         
-        return {
+        const output = {
           ...table,
           current_participants: currentParticipants,
           is_participating: isParticipating,
           is_full: currentParticipants >= table.max_participants
-        };
+        } as any;
+
+        // Flag: öffentlich bereit nach Restaurant-Status
+        const r = table.restaurant || {};
+        const isRestaurantPublicReady = Boolean(
+          r && r.is_visible === true && r.is_active === true && r.contract_status === 'ACTIVE'
+        );
+        (output as any).is_public_ready = table.is_public === true && isRestaurantPublicReady;
+        return output;
       });
 
+      // Für nicht authentifizierte Nutzer nur öffentlich bereit zurückgeben
+      const finalTables = !user
+        ? processedTables.filter((t: any) => t.is_public_ready)
+        : processedTables;
+
       return res.status(200).json({
-        data: processedTables,
+        data: finalTables,
         meta: {
           total: count,
           limit: Number(limit),
@@ -121,10 +138,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title, 
         description, 
         datetime, 
+        end_datetime = null,
         max_participants, 
         price, 
         restaurant_id, 
-        is_public = true 
+        is_public = true,
+        paused = false,
       } = req.body;
 
       // Pflichtfelder prüfen
@@ -132,6 +151,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ 
           error: 'Titel, Datum/Uhrzeit, maximale Teilnehmerzahl und Restaurant-ID sind erforderlich' 
         });
+      }
+
+      // Endzeit validieren (optional)
+      if (end_datetime) {
+        const start = new Date(datetime);
+        const end = new Date(end_datetime);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return res.status(400).json({ error: 'Ungültiges Datumsformat für Start- oder Endzeit' });
+        }
+        if (end <= start) {
+          return res.status(400).json({ error: 'Endzeit muss nach der Startzeit liegen' });
+        }
       }
 
       // Überprüfen, ob der Benutzer der Restaurantbesitzer ist
@@ -159,11 +190,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           title,
           description,
           datetime,
+          end_datetime,
           max_participants,
           price: price || 0,
           restaurant_id,
           status: 'OPEN',
-          is_public
+          is_public,
+          paused
         })
         .select()
         .single();

@@ -46,12 +46,14 @@ serve(async (req) => {
     const smtpPass = Deno.env.get('SMTP_PASSWORD')
     const smtpFrom = Deno.env.get('SMTP_FROM')
     const siteUrl = Deno.env.get('SITE_URL')
+    const verifyBaseUrlEnv = Deno.env.get('VERIFY_BASE_URL')
+    const effectiveBaseUrl = verifyBaseUrlEnv || siteUrl
 
     // Prüfen, ob alle erforderlichen Umgebungsvariablen vorhanden sind
-    if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpFrom || !siteUrl) {
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPass || !smtpFrom || !effectiveBaseUrl) {
       return new Response(
         JSON.stringify({
-          error: 'Server configuration error: Missing SMTP environment variables',
+          error: 'Server configuration error: Missing SMTP environment variables or base URL',
         }),
         {
           status: 500,
@@ -99,7 +101,7 @@ serve(async (req) => {
     // Bestätigungslink bestimmen: bevorzugt über den direkt gelieferten actionLink
     const confirmationUrl = actionLink && actionLink.length > 0
       ? actionLink
-      : `${siteUrl}/auth/confirm?token_hash=${tokenHash ?? ''}&type=${type}${
+      : `${effectiveBaseUrl}/auth/confirm?token_hash=${tokenHash ?? ''}&type=${type}${
           redirectTo ? `&next=${encodeURIComponent(redirectTo)}` : ''
         }`
 
