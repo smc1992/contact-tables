@@ -77,7 +77,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data: tables, error, count } = await query;
 
       if (error) {
-        return res.status(500).json({ error: 'Fehler beim Abrufen der Kontakttische' });
+        return res.status(500).json({ 
+          message: 'Fehler beim Abrufen der Kontakttische',
+          error: error?.message || error
+        });
       }
 
       // Verarbeite die Ergebnisse, um zusätzliche Informationen hinzuzufügen
@@ -123,7 +126,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error: any) {
       console.error('Fehler beim Abrufen der Kontakttische:', error);
-      return res.status(500).json({ error: 'Interner Serverfehler' });
+      return res.status(500).json({ message: 'Interner Serverfehler', error: error?.message || error });
     }
   } else if (req.method === 'POST') {
     try {
@@ -131,7 +134,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
       if (authError || !user) {
-        return res.status(401).json({ error: 'Nicht authentifiziert' });
+        return res.status(401).json({ message: 'Nicht authentifiziert', error: authError?.message || 'Nicht authentifiziert' });
       }
 
       // Daten aus dem Request-Body extrahieren
@@ -153,7 +156,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Pflichtfelder prüfen
       if (!title || !max_participants || !restaurant_id) {
         return res.status(400).json({ 
-          error: 'Titel, maximale Teilnehmerzahl und Restaurant-ID sind erforderlich' 
+          message: 'Titel, maximale Teilnehmerzahl und Restaurant-ID sind erforderlich',
+          error: 'Titel, maximale Teilnehmerzahl und Restaurant-ID sind erforderlich'
         });
       }
 
@@ -162,25 +166,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const start = new Date(datetime);
         const end = new Date(end_datetime);
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-          return res.status(400).json({ error: 'Ungültiges Datumsformat für Start- oder Endzeit' });
+          return res.status(400).json({ message: 'Ungültiges Datumsformat für Start- oder Endzeit', error: 'Ungültiges Datumsformat für Start- oder Endzeit' });
         }
         if (end <= start) {
-          return res.status(400).json({ error: 'Endzeit muss nach der Startzeit liegen' });
+          return res.status(400).json({ message: 'Endzeit muss nach der Startzeit liegen', error: 'Endzeit muss nach der Startzeit liegen' });
         }
       }
 
       // Pause-Zeitraum validieren (optional)
       if (paused) {
         if (!pause_start || !pause_end) {
-          return res.status(400).json({ error: 'Bitte Pausenzeitraum (von/bis) angeben' });
+          return res.status(400).json({ message: 'Bitte Pausenzeitraum (von/bis) angeben', error: 'Bitte Pausenzeitraum (von/bis) angeben' });
         }
         const ps = new Date(pause_start);
         const pe = new Date(pause_end);
         if (isNaN(ps.getTime()) || isNaN(pe.getTime())) {
-          return res.status(400).json({ error: 'Ungültiges Datumsformat für Pausenzeitraum' });
+          return res.status(400).json({ message: 'Ungültiges Datumsformat für Pausenzeitraum', error: 'Ungültiges Datumsformat für Pausenzeitraum' });
         }
         if (pe <= ps) {
-          return res.status(400).json({ error: 'Pause bis muss nach Pause von liegen' });
+          return res.status(400).json({ message: 'Pause bis muss nach Pause von liegen', error: 'Pause bis muss nach Pause von liegen' });
         }
       }
 
@@ -192,13 +196,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .single();
 
       if (restaurantError || !restaurant) {
-        return res.status(404).json({ error: 'Restaurant nicht gefunden' });
+        return res.status(404).json({ message: 'Restaurant nicht gefunden', error: restaurantError?.message || 'Restaurant nicht gefunden' });
       }
 
       if ((restaurant as any).userId !== user.id) {
         const isAdmin = user.user_metadata.role === 'ADMIN';
         if (!isAdmin) {
-          return res.status(403).json({ error: 'Keine Berechtigung zum Erstellen eines Kontakttisches für dieses Restaurant' });
+          return res.status(403).json({ message: 'Keine Berechtigung zum Erstellen eines Kontakttisches für dieses Restaurant', error: 'Keine Berechtigung zum Erstellen eines Kontakttisches für dieses Restaurant' });
         }
       }
 
@@ -221,7 +225,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           paused,
           is_indefinite,
           pause_start,
-          pause_end
+          pause_end,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .select()
         .single();
@@ -229,7 +235,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (insertError) {
         // Detailierte Fehlerausgabe zur einfacheren Fehlersuche im Frontend
         return res.status(500).json({ 
-          error: 'Fehler beim Erstellen des Kontakttisches',
+          message: 'Fehler beim Erstellen des Kontakttisches',
+          error: insertError?.message || insertError,
           details: insertError?.message || insertError
         });
       }
@@ -241,9 +248,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     } catch (error: any) {
       console.error('Fehler beim Erstellen des Kontakttisches:', error);
-      return res.status(500).json({ error: 'Interner Serverfehler' });
+      return res.status(500).json({ message: 'Interner Serverfehler', error: error?.message || error });
     }
   } else {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ message: 'Method not allowed', error: 'Method not allowed' });
   }
 }

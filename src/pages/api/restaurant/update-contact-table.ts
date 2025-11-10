@@ -82,6 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       max_participants: parsedMaxParticipants,
       paused,
       is_indefinite: isIndefinite,
+      updated_at: new Date().toISOString(),
       // Datum/Uhrzeit werden entfernt, Tisch ist unbestimmt aktiv
       datetime: null,
       end_datetime: null,

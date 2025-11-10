@@ -84,7 +84,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       current_participants: 0, // Standardwert
       status: 'OPEN', // Standardwert
       // id wird von Supabase automatisch generiert (wenn als UUID mit Default konfiguriert)
-      // created_at und updated_at werden von Supabase automatisch gesetzt (wenn Timestamps mit Default now() konfiguriert)
+      // created_at und updated_at explizit setzen, falls kein Default existiert
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     const { data: createdTable, error: insertError } = await supabase
