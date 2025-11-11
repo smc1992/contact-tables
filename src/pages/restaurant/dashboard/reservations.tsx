@@ -34,7 +34,8 @@ type ParticipationWithProfile = {
 // Leichtgewichtiger Typ für die Teilnehmerabfrage im Dashboard
 type ParticipationRowLite = {
   user_id: string;
-  contact_table_id: string;
+  contact_table_id?: string;
+  event_id?: string;
   profiles: {
     first_name: string;
     last_name: string;
@@ -66,6 +67,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
   const [conflictingReservations, setConflictingReservations] = useState<any[]>([]);
   const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
   const [hasStatusColumn, setHasStatusColumn] = useState<boolean>(true);
+  const [participationIdColumn, setParticipationIdColumn] = useState<'contact_table_id' | 'event_id'>('contact_table_id');
   
   // Paginierungsvariablen
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,6 +107,32 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
       setHasStatusColumn(false);
     }
   };
+
+  // Prüfen, welche ID-Spalte in participations existiert (contact_table_id vs event_id)
+  const resolveParticipationIdColumn = async () => {
+    try {
+      const contactIdProbe = await supabase
+        .from('participations')
+        .select('contact_table_id', { head: true })
+        .limit(1);
+      if (!contactIdProbe.error) {
+        setParticipationIdColumn('contact_table_id');
+        return;
+      }
+      const eventIdProbe = await supabase
+        .from('participations')
+        .select('event_id', { head: true })
+        .limit(1);
+      if (!eventIdProbe.error) {
+        setParticipationIdColumn('event_id');
+        return;
+      }
+      // Fallback: wir lassen 'contact_table_id' stehen, aber loggen
+      console.warn('Keine passende ID-Spalte in participations gefunden. Erwartet contact_table_id oder event_id.');
+    } catch (e) {
+      console.warn('Fehler beim Prüfen der ID-Spalte in participations:', e);
+    }
+  };
   
   useEffect(() => {
     if (editingReservation) {
@@ -123,6 +151,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
   
   useEffect(() => {
     checkParticipationStatusColumn();
+    resolveParticipationIdColumn();
   }, []);
   
   const loadReservationsWithParticipants = async () => {
@@ -175,13 +204,14 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
         const tableIds = reservationsData.map(res => res.id);
         
         // 3. Alle Teilnehmer in einer einzigen Batch-Anfrage laden
+        const idCol = participationIdColumn;
         const selectColumns = hasStatusColumn
-          ? 'user_id, contact_table_id, status, profiles!inner(first_name, last_name)'
-          : 'user_id, contact_table_id, profiles!inner(first_name, last_name)';
+          ? `user_id, ${idCol}, status, profiles!inner(first_name, last_name)`
+          : `user_id, ${idCol}, profiles!inner(first_name, last_name)`;
         const { data: allParticipations, error: participationsError } = await supabase
           .from('participations')
           .select(selectColumns as any)
-          .in('contact_table_id', tableIds);
+          .in(idCol, tableIds);
         
         if (participationsError) {
           // Spezifische Fehlerbehandlung für Teilnehmerabfrage
@@ -197,11 +227,11 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
         // 4. Teilnehmer nach Tisch-ID gruppieren
         const participationRows: ParticipationRowLite[] = (allParticipations ?? []) as any;
         const participationsByTableId = participationRows.reduce((acc, p) => {
-          const tableId = p.contact_table_id;
+          const tableId = (participationIdColumn === 'contact_table_id' ? p.contact_table_id : p.event_id) as string;
           if (!acc[tableId]) acc[tableId] = [];
           acc[tableId].push({
             user_id: p.user_id,
-            contact_table_id: p.contact_table_id,
+            [participationIdColumn]: tableId,
             profiles: p.profiles,
             status: p.status ?? 'CONFIRMED'
           });
@@ -266,10 +296,11 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
   const sendNotificationsToParticipants = async (reservationId: string, newStatus: ReservationStatus) => {
     try {
       // 1. Teilnehmer für diese Reservierung abrufen
+      const idCol = participationIdColumn;
       const { data: participants, error: participantsError } = await supabase
         .from('participations')
-        .select('user_id, profiles!inner(first_name, last_name)')
-        .eq('contact_table_id', reservationId);
+        .select(`user_id, ${idCol}, profiles!inner(first_name, last_name)`) as any
+        .eq(idCol, reservationId);
       
       if (participantsError) throw participantsError;
       
@@ -491,10 +522,11 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
       if (!hasStatusColumn) {
         throw new Error('Teilnehmerstatus kann nicht geändert werden: Spalte "status" fehlt in der Tabelle participations.');
       }
+      const idCol = participationIdColumn;
       const { error: updateError } = await supabase
         .from('participations')
         .update({ status: newStatus })
-        .eq('contact_table_id', tableId)
+        .eq(idCol, tableId)
         .eq('user_id', userId);
         
       if (updateError) throw updateError;
@@ -531,10 +563,11 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
     setLoading(true);
     
     try {
+      const idCol = participationIdColumn;
       const { error: deleteError } = await supabase
         .from('participations')
         .delete()
-        .eq('contact_table_id', tableId)
+        .eq(idCol, tableId)
         .eq('user_id', userId);
         
       if (deleteError) throw deleteError;
