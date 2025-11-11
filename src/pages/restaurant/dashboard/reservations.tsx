@@ -31,6 +31,17 @@ type ParticipationWithProfile = {
   };
 };
 
+// Leichtgewichtiger Typ für die Teilnehmerabfrage im Dashboard
+type ParticipationRowLite = {
+  user_id: string;
+  contact_table_id: string;
+  profiles: {
+    first_name: string;
+    last_name: string;
+  };
+  status?: string;
+};
+
 type Restaurant = Database['public']['Tables']['restaurants']['Row'];
 
 interface ReservationsPageProps {
@@ -54,6 +65,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [conflictingReservations, setConflictingReservations] = useState<any[]>([]);
   const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
+  const [hasStatusColumn, setHasStatusColumn] = useState<boolean>(true);
   
   // Paginierungsvariablen
   const [currentPage, setCurrentPage] = useState(1);
@@ -81,9 +93,22 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   
+  // Prüfen, ob die Spalte 'status' in participations existiert
+  const checkParticipationStatusColumn = async () => {
+    try {
+      const { error } = await supabase
+        .from('participations')
+        .select('status', { head: true, count: 'exact' })
+        .limit(1);
+      setHasStatusColumn(!error);
+    } catch {
+      setHasStatusColumn(false);
+    }
+  };
+  
   useEffect(() => {
     if (editingReservation) {
-      const date = new Date(editingReservation.datetime);
+      const date = editingReservation.datetime ? new Date(editingReservation.datetime) : new Date();
       setFormData({
         title: editingReservation.title || '',
         description: editingReservation.description || '',
@@ -95,6 +120,10 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
       setShowModal(true);
     }
   }, [editingReservation]);
+  
+  useEffect(() => {
+    checkParticipationStatusColumn();
+  }, []);
   
   const loadReservationsWithParticipants = async () => {
     const page = currentPage;
@@ -146,9 +175,12 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
         const tableIds = reservationsData.map(res => res.id);
         
         // 3. Alle Teilnehmer in einer einzigen Batch-Anfrage laden
+        const selectColumns = hasStatusColumn
+          ? 'user_id, contact_table_id, status, profiles!inner(first_name, last_name)'
+          : 'user_id, contact_table_id, profiles!inner(first_name, last_name)';
         const { data: allParticipations, error: participationsError } = await supabase
           .from('participations')
-          .select('user_id, status, contact_table_id, profiles!inner(first_name, last_name)')
+          .select(selectColumns as any)
           .in('contact_table_id', tableIds);
         
         if (participationsError) {
@@ -163,12 +195,18 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
         }
         
         // 4. Teilnehmer nach Tisch-ID gruppieren
-        const participationsByTableId = allParticipations?.reduce((acc, p) => {
+        const participationRows: ParticipationRowLite[] = (allParticipations ?? []) as any;
+        const participationsByTableId = participationRows.reduce((acc, p) => {
           const tableId = p.contact_table_id;
           if (!acc[tableId]) acc[tableId] = [];
-          acc[tableId].push(p);
+          acc[tableId].push({
+            user_id: p.user_id,
+            contact_table_id: p.contact_table_id,
+            profiles: p.profiles,
+            status: p.status ?? 'CONFIRMED'
+          });
           return acc;
-        }, {} as Record<string, any[]>);
+        }, {} as Record<string, ParticipationRowLite[]>);
         
         // 5. Reservierungen mit Teilnehmern zusammenführen
         const reservationsWithParticipants = reservations.map(reservation => {
@@ -450,6 +488,9 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
     setLoading(true);
     
     try {
+      if (!hasStatusColumn) {
+        throw new Error('Teilnehmerstatus kann nicht geändert werden: Spalte "status" fehlt in der Tabelle participations.');
+      }
       const { error: updateError } = await supabase
         .from('participations')
         .update({ status: newStatus })
