@@ -574,7 +574,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                 className="bg-white rounded-xl shadow-md overflow-hidden"
               >
                 <div className="p-6 border-b">
-                  <h2 className="text-2xl font-bold text-secondary-800">🎤 Interview: Die Geschichte hinter Contact‑tables</h2>
+                  <h2 className="text-2xl font-bold text-secondary-800">🎤 Interview: Die Geschichte hinter contact-tables</h2>
                   <p className="mt-2 text-gray-600">Gründerin Anette Rapp spricht über die Idee, die Reise bis hierhin – und warum gemeinsame Tische mehr verändern können, als man denkt.</p>
                 </div>
                 <div className="w-full bg-black h-[420px] md:h-[560px]">
@@ -609,7 +609,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
               >
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <h3 className="text-xl font-semibold text-secondary-800">🎧 Zu Gast im Podcast</h3>
-                  <p className="mt-2 text-gray-600">Ein Gespräch über Menschen, Begegnungen und die Vision hinter Contact‑tables – ganz persönlich und direkt.</p>
+                  <p className="mt-2 text-gray-600">Ein Gespräch über Menschen, Begegnungen und die Vision hinter contact-tables – ganz persönlich und direkt.</p>
                   <div className="mt-4">
                     <PodigeeEmbed configUrl="https://kreactiveserfolgsprogramm.podigee.io/s1e132-neue-episode/embed" />
                   </div>
@@ -617,7 +617,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
 
                 <div className="bg-white rounded-xl shadow-md p-6">
                   <h3 className="text-xl font-semibold text-secondary-800">🚀 Eingeladen zum Pitch Call bei „Die Höhle der Löwen“</h3>
-                  <p className="mt-2 text-gray-600">Contact‑tables wurde zur Vorauswahl der VOX‑Gründershow eingeladen – ein großer Moment für unsere noch junge Idee. Wir sind gespannt, wohin die Reise führt!</p>
+                  <p className="mt-2 text-gray-600">contact-tables wurde zur Vorauswahl der VOX‑Gründershow eingeladen – ein großer Moment für unsere noch junge Idee. Wir sind gespannt, wohin die Reise führt!</p>
                 </div>
               </motion.div>
             </div>
@@ -639,6 +639,24 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                 Als Gast anmelden
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Unterstützungs-CTA Fundraising */}
+      <section className="py-12 bg-white text-gray-900">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-3 text-gray-900">Unterstütze contact-tables</h2>
+            <p className="text-base md:text-lg text-gray-900 mb-6">Mit dem Dankeschön‑Paket hilfst du, contact-tables weiter zu entwickeln.</p>
+            <a
+              href="https://dankeschoen-paket.contact-tables.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300"
+            >
+              Hier gehts zum Fundraising
+            </a>
           </div>
         </div>
       </section>
@@ -677,23 +695,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
         </div>
       </section>
 
-      {/* Unterstützungs-CTA oberhalb des Footers */}
-      <section className="py-12 bg-white text-gray-900">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-3 text-gray-900">Unterstütze Contact‑tables</h2>
-            <p className="text-base md:text-lg text-gray-900 mb-6">Mit dem Dankeschön‑Paket hilfst du, Contact‑tables weiter zu entwickeln.</p>
-            <a
-              href="https://dankeschoen-paket.contact-tables.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300"
-            >
-              Hier gehts zum Fundraising
-            </a>
-          </div>
-        </div>
-      </section>
+      
 
       </main>
       <Footer />
