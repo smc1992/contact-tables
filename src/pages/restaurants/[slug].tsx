@@ -53,6 +53,19 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
 
   const mainImage = restaurant.images.find(img => img.isPrimary) || restaurant.images[0];
 
+  // Stelle sicher, dass Koordinaten numerisch sind, bevor sie an die Map übergeben werden
+  const lat = restaurant.latitude != null ? Number(restaurant.latitude) : null;
+  const lon = restaurant.longitude != null ? Number(restaurant.longitude) : null;
+  // Map-Item mit minimal erforderlichen Feldern für die Leaflet-Karte
+  const mapItem = {
+    ...(restaurant as any),
+    image_url: mainImage?.url ?? null,
+    offer_table_today: false,
+    price_range: null,
+    latitude: lat,
+    longitude: lon,
+  } as unknown as RestaurantPageItem;
+
   return (
     <PageLayout title={`${restaurant.name} - contact-tables`} description={restaurant.description || `Details über das Restaurant ${restaurant.name}`}>
       <div className="container mx-auto px-4 py-8">
@@ -165,11 +178,11 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
               
               <div className="bg-white p-6 rounded-lg shadow-sm sticky top-60">
                 <h3 className="text-xl font-semibold mb-4">Standort</h3>
-                {restaurant.latitude && restaurant.longitude ? (
+                {lat != null && lon != null ? (
                   <div className="h-64 rounded-lg overflow-hidden">
                     <RestaurantMap 
-                      restaurants={[restaurant as unknown as RestaurantPageItem]} 
-                      center={{ lat: restaurant.latitude, lng: restaurant.longitude }}
+                      restaurants={[mapItem]} 
+                      center={{ lat: lat, lng: lon }}
                       height="100%"
                     />
                   </div>
@@ -178,7 +191,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                     <p className="text-gray-500">Keine Standortdaten verfügbar</p>
                   </div>
                 )}
-                <a href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&to=${restaurant.latitude},${restaurant.longitude}`} target="_blank" rel="noopener noreferrer" className="mt-4 block w-full text-center bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">Route planen</a>
+                <a href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&to=${lat ?? ''},${lon ?? ''}`} target="_blank" rel="noopener noreferrer" className="mt-4 block w-full text-center bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">Route planen</a>
               </div>
             </div>
           </div>
@@ -249,6 +262,14 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       // Bei Fehlern einfach ohne Koordinaten weiter – die Karte bleibt dann ausgeblendet
       console.warn('Geocoding fehlgeschlagen:', e);
     }
+  }
+
+  // Sicherstellen, dass vorhandene Koordinaten als Zahlen vorliegen (z. B. Prisma Decimal/String)
+  if (restaurantWithDetails.latitude != null) {
+    restaurantWithDetails.latitude = Number(restaurantWithDetails.latitude as any);
+  }
+  if (restaurantWithDetails.longitude != null) {
+    restaurantWithDetails.longitude = Number(restaurantWithDetails.longitude as any);
   }
 
   return {
