@@ -97,9 +97,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Teilnehmer abrufen
       // Spalten-Fallback für participations (contact_table_id vs event_id)
       const idColumn = await resolveParticipationIdColumn(supabase);
-      const { data: participants, error: participantsError } = await supabase
-        .from('participations')
-        .select(`
+      // Prüfen, ob die Spalte 'status' existiert
+      const hasStatus = await hasParticipationStatusColumn(supabase);
+      const selectColumns = hasStatus
+        ? `
           user_id,
           status,
           created_at,
@@ -107,7 +108,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             first_name,
             last_name
           )
-        `)
+        `
+        : `
+          user_id,
+          created_at,
+          profiles:user_id (
+            first_name,
+            last_name
+          )
+        `;
+      const { data: participants, error: participantsError } = await supabase
+        .from('participations')
+        .select(selectColumns)
         .eq(idColumn, id);
 
       if (participantsError) {
@@ -131,15 +143,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           return {
             user_id: p.user_id,
             name,
-            status: p.status
+            status: p.status ?? 'CONFIRMED'
           };
         });
         
         return res.status(200).json(limitedParticipants);
       }
 
-      // Für Restaurantbesitzer und Admins alle Informationen zurückgeben
-      return res.status(200).json(participants);
+      // Für Restaurantbesitzer und Admins alle Informationen zurückgeben (Status ggf. mit Default auffüllen)
+      const normalizedParticipants = participants.map((p: any) => ({
+        ...p,
+        status: p.status ?? 'CONFIRMED'
+      }));
+      return res.status(200).json(normalizedParticipants);
     } catch (error: any) {
       console.error('Fehler beim Abrufen der Teilnehmer:', error);
       return res.status(500).json({ error: 'Interner Serverfehler' });
@@ -240,7 +256,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Teilnahme erstellen
-      const payload: any = { user_id: targetUserId, status: 'CONFIRMED' };
+      const hasStatusForInsert = await hasParticipationStatusColumn(supabase);
+      const payload: any = { user_id: targetUserId };
+      if (hasStatusForInsert) {
+        payload.status = 'CONFIRMED';
+      }
       payload[idColumn] = id;
       const { error: participationError } = await supabase
         .from('participations')
@@ -311,5 +331,18 @@ async function resolveParticipationIdColumn(supabase: SupabaseClient<Database>):
     return 'contact_table_id';
   } catch (_) {
     return 'event_id';
+  }
+}
+
+// Prüft, ob die Spalte 'status' in participations existiert
+async function hasParticipationStatusColumn(supabase: SupabaseClient<Database>): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('participations')
+      .select('status', { head: true, count: 'exact' })
+      .limit(1);
+    return !error;
+  } catch (_) {
+    return false;
   }
 }

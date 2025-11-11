@@ -63,7 +63,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const column = await resolveParticipationIdColumn(supabase);
 
     // Teilnahme erstellen
-    const payload: any = { user_id: user.id, status: 'CONFIRMED' };
+    const hasStatus = await hasParticipationStatusColumn(supabase);
+    const payload: any = { user_id: user.id };
+    if (hasStatus) {
+      payload.status = 'CONFIRMED';
+    }
     payload[column] = tableId;
     const { error: participationError } = await supabase
       .from('participations')
@@ -108,5 +112,18 @@ async function resolveParticipationIdColumn(supabase: ReturnType<typeof createCl
     return 'contact_table_id';
   } catch (_) {
     return 'event_id';
+  }
+}
+
+// Prüft, ob die Spalte 'status' in participations existiert
+async function hasParticipationStatusColumn(supabase: ReturnType<typeof createClient>): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('participations')
+      .select('status', { head: true, count: 'exact' })
+      .limit(1);
+    return !error;
+  } catch (_) {
+    return false;
   }
 }
