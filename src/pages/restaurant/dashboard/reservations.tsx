@@ -299,7 +299,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
       const idCol = participationIdColumn;
       const { data: participants, error: participantsError } = await supabase
         .from('participations')
-        .select(`user_id, ${idCol}, profiles!inner(first_name, last_name)`) as any
+        .select(`user_id, ${idCol}, profiles!inner(first_name, last_name)`)
         .eq(idCol, reservationId);
       
       if (participantsError) throw participantsError;
@@ -317,7 +317,8 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
       
       // 3. Benachrichtigungen in der Datenbank speichern
       // In einer realen Implementierung würde hier ein E-Mail-Service oder Push-Benachrichtigungssystem angebunden
-      const notifications = participants.map(participant => ({
+      const participantsList = (participants ?? []) as { user_id: string; profiles: { first_name: string; last_name: string } }[];
+      const notifications = participantsList.map((participant) => ({
         user_id: participant.user_id,
         title: `Reservierungsstatus geändert: ${reservation.title}`,
         message: `Der Status Ihrer Reservierung für ${reservation.title} am ${new Date(reservation.datetime).toLocaleDateString('de-DE')} wurde auf ${getStatusText(newStatus)} geändert.`,

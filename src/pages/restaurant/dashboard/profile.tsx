@@ -29,6 +29,9 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
     phone: restaurant?.phone || '',     // Assuming 'phone' is the correct field name
     email: restaurant?.email || '',     // Assuming 'email' is the correct field name
     website: restaurant?.website || '',
+    instagram: (restaurant as any)?.instagram || '',
+    facebook: (restaurant as any)?.facebook || '',
+    tiktok: (restaurant as any)?.tiktok || '',
     openingHours: (restaurant?.opening_hours as string) || '' // Use opening_hours, cast to string
   });
   
@@ -278,6 +281,54 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
                     id="website"
                     name="website"
                     value={formData.website}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                  />
+                </div>
+
+                {/* Instagram */}
+                <div>
+                  <label htmlFor="instagram" className="block text-sm font-medium text-secondary-600 mb-1">
+                    Instagram
+                  </label>
+                  <input
+                    type="text"
+                    id="instagram"
+                    name="instagram"
+                    placeholder="@deinprofil oder vollständige URL"
+                    value={formData.instagram}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                  />
+                </div>
+
+                {/* Facebook */}
+                <div>
+                  <label htmlFor="facebook" className="block text-sm font-medium text-secondary-600 mb-1">
+                    Facebook
+                  </label>
+                  <input
+                    type="text"
+                    id="facebook"
+                    name="facebook"
+                    placeholder="Seitenname oder vollständige URL"
+                    value={formData.facebook}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                  />
+                </div>
+
+                {/* TikTok */}
+                <div>
+                  <label htmlFor="tiktok" className="block text-sm font-medium text-secondary-600 mb-1">
+                    TikTok
+                  </label>
+                  <input
+                    type="text"
+                    id="tiktok"
+                    name="tiktok"
+                    placeholder="@deinprofil oder vollständige URL"
+                    value={formData.tiktok}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                   />

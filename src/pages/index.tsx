@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { GetServerSideProps } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { FiSearch, FiCoffee, FiUsers, FiCalendar, FiMapPin, FiStar, FiInfo, FiHeart, FiGlobe, FiCheck, FiArrowRight, FiHelpCircle } from 'react-icons/fi';
+import { FiSearch, FiCoffee, FiUsers, FiCalendar, FiMapPin, FiStar, FiInfo, FiGlobe, FiCheck, FiArrowRight, FiHelpCircle } from 'react-icons/fi';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RestaurantCard from '../components/RestaurantCard';
@@ -673,6 +673,24 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                 <p className="font-bold">Platz für Ihren Tisch</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Unterstützungs-CTA oberhalb des Footers */}
+      <section className="py-12 bg-white text-gray-900">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-3 text-gray-900">Unterstütze Contact‑tables</h2>
+            <p className="text-base md:text-lg text-gray-900 mb-6">Mit dem Dankeschön‑Paket hilfst du, Contact‑tables weiter zu entwickeln.</p>
+            <a
+              href="https://dankeschoen-paket.contact-tables.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300"
+            >
+              Hier gehts zum Fundraising
+            </a>
           </div>
         </div>
       </section>

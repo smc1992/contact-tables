@@ -61,6 +61,9 @@ export type Database = {
           phone: string | null;
           email: string | null;
           website: string | null;
+          instagram: string | null;
+          facebook: string | null;
+          tiktok: string | null;
           opening_hours: string | null;
           latitude: number | null;
           longitude: number | null;
@@ -97,6 +100,9 @@ export type Database = {
           phone?: string | null;
           email?: string | null;
           website?: string | null;
+          instagram?: string | null;
+          facebook?: string | null;
+          tiktok?: string | null;
           opening_hours?: string | null;
           latitude?: number | null;
           longitude?: number | null;
@@ -133,6 +139,9 @@ export type Database = {
           phone?: string | null;
           email?: string | null;
           website?: string | null;
+          instagram?: string | null;
+          facebook?: string | null;
+          tiktok?: string | null;
           opening_hours?: string | null;
           latitude?: number | null;
           longitude?: number | null;

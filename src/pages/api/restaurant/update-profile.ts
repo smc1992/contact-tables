@@ -50,6 +50,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     phone,   // Wird zu contact_phone
     email,   // Wird zu contact_email
     website,
+    instagram,
+    facebook,
+    tiktok,
     capacity,
     openingHours, // Wird zu opening_hours (Text)
   } = req.body;
@@ -69,6 +72,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (city !== undefined) updateData.city = city;
   if (postal_code !== undefined) updateData.postal_code = postal_code;
   if (website !== undefined) updateData.website = website;
+  if (instagram !== undefined) updateData.instagram = instagram;
+  if (facebook !== undefined) updateData.facebook = facebook;
+  if (tiktok !== undefined) updateData.tiktok = tiktok;
   if (capacity !== undefined) updateData.capacity = Number(capacity);
   if (cuisine !== undefined) updateData.cuisine = cuisine;
   if (phone !== undefined) updateData.phone = phone;

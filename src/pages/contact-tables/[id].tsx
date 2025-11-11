@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import PageLayout from '../../components/PageLayout';
 import { FiCalendar, FiUsers, FiMapPin, FiClock, FiMessageCircle, FiPhone, FiMail, FiGlobe } from 'react-icons/fi';
+import { FaInstagram, FaFacebook } from 'react-icons/fa';
+import { FaTiktok } from 'react-icons/fa6';
 import Link from 'next/link';
 import { createClient as createBrowserClient } from '../../utils/supabase/client';
 import { type Database } from '../../types/supabase';
@@ -199,6 +201,13 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
     <PageLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {contactTable.restaurant?.image_url && (
+            <img
+              src={contactTable.restaurant.image_url}
+              alt={contactTable.restaurant.name ?? 'Restaurant'}
+              className="w-full h-56 object-cover"
+            />
+          )}
           <div className="p-6">
             <div className="flex justify-end items-start mb-4">
               <span className="px-3 py-1 text-xs font-semibold text-primary-800 bg-primary-100 rounded-full">
@@ -243,6 +252,39 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
                         </a>
                       </span>
                     )}
+                    {/* Social Links */}
+                    {(() => {
+                      const toUrl = (v?: string | null, prefix?: string) => {
+                        if (!v) return undefined;
+                        const val = v.trim();
+                        if (!val) return undefined;
+                        if (/^https?:\/\//i.test(val)) return val;
+                        const cleaned = val.replace(/^@/, '');
+                        return (prefix || '') + cleaned;
+                      };
+                      const ig = toUrl(contactTable.restaurant.instagram, 'https://instagram.com/');
+                      const fb = toUrl(contactTable.restaurant.facebook, 'https://facebook.com/');
+                      const tt = toUrl(contactTable.restaurant.tiktok, 'https://www.tiktok.com/@');
+                      return (
+                        <>
+                          {ig && (
+                            <a href={ig} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-neutral-700 hover:text-primary-700">
+                              <FaInstagram className="mr-1" /> Instagram
+                            </a>
+                          )}
+                          {fb && (
+                            <a href={fb} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-neutral-700 hover:text-primary-700">
+                              <FaFacebook className="mr-1" /> Facebook
+                            </a>
+                          )}
+                          {tt && (
+                            <a href={tt} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-neutral-700 hover:text-primary-700">
+                              <FaTiktok className="mr-1" /> TikTok
+                            </a>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   <div className="pt-3">
                     <button
