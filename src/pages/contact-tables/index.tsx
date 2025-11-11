@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import PageLayout from '../../components/PageLayout';
 import ContactTablesList from '../../components/ContactTablesList';
+import ReservationCalendar from '../../components/ReservationCalendar';
+import ReservationStepper from '../../components/ReservationStepper';
 import { createClient } from '@/utils/supabase/server';
 import type { GetServerSidePropsContext } from 'next';
 import type { User } from '@supabase/supabase-js';
@@ -28,6 +30,23 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
     interests: '', // This will now search in title and description
   });
   const [filteredTables, setFilteredTables] = useState(initialContactTables || []);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [resultsAnchorId] = useState('results');
+
+  // Build availability map by date (YYYY-MM-DD)
+  const availabilityByDate: Record<string, number> = useMemo(() => {
+    const map: Record<string, number> = {};
+    (initialContactTables || []).forEach((t) => {
+      const d = t.datetime ? new Date(t.datetime) : null;
+      if (!d) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${day}`;
+      map[key] = (map[key] || 0) + 1;
+    });
+    return map;
+  }, [initialContactTables]);
 
   useEffect(() => {
     let tables = initialContactTables || [];
@@ -66,6 +85,7 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
 
   const resetFilters = () => {
     setFilters({ date: '', city: '', interests: '' });
+    setCurrentStep(1);
   };
 
   return (
@@ -88,34 +108,69 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
             <h2 className="text-2xl font-bold text-neutral-800">Finde deinen Tisch</h2>
             <button onClick={resetFilters} className="text-sm text-primary-600 hover:underline">Filter zurücksetzen</button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-6 rounded-lg shadow-md mb-8">
-            <input
-              type="date"
-              name="date"
-              value={filters.date}
-              onChange={handleFilterChange}
-              className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-            />
-            <input
-              type="text"
-              name="city"
-              placeholder="Stadt (z.B. Berlin)"
-              value={filters.city}
-              onChange={handleFilterChange}
-              className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-            />
-            <input
-              type="text"
-              name="interests"
-              placeholder="Stichwort (z.B. Kunst, Jazz)"
-              value={filters.interests}
-              onChange={handleFilterChange}
-              className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-            />
+
+          <div className="space-y-4">
+            <ReservationStepper currentStep={currentStep} />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <ReservationCalendar
+                  selectedDate={filters.date || null}
+                  availabilityByDate={availabilityByDate}
+                  onSelect={(ymd) => {
+                    setFilters((prev) => ({ ...prev, date: ymd }));
+                    setCurrentStep(2);
+                    // Smooth scroll to results
+                    const el = document.getElementById(resultsAnchorId);
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                />
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Stadt</label>
+                    <input
+                      type="text"
+                      name="city"
+                      placeholder="z.B. Berlin"
+                      value={filters.city}
+                      onChange={handleFilterChange}
+                      className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">Stichwort</label>
+                    <input
+                      type="text"
+                      name="interests"
+                      placeholder="z.B. Kunst, Jazz"
+                      value={filters.interests}
+                      onChange={handleFilterChange}
+                      className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCurrentStep(filters.date ? 2 : 1);
+                      const el = document.getElementById(resultsAnchorId);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className="w-full bg-primary-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary-700"
+                  >
+                    Ergebnisse anzeigen
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-8">
+        <div id={resultsAnchorId} className="mt-8">
           <ContactTablesList initialContactTables={filteredTables} userRole={userRole} />
         </div>
       </div>
