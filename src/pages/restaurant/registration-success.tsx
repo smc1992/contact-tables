@@ -1,14 +1,28 @@
 import { useState } from 'react';
+import type { GetServerSideProps } from 'next';
+import { PrismaClient } from '@prisma/client';
+import { createClient } from '@/utils/supabase/server';
 import { motion } from 'framer-motion';
 import { FiCheckCircle, FiMail, FiPhone, FiMessageSquare, FiClock, FiChevronDown, FiChevronUp, FiCalendar, FiFileText, FiUsers, FiHeart } from 'react-icons/fi';
 import Link from 'next/link';
 import PageLayout from '../../components/PageLayout';
 
-export default function RegistrationSuccess() {
+interface RegistrationSuccessProps {
+  restaurantId: string | null;
+}
+
+export default function RegistrationSuccess({ restaurantId }: RegistrationSuccessProps) {
   // State für FAQ-Accordion
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const YEARLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_YEARLY_URL || 'https://www.checkout-ds24.com/product/640621';
   const MONTHLY_URL = process.env.NEXT_PUBLIC_DIGISTORE_PRODUCT_MONTHLY_URL || 'https://www.checkout-ds24.com/product/640542';
+  const appendCustom = (url: string) => {
+    if (!restaurantId) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}custom=${encodeURIComponent(restaurantId)}`;
+  };
+  const MONTHLY_URL_WITH_CUSTOM = appendCustom(MONTHLY_URL);
+  const YEARLY_URL_WITH_CUSTOM = appendCustom(YEARLY_URL);
   
   // Funktion zum Umschalten des FAQ-Accordion
   const toggleFaq = (index: number) => {
@@ -126,7 +140,7 @@ export default function RegistrationSuccess() {
                 </p>
                 <div className="flex flex-wrap justify-center gap-3">
                   <a
-                    href={MONTHLY_URL}
+                    href={MONTHLY_URL_WITH_CUSTOM}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors"
@@ -134,7 +148,7 @@ export default function RegistrationSuccess() {
                     Monatszahlung (12 Monate)
                   </a>
                   <a
-                    href={YEARLY_URL}
+                    href={YEARLY_URL_WITH_CUSTOM}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center px-5 py-2 bg-gray-800 hover:bg-gray-900 text-white rounded-md font-medium transition-colors"
@@ -315,3 +329,29 @@ export default function RegistrationSuccess() {
     </PageLayout>
   );
 }
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  try {
+    const supabase = createClient(context);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Falls kein Login oder keine Restaurant-Rolle, liefern wir keine Restaurant-ID
+    if (!user || (user.user_metadata?.role || '').toString().toUpperCase() !== 'RESTAURANT') {
+      return { props: { restaurantId: null } };
+    }
+
+    const prisma = new PrismaClient();
+    try {
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { userId: user.id },
+        select: { id: true }
+      });
+      return { props: { restaurantId: restaurant?.id || null } };
+    } finally {
+      await prisma.$disconnect();
+    }
+  } catch (e) {
+    // Bei jedem Fehler: sichere Fallbacks ohne Custom-Parameter
+    return { props: { restaurantId: null } };
+  }
+};

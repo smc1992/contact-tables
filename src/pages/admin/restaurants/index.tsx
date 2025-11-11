@@ -199,6 +199,31 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
     }
   };
 
+  // Restaurant manuell aktivieren (Admin-Aktion)
+  const handleActivateRestaurant = async (id: string) => {
+    try {
+      const resp = await fetch(`/api/admin/restaurants/activate?id=${encodeURIComponent(id)}` , {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        credentials: 'same-origin',
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        const msg = data?.error || data?.message || `HTTP ${resp.status}`;
+        alert(`Fehler beim Aktivieren: ${msg}`);
+        return;
+      }
+      alert('Restaurant wurde aktiviert und freigeschaltet.');
+      fetchRestaurants();
+    } catch (error) {
+      console.error('Fehler bei der Aktivierung:', error);
+      alert('Unerwarteter Fehler bei der Aktivierung');
+    }
+  };
+
   // Status-Badge-Farbe bestimmen
   const getStatusBadgeColor = (isActive: boolean) => {
     return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
@@ -403,6 +428,15 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                             >
                               <FiEye />
                             </button>
+                            {!restaurant.is_active && (
+                              <button
+                                onClick={() => handleActivateRestaurant(restaurant.id)}
+                                className="text-green-600 hover:text-green-900 mr-3"
+                                title="Aktivieren"
+                              >
+                                <FiCheckCircle />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleVerifyRestaurant(restaurant.id)}
                               className="text-green-600 hover:text-green-900 mr-3"
