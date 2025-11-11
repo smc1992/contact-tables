@@ -298,6 +298,26 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
       postal_code: r.postal_code ?? null,
     }));
 
+    // Fallback-Geokodierung: fehlende Koordinaten per Nominatim ergänzen (sanft, begrenzt)
+    // Hinweis: Nominatim hat Nutzungsrichtlinien; hier nur für wenige Einträge anwenden
+    const toGeocode = restaurants.filter(r => (!r.latitude || !r.longitude) && (r.address || r.city)).slice(0, 10);
+    for (const r of toGeocode) {
+      try {
+        const queryAddress = [r.address, r.postal_code, r.city].filter(Boolean).join(', ');
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
+        if (geoRes.ok) {
+          const results = await geoRes.json();
+          if (Array.isArray(results) && results.length > 0) {
+            r.latitude = Number(results[0].lat);
+            r.longitude = Number(results[0].lon);
+          }
+        }
+      } catch (e) {
+        // still fine; Map zeigt dann nur Einträge mit Koordinaten
+        console.warn('Nominatim Geocoding Fehler:', e);
+      }
+    }
+
     return {
       props: {
         restaurants,
