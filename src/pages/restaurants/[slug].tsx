@@ -1,10 +1,11 @@
 import { GetServerSideProps } from 'next';
-import Head from 'next/head';
+// Head wird durch PageLayout abgedeckt
 import Image from 'next/image';
 import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers } from 'react-icons/fi';
 import prisma from '@/lib/prisma';
 import { Prisma, Restaurant, Event, Rating as Review, Profile, RestaurantImage } from '@prisma/client';
 import dynamic from 'next/dynamic';
+import PageLayout from '@/components/PageLayout';
 
 // Dynamically import the map component to avoid SSR issues
 const RestaurantMap = dynamic(
@@ -53,11 +54,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   const mainImage = restaurant.images.find(img => img.isPrimary) || restaurant.images[0];
 
   return (
-    <>
-      <Head>
-        <title>{restaurant.name} - contact-tables</title>
-        <meta name="description" content={restaurant.description || `Details über das Restaurant ${restaurant.name}`} />
-      </Head>
+    <PageLayout title={`${restaurant.name} - contact-tables`} description={restaurant.description || `Details über das Restaurant ${restaurant.name}`}>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -181,13 +178,13 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                     <p className="text-gray-500">Keine Standortdaten verfügbar</p>
                   </div>
                 )}
-                <a href={`https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`} target="_blank" rel="noopener noreferrer" className="mt-4 block w-full text-center bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">Route planen</a>
+                <a href={`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&to=${restaurant.latitude},${restaurant.longitude}`} target="_blank" rel="noopener noreferrer" className="mt-4 block w-full text-center bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">Route planen</a>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </>
+    </PageLayout>
   );
 };
 
@@ -234,6 +231,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     avg_rating: parseFloat(avg_rating.toFixed(1)),
     total_ratings,
   };
+
+  // Fallback: Geokodierung über OpenStreetMap/Nominatim, falls keine Koordinaten vorhanden
+  if ((!restaurantWithDetails.latitude || !restaurantWithDetails.longitude) && (restaurant.address || restaurant.city)) {
+    try {
+      const queryAddress = [restaurant.address, restaurant.postal_code, restaurant.city].filter(Boolean).join(', ');
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
+      if (geoRes.ok) {
+        const geoResults = await geoRes.json();
+        if (Array.isArray(geoResults) && geoResults.length > 0) {
+          const { lat, lon } = geoResults[0];
+          restaurantWithDetails.latitude = Number(lat);
+          restaurantWithDetails.longitude = Number(lon);
+        }
+      }
+    } catch (e) {
+      // Bei Fehlern einfach ohne Koordinaten weiter – die Karte bleibt dann ausgeblendet
+      console.warn('Geocoding fehlgeschlagen:', e);
+    }
+  }
 
   return {
     props: {

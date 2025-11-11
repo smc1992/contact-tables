@@ -31,7 +31,8 @@ const RestaurantsPage: FC<RestaurantsPageProps> = ({ restaurants, searchQuery, l
 
   const [searchTerm, setSearchTerm] = useState(searchQuery || '');
   const [locationState, setLocation] = useState(location || '');
-  const [radiusState, setRadius] = useState(radius.toString());
+  // Robust gegen fehlende oder nicht geladene Props: fallback auf 25 km
+  const [radiusState, setRadius] = useState((radius ?? 25).toString());
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
 
   const handleSearch = (e: React.FormEvent) => {
@@ -278,17 +279,23 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
 
     const restaurants: RestaurantPageItem[] = (restaurantsData || []).map((r: any) => ({
       id: r.id,
-      name: r.name,
-      description: r.description || '',
-      address: r.address || '',
-      city: r.city || '',
-      cuisine: r.cuisine || '',
-      image_url: r.image_url || null,
-      lat: r.lat || null,
-      long: r.long || null,
-      avg_rating: r.avg_rating || null,
-      popularity: r.popularity || 0,
-      distance_meters: r.distance_meters || null,
+      slug: r.slug ?? null,
+      name: r.name ?? null,
+      description: r.description ?? null,
+      address: r.address ?? null,
+      city: r.city ?? null,
+      avg_rating: r.avg_rating != null ? Number(r.avg_rating) : null,
+      total_ratings: r.total_ratings != null ? Number(r.total_ratings) : null,
+      cuisine: r.cuisine ?? null,
+      image_url: r.image_url ?? null,
+      capacity: r.capacity != null ? Number(r.capacity) : null,
+      offer_table_today: r.offer_table_today ?? null,
+      price_range: r.price_range ?? null,
+      latitude: r.latitude != null ? Number(r.latitude) : (r.lat != null ? Number(r.lat) : null),
+      longitude: r.longitude != null ? Number(r.longitude) : (r.long != null ? Number(r.long) : null),
+      distance_in_meters: r.distance_in_meters != null ? Number(r.distance_in_meters) : (r.distance_meters != null ? Number(r.distance_meters) : null),
+      popularity: r.popularity ?? null,
+      postal_code: r.postal_code ?? null,
     }));
 
     return {

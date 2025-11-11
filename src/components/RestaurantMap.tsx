@@ -41,7 +41,7 @@ const RestaurantMap: React.FC<RestaurantMapProps> = ({ restaurants, height, cent
                 <div className="font-sans">
                   <h3 className="font-bold text-lg mb-1">{restaurant.name}</h3>
                   <p className="text-gray-600">{restaurant.address}, {restaurant.city}</p>
-                  <a href={`/restaurants/${restaurant.id}`} className="text-primary-500 hover:underline mt-2 inline-block">Details anzeigen</a>
+                  <a href={`/restaurants/${restaurant.slug || restaurant.id}`} className="text-primary-500 hover:underline mt-2 inline-block">Details anzeigen</a>
                 </div>
               </Popup>
             </Marker>
