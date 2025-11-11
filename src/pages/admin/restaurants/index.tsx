@@ -147,28 +147,38 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
     router.push(`/admin/restaurants/edit/${id}`);
   };
 
-  // Restaurant ansehen
+  // Restaurant ansehen (Admin-Detailseite)
   const handleViewRestaurant = (id: string) => {
-    router.push(`/restaurant/${id}`);
+    router.push(`/admin/restaurants/${id}`);
   };
 
-  // Restaurant löschen
+  // Inline-Nachrichten für sichtbares Feedback
+  const [message, setMessage] = useState<{
+    text: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  // Restaurant löschen (Admin-API ruft Prisma + Supabase-Spiegelung)
   const handleDeleteRestaurant = async (id: string) => {
-    if (!supabase || !confirm('Möchten Sie dieses Restaurant wirklich löschen?')) return;
-    
+    if (!confirm('Möchten Sie dieses Restaurant wirklich löschen?')) return;
     try {
-      const { error } = await supabase
-        .from('restaurants')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      // Daten neu laden
+      const resp = await fetch(`/api/admin/restaurants?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Cache-Control': 'no-cache' },
+        credentials: 'same-origin',
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        const msg = data?.error || data?.message || `HTTP ${resp.status}`;
+        setMessage({ text: `Fehler beim Löschen: ${msg}`, type: 'error' });
+        return;
+      }
+      // Erfolgreich gelöscht
+      setMessage({ text: 'Restaurant wurde gelöscht.', type: 'success' });
       fetchRestaurants();
     } catch (error) {
       console.error('Fehler beim Löschen des Restaurants:', error);
-      alert('Fehler beim Löschen des Restaurants');
+      setMessage({ text: 'Unerwarteter Fehler beim Löschen', type: 'error' });
     }
   };
 
@@ -295,6 +305,29 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                 </button>
               </div>
             </div>
+
+            {message && (
+              <div
+                className={`mb-4 px-4 py-3 rounded border ${
+                  message.type === 'success'
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : message.type === 'error'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>{message.text}</span>
+                  <button
+                    onClick={() => setMessage(null)}
+                    className="text-sm underline"
+                    aria-label="Nachricht schließen"
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
@@ -428,22 +461,25 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                             >
                               <FiEye />
                             </button>
-                            {!restaurant.is_active && (
+                            {!restaurant.is_active ? (
                               <button
                                 onClick={() => handleActivateRestaurant(restaurant.id)}
                                 className="text-green-600 hover:text-green-900 mr-3"
-                                title="Aktivieren"
+                                title="Restaurant aktivieren"
                               >
                                 <FiCheckCircle />
                               </button>
+                            ) : (
+                              restaurant.contract_status !== 'ACTIVE' && (
+                                <button
+                                  onClick={() => handleVerifyRestaurant(restaurant.id)}
+                                  className="text-blue-600 hover:text-blue-900 mr-3"
+                                  title="Zahlungsstatus prüfen"
+                                >
+                                  <FiRefreshCw />
+                                </button>
+                              )
                             )}
-                            <button
-                              onClick={() => handleVerifyRestaurant(restaurant.id)}
-                              className="text-green-600 hover:text-green-900 mr-3"
-                              title="Status prüfen"
-                            >
-                              <FiCheckCircle />
-                            </button>
                             <button
                               onClick={() => handleEditRestaurant(restaurant.id)}
                               className="text-indigo-600 hover:text-indigo-900 mr-3"

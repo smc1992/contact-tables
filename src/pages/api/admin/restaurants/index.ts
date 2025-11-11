@@ -1,8 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
+
+// Optionaler Supabase Admin-Client zum Spiegeln von Löschungen
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = (supabaseUrl && supabaseServiceRoleKey)
+  ? createSupabaseAdminClient(supabaseUrl, supabaseServiceRoleKey)
+  : null;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const supabase = createClient({ req, res });
@@ -121,6 +129,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }),
         ]);
 
+        // Supabase-Spiegelung (falls Service Role verfügbar)
+        if (supabaseAdmin) {
+          try {
+            // payment_events löschen
+            const { error: evErr } = await supabaseAdmin
+              .from('payment_events')
+              .delete()
+              .eq('restaurant_id', id as string);
+            if (evErr) console.warn('Supabase payment_events Delete-Fehler:', evErr);
+
+            // contracts löschen
+            const { error: cErr } = await supabaseAdmin
+              .from('contracts')
+              .delete()
+              .eq('restaurant_id', id as string);
+            if (cErr) console.warn('Supabase contracts Delete-Fehler:', cErr);
+
+            // restaurant löschen
+            const { error: rErr } = await supabaseAdmin
+              .from('restaurants')
+              .delete()
+              .eq('id', id as string);
+            if (rErr) console.warn('Supabase restaurants Delete-Fehler:', rErr);
+          } catch (e) {
+            console.warn('Supabase-Spiegelung beim Löschen fehlgeschlagen:', e);
+          }
+        }
+
         res.status(204).end();
       } catch (error) {
         console.error('Error deleting restaurant:', error);
@@ -132,4 +168,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Allow', ['GET', 'PATCH', 'DELETE']);
       res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-} 
+}
