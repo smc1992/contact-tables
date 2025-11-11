@@ -72,36 +72,20 @@ const LanguageSlider = () => {
 
 const prisma = new PrismaClient();
 
-// Podigee Player als Inline-Embed im gewünschten DOM-Container
+// Podigee Player als robustes iframe-Embed (vermeidet Race-Conditions mit externem Loader)
 const PodigeeEmbed = ({ configUrl }: { configUrl: string }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    // Container leeren, um Doppelinjektionen zu vermeiden
-    container.innerHTML = '';
-
-    // Zuerst die Konfigurations-Script-Tag IM Container platzieren
-    const embedScript = document.createElement('script');
-    embedScript.className = 'podigee-podcast-player';
-    embedScript.setAttribute('data-configuration', `${configUrl}?context=external`);
-    container.appendChild(embedScript);
-
-    // Danach den Loader nur einmal global laden
-    const loaderSrc = 'https://player.podigee-cdn.net/podcast-player/javascripts/podigee-podcast-player.js';
-    const existingLoader = document.querySelector(`script[src='${loaderSrc}']`);
-    if (!existingLoader) {
-      const loader = document.createElement('script');
-      loader.src = loaderSrc;
-      loader.async = true;
-      // Loader im Head platzieren, damit kein Script am Body-Ende erscheint
-      (document.head || document.body).appendChild(loader);
-    }
-  }, [configUrl]);
-
-  return <div ref={containerRef} className="podigee-player-container" />;
+  const src = `${configUrl}?context=external`;
+  return (
+    <iframe
+      src={src}
+      title="Podcast Player"
+      loading="lazy"
+      width="100%"
+      height="180"
+      style={{ border: 0, borderRadius: 12, overflow: 'hidden' }}
+      allow="autoplay; encrypted-media"
+    />
+  );
 };
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
