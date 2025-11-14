@@ -314,20 +314,25 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   // Enforce visibility and payment gating: allow fetch by slug OR id
-  const restaurant = await prisma.restaurant.findFirst({
-    where: { OR: [{ slug }, { id: slug }], isActive: true, contractStatus: 'ACTIVE' },
-    include: {
-      events: true,
-      images: true,
-      profile: true,
-      ratings: {
-        include: {
-          profile: true,
+  let restaurant: any = null;
+  try {
+    restaurant = await prisma.restaurant.findFirst({
+      where: { OR: [{ slug }, { id: slug }], isActive: true, contractStatus: 'ACTIVE' },
+      include: {
+        events: true,
+        images: true,
+        profile: true,
+        ratings: {
+          include: {
+            profile: true,
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        orderBy: { createdAt: 'desc' },
       },
-    },
-  });
+    });
+  } catch (_) {
+    restaurant = null;
+  }
 
   if (!restaurant) {
     try {
