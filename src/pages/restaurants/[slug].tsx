@@ -348,11 +348,31 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   // Ergänze Contact-tables aus Supabase (öffentlich + zum Restaurant gehörig)
   try {
     const supabase = createServerSupabase(context);
-    const { data: ct } = await supabase
-      .from('contact_tables')
-      .select('id,title,description,datetime,max_participants')
-      .eq('restaurant_id', restaurant.id)
-      .eq('is_public', true);
+    let supRestaurantId: string | null = null;
+    if (restaurant.slug) {
+      const { data: r1 } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('slug', restaurant.slug)
+        .single();
+      supRestaurantId = (r1 as any)?.id ?? null;
+    }
+    if (!supRestaurantId && restaurant.name) {
+      const { data: r2 } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('name', restaurant.name)
+        .single();
+      supRestaurantId = (r2 as any)?.id ?? null;
+    }
+
+    const { data: ct } = supRestaurantId
+      ? await supabase
+          .from('contact_tables')
+          .select('id,title,description,datetime,max_participants')
+          .eq('restaurant_id', supRestaurantId)
+          .eq('is_public', true)
+      : { data: [] as any[] };
     const mapped = (ct || []).map((t: any) => ({
       id: t.id,
       title: t.title,
