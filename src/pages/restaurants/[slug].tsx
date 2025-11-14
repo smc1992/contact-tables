@@ -3,6 +3,7 @@ import { GetServerSideProps } from 'next';
 import Image from 'next/image';
 import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers, FiGlobe } from 'react-icons/fi';
 import { useState } from 'react';
+import { createClient as createServerSupabase } from '@/utils/supabase/server';
 import { createClient as createBrowserClient } from '@/utils/supabase/client';
 import ReservationCalendar from '@/components/ReservationCalendar';
 import prisma from '@/lib/prisma';
@@ -191,7 +192,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                       <h4 className="font-bold text-lg">{event.title}</h4>
                       <div className="flex items-center text-gray-600 my-2">
                         <FiCalendar className="mr-2" />
-                        <span>{new Date(event.datetime).toLocaleString('de-DE')}</span>
+                        <span>{event.datetime ? new Date(event.datetime).toLocaleString('de-DE') : 'Aktiv (unbestimmte Zeit)'}</span>
                       </div>
                       <p className="text-sm text-gray-500 mb-3">{event.description}</p>
                       <div className="flex items-center text-gray-600 mb-3">
@@ -203,14 +204,19 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                         <button
                           onClick={() => {
                             setReserveOpenEventId(prev => (prev === event.id ? null : event.id));
-                            const d = new Date(event.datetime);
-                            const y = d.getFullYear();
-                            const m = String(d.getMonth() + 1).padStart(2, '0');
-                            const da = String(d.getDate()).padStart(2, '0');
-                            setReservationDate(`${y}-${m}-${da}`);
-                            const hh = String(d.getHours()).padStart(2, '0');
-                            const mm = String(d.getMinutes()).padStart(2, '0');
-                            setReservationTime(`${hh}:${mm}`);
+                            if (event.datetime) {
+                              const d = new Date(event.datetime);
+                              const y = d.getFullYear();
+                              const m = String(d.getMonth() + 1).padStart(2, '0');
+                              const da = String(d.getDate()).padStart(2, '0');
+                              setReservationDate(`${y}-${m}-${da}`);
+                              const hh = String(d.getHours()).padStart(2, '0');
+                              const mm = String(d.getMinutes()).padStart(2, '0');
+                              setReservationTime(`${hh}:${mm}`);
+                            } else {
+                              setReservationDate('');
+                              setReservationTime('');
+                            }
                           }}
                           className="w-full border border-primary-300 text-primary-700 font-medium py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors"
                         >
@@ -311,12 +317,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   const restaurant = await prisma.restaurant.findFirst({
     where: { OR: [{ slug }, { id: slug }], isActive: true, contractStatus: 'ACTIVE' },
     include: {
-      events: {
-        where: {
-          datetime: { gte: new Date() },
-        },
-        orderBy: { datetime: 'asc' },
-      },
+      events: true,
       images: true,
       profile: true,
       ratings: {
@@ -338,11 +339,38 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     ? restaurant.ratings.reduce((acc, review) => acc + review.value, 0) / total_ratings
     : 0;
 
-  const restaurantWithDetails = {
+  const restaurantWithDetails: any = {
     ...restaurant,
     avg_rating: parseFloat(avg_rating.toFixed(1)),
     total_ratings,
   };
+
+  // Ergänze Contact-tables aus Supabase (öffentlich + zum Restaurant gehörig)
+  try {
+    const supabase = createServerSupabase(context);
+    const { data: ct } = await supabase
+      .from('contact_tables')
+      .select('id,title,description,datetime,max_participants')
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_public', true);
+    const mapped = (ct || []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      datetime: t.datetime || null,
+      maxParticipants: t.max_participants ?? 0,
+    }));
+    const prismaEvents = (restaurantWithDetails.events || []).map((e: any) => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      datetime: e.datetime || null,
+      maxParticipants: e.maxParticipants ?? e.max_participants ?? 0,
+    }));
+    restaurantWithDetails.events = [...prismaEvents, ...mapped];
+  } catch (_) {
+    // still fine; zeige Prisma-Events
+  }
 
   // Fallback: Geokodierung über OpenStreetMap/Nominatim, falls keine Koordinaten vorhanden
   if ((!restaurantWithDetails.latitude || !restaurantWithDetails.longitude) && (restaurant.address || restaurant.city || (restaurant as any).postalCode)) {
