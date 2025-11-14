@@ -34,14 +34,12 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
     let tables = initialContactTables || [];
 
     if (filters.date) {
+      const selectedDate = new Date(filters.date);
       tables = tables.filter((table) => {
-        if (!table.datetime) return false; // avoid calling Date with null
+        if ((table as any).is_indefinite === true) return true;
+        if (!table.datetime) return false;
         const tableDate = new Date(table.datetime);
-        const selectedDate = new Date(filters.date);
-        return (
-          tableDate.toLocaleDateString('de-DE') ===
-          selectedDate.toLocaleDateString('de-DE')
-        );
+        return tableDate.toLocaleDateString('de-DE') === selectedDate.toLocaleDateString('de-DE');
       });
     }
 
