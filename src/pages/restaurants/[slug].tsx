@@ -1,7 +1,10 @@
 import { GetServerSideProps } from 'next';
 // Head wird durch PageLayout abgedeckt
 import Image from 'next/image';
-import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers } from 'react-icons/fi';
+import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers, FiGlobe } from 'react-icons/fi';
+import { useState } from 'react';
+import { createClient as createBrowserClient } from '@/utils/supabase/client';
+import ReservationCalendar from '@/components/ReservationCalendar';
 import prisma from '@/lib/prisma';
 import { Prisma, Restaurant, Event, Rating as Review, Profile, RestaurantImage } from '@prisma/client';
 import dynamic from 'next/dynamic';
@@ -43,6 +46,14 @@ type RestaurantPageItem = RestaurantWithDetails & {
 };
 
 const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) => {
+  const [reserveOpenEventId, setReserveOpenEventId] = useState<string | null>(null);
+  const [reservationDate, setReservationDate] = useState<string>('');
+  const [reservationTime, setReservationTime] = useState<string>('');
+  const [reservationFeedback, setReservationFeedback] = useState<string>('');
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const supabase = createBrowserClient();
   if (!restaurant) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -56,6 +67,39 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   // Stelle sicher, dass Koordinaten numerisch sind, bevor sie an die Map übergeben werden
   const lat = restaurant.latitude != null ? Number(restaurant.latitude) : null;
   const lon = restaurant.longitude != null ? Number(restaurant.longitude) : null;
+  const confirmReservationAndJoin = async (eventId: string) => {
+    if (!reservationDate || !reservationTime) {
+      alert('Bitte Datum und Uhrzeit auswählen.');
+      return;
+    }
+    try {
+      setIsConfirming(true);
+      setError(null);
+      setSuccess(null);
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const userId = authData?.user?.id;
+      if (!userId) {
+        setError('Bitte melde dich an, um zu bestätigen.');
+        setIsConfirming(false);
+        return;
+      }
+      const notes = `Reservierung bestätigt für ${reservationDate} ${reservationTime}.` + (reservationFeedback ? ` Feedback: ${reservationFeedback}` : '');
+      const { error: insertError } = await supabase
+        .from('participations')
+        .insert({ contact_table_id: eventId, user_id: userId, status: 'CONFIRMED', notes } as any);
+      if (insertError) throw insertError;
+      setSuccess('Reservierung bestätigt und Teilnahme erfasst.');
+      setReserveOpenEventId(null);
+      setReservationDate('');
+      setReservationTime('');
+      setReservationFeedback('');
+    } catch (e: any) {
+      setError(e?.message || 'Es ist ein Fehler bei der Bestätigung aufgetreten.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
   // Map-Item mit minimal erforderlichen Feldern für die Leaflet-Karte
   const mapItem = {
     ...(restaurant as any),
@@ -154,7 +198,62 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                         <FiUsers className="mr-2" />
                         <span>{event.maxParticipants} Plätze verfügbar</span>
                       </div>
-                      <button className="w-full mt-2 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition-colors">Details anzeigen & Anmelden</button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                        <a href={`/contact-tables/${event.id}`} className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition-colors text-center">Details anzeigen</a>
+                        <button
+                          onClick={() => {
+                            setReserveOpenEventId(prev => (prev === event.id ? null : event.id));
+                            const d = new Date(event.datetime);
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const da = String(d.getDate()).padStart(2, '0');
+                            setReservationDate(`${y}-${m}-${da}`);
+                            const hh = String(d.getHours()).padStart(2, '0');
+                            const mm = String(d.getMinutes()).padStart(2, '0');
+                            setReservationTime(`${hh}:${mm}`);
+                          }}
+                          className="w-full border border-primary-300 text-primary-700 font-medium py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors"
+                        >
+                          Reservieren
+                        </button>
+                      </div>
+                      {reserveOpenEventId === event.id && (
+                        <div className="mt-3 bg-white border border-neutral-200 rounded-lg p-3 text-sm text-neutral-700">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-neutral-700 mb-1">Datum</label>
+                              <ReservationCalendar selectedDate={reservationDate || null} availabilityByDate={{}} onSelect={(ymd) => setReservationDate(ymd)} />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="block text-sm font-medium text-neutral-700 mb-1">Uhrzeit</label>
+                              <input type="time" value={reservationTime} onChange={(e) => setReservationTime(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <label className="block text-sm font-medium text-neutral-700 mb-1">Nachricht (optional)</label>
+                            <textarea value={reservationFeedback} onChange={(e) => setReservationFeedback(e.target.value)} className="w-full border border-neutral-300 rounded p-2" rows={3} />
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            {restaurant.phone && (
+                              <a href={`tel:${restaurant.phone}`} className="inline-flex items-center px-3 py-2 rounded bg-primary-50 text-primary-700 hover:bg-primary-100">
+                                <FiPhone className="mr-2" />
+                                Anrufen
+                              </a>
+                            )}
+                            {(restaurant.website || (restaurant as any).booking_url) && (
+                              <a href={restaurant.website || (restaurant as any).booking_url || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-2 rounded bg-neutral-100 text-neutral-800 hover:bg-neutral-200">
+                                <FiGlobe className="mr-2" />
+                                Zur Webseite
+                              </a>
+                            )}
+                            <button onClick={() => confirmReservationAndJoin(event.id)} disabled={isConfirming} className="px-3 py-2 rounded bg-primary-600 text-white">
+                              {isConfirming ? 'Bestätige…' : 'Bestätigen'}
+                            </button>
+                          </div>
+                          {error && <p className="mt-2 text-red-600">{error}</p>}
+                          {success && <p className="mt-2 text-green-600">{success}</p>}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
