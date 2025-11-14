@@ -183,12 +183,9 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
   // Corrected query, ordering by datetime
   const { data: tables, error } = await supabase
     .from('contact_tables')
-    // Nur öffentliche Tische laden und Restaurants nur, wenn sie sichtbar/aktiv sind
+    // Nur öffentliche Tische laden; Restaurant wird eingebettet, Filter später in Code
     .select('*, restaurant:restaurants!inner(*)')
     .eq('is_public', true)
-    .eq('restaurants.is_visible', true)
-    .eq('restaurants.is_active', true)
-    .eq('restaurants.contract_status', 'ACTIVE')
     .order('datetime', { ascending: true });
 
   if (error) {
@@ -196,10 +193,17 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
     return { props: { initialContactTables: [], user, userRole, error: 'Fehler beim Laden der Tische.' } };
   }
 
-  const tablesWithRestaurants: ContactTableWithRestaurant[] = tables?.map(table => ({
+  const tablesWithRestaurantsRaw: ContactTableWithRestaurant[] = tables?.map(table => ({
     ...table,
     restaurant: Array.isArray(table.restaurant) ? table.restaurant[0] : table.restaurant,
   })) || [];
+
+  // Sichtbarkeitslogik konsistent wie API-Route: nur Restaurants, die öffentlich bereit sind
+  const tablesWithRestaurants: ContactTableWithRestaurant[] = tablesWithRestaurantsRaw.filter((t) => {
+    const r = t.restaurant as any;
+    const isRestaurantPublicReady = Boolean(r && r.is_visible === true && r.is_active === true && r.contract_status === 'ACTIVE');
+    return t.is_public === true && isRestaurantPublicReady;
+  });
 
   return {
     props: {
