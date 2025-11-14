@@ -277,7 +277,7 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
       <Header />
       <div className="flex flex-1">
         <AdminSidebar activeItem="restaurants" />
-        <main className="flex-1 p-6 bg-gray-50">
+        <main className="flex-1 p-6 bg-gray-50 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-900">Restaurants</h1>
@@ -330,8 +330,8 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
             )}
 
             <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div>
+                <table className="w-full table-fixed divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -406,10 +406,10 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 break-words">
                             <div className="text-sm text-gray-900">{restaurant.owner_name}</div>
                           </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 break-words">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(restaurant.is_active)}`}>
                             {restaurant.is_active ? 'Aktiv' : 'Inaktiv'}
                           </span>
@@ -429,10 +429,10 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          <td className="px-6 py-4 break-words text-sm text-gray-700">
                           {restaurant.last_verified_at ? formatDate(restaurant.last_verified_at) : '—'}
                         </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 break-words">
                             <div className="flex items-center">
                               {(() => {
                                 const r = Number(restaurant.rating ?? 0);
@@ -453,7 +453,7 @@ const RestaurantsPage = ({ user }: RestaurantsPageProps) => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-500">{formatDate(restaurant.created_at)}</div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <td className="px-6 py-4 break-words text-right text-sm font-medium">
                             <button
                               onClick={() => handleViewRestaurant(restaurant.id)}
                               className="text-blue-600 hover:text-blue-900 mr-3"

@@ -208,9 +208,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return { notFound: true };
   }
 
-  // Enforce visibility and payment gating: only active + paid
+  // Enforce visibility and payment gating: allow fetch by slug OR id
   const restaurant = await prisma.restaurant.findFirst({
-    where: { slug, isActive: true, contractStatus: 'ACTIVE' },
+    where: { OR: [{ slug }, { id: slug }], isActive: true, contractStatus: 'ACTIVE' },
     include: {
       events: {
         where: {
@@ -246,9 +246,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   };
 
   // Fallback: Geokodierung über OpenStreetMap/Nominatim, falls keine Koordinaten vorhanden
-  if ((!restaurantWithDetails.latitude || !restaurantWithDetails.longitude) && (restaurant.address || restaurant.city)) {
+  if ((!restaurantWithDetails.latitude || !restaurantWithDetails.longitude) && (restaurant.address || restaurant.city || (restaurant as any).postalCode)) {
     try {
-      const queryAddress = [restaurant.address, restaurant.postal_code, restaurant.city].filter(Boolean).join(', ');
+      const queryAddress = [restaurant.address, (restaurant as any).postalCode, restaurant.city].filter(Boolean).join(', ');
       const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
       if (geoRes.ok) {
         const geoResults = await geoRes.json();
