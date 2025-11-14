@@ -19,12 +19,6 @@ const teamMembers = [
     role: 'CTO',
     bio: 'Simon bringt über 10 Jahre Erfahrung in der Entwicklung sozialer Plattformen mit und leitet die technische Umsetzung unserer Vision.',
     image: '/images/about/simon mueller portrait.png'
-  },
-  {
-    name: 'Thomas Fußer',
-    role: 'Sales & Consulting',
-    bio: 'Als erfahrener Gastronomieprofi mit über 30 Jahren Branchenerfahrung verantwortet Thomas bei Contact‑tables die Bereiche Sales und Consulting. Er ist erster Ansprechpartner für unsere Partnerrestaurants und sorgt für eine reibungslose Umsetzung.',
-    image: ''
   }
 ];
 

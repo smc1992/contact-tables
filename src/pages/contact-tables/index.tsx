@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PageLayout from '../../components/PageLayout';
 import ContactTablesList from '../../components/ContactTablesList';
-import ReservationCalendar from '../../components/ReservationCalendar';
-import ReservationStepper from '../../components/ReservationStepper';
 import { createClient } from '@/utils/supabase/server';
 import type { GetServerSidePropsContext } from 'next';
 import type { User } from '@supabase/supabase-js';
@@ -30,31 +28,21 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
     interests: '', // This will now search in title and description
   });
   const [filteredTables, setFilteredTables] = useState(initialContactTables || []);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [resultsAnchorId] = useState('results');
-
-  // Build availability map by date (YYYY-MM-DD)
-  const availabilityByDate: Record<string, number> = useMemo(() => {
-    const map: Record<string, number> = {};
-    (initialContactTables || []).forEach((t) => {
-      const d = t.datetime ? new Date(t.datetime) : null;
-      if (!d) return;
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const key = `${y}-${m}-${day}`;
-      map[key] = (map[key] || 0) + 1;
-    });
-    return map;
-  }, [initialContactTables]);
 
   useEffect(() => {
     let tables = initialContactTables || [];
 
     if (filters.date) {
-      tables = tables.filter(table => 
-        new Date(table.datetime).toLocaleDateString('de-DE') === new Date(filters.date).toLocaleDateString('de-DE')
-      );
+      tables = tables.filter((table) => {
+        if (!table.datetime) return false; // avoid calling Date with null
+        const tableDate = new Date(table.datetime);
+        const selectedDate = new Date(filters.date);
+        return (
+          tableDate.toLocaleDateString('de-DE') ===
+          selectedDate.toLocaleDateString('de-DE')
+        );
+      });
     }
 
     if (filters.city) {
@@ -85,7 +73,6 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
 
   const resetFilters = () => {
     setFilters({ date: '', city: '', interests: '' });
-    setCurrentStep(1);
   };
 
   return (
@@ -110,61 +97,61 @@ export default function ContactTablesPage({ initialContactTables, userRole, erro
           </div>
 
           <div className="space-y-4">
-            <ReservationStepper currentStep={currentStep} />
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
-                <ReservationCalendar
-                  selectedDate={filters.date || null}
-                  availabilityByDate={availabilityByDate}
-                  onSelect={(ymd) => {
-                    setFilters((prev) => ({ ...prev, date: ymd }));
-                    setCurrentStep(2);
-                    // Smooth scroll to results
-                    const el = document.getElementById(resultsAnchorId);
-                    if (el) {
-                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                  }}
-                />
+                <div className="bg-white p-6 rounded-lg shadow-md">
+                  <p className="text-neutral-700 mb-2">Nutze die Filter, um passende Kontakttische zu finden.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">Datum</label>
+                      <input
+                        type="date"
+                        name="date"
+                        value={filters.date}
+                        onChange={handleFilterChange}
+                        className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">Stadt</label>
+                      <input
+                        type="text"
+                        name="city"
+                        placeholder="z.B. Berlin"
+                        value={filters.city}
+                        onChange={handleFilterChange}
+                        className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-1">Stichwort</label>
+                      <input
+                        type="text"
+                        name="interests"
+                        placeholder="z.B. Kunst, Jazz"
+                        value={filters.interests}
+                        onChange={handleFilterChange}
+                        className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(resultsAnchorId);
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }}
+                      className="w-full bg-primary-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary-700"
+                    >
+                      Ergebnisse anzeigen
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">Stadt</label>
-                    <input
-                      type="text"
-                      name="city"
-                      placeholder="z.B. Berlin"
-                      value={filters.city}
-                      onChange={handleFilterChange}
-                      className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-1">Stichwort</label>
-                    <input
-                      type="text"
-                      name="interests"
-                      placeholder="z.B. Kunst, Jazz"
-                      value={filters.interests}
-                      onChange={handleFilterChange}
-                      className="form-input w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCurrentStep(filters.date ? 2 : 1);
-                      const el = document.getElementById(resultsAnchorId);
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                    className="w-full bg-primary-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary-700"
-                  >
-                    Ergebnisse anzeigen
-                  </button>
-                </div>
+                <p className="text-sm text-neutral-700">Tipp: Klicke in der Liste auf einen Tisch, um Details, Kalender und Reservierung zu sehen.</p>
               </div>
             </div>
           </div>

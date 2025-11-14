@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import PageLayout from '../../components/PageLayout';
 import { FiCalendar, FiUsers, FiMapPin, FiClock, FiMessageCircle, FiPhone, FiMail, FiGlobe } from 'react-icons/fi';
@@ -9,6 +9,7 @@ import { createClient as createBrowserClient } from '../../utils/supabase/client
 import { type Database } from '../../types/supabase';
 import type { GetServerSideProps } from 'next';
 import { createClient as createServerSupabase } from '../../utils/supabase/server';
+import ReservationCalendar from '../../components/ReservationCalendar';
 
 type ContactTable = Database['public']['Tables']['contact_tables']['Row'];
 type Restaurant = Database['public']['Tables']['restaurants']['Row'];
@@ -197,6 +198,19 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
 
   const availableSeats = contactTable.max_participants - (contactTable.participants?.length || 0);
 
+  // Verfügbarkeit pro Datum (nur das Datum des Kontakttischs hervorheben)
+  const availabilityByDate: Record<string, number> = useMemo(() => {
+    const map: Record<string, number> = {};
+    const dt = contactTable?.datetime ? new Date(contactTable.datetime) : null;
+    if (dt && !isNaN(dt.getTime())) {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      map[`${y}-${m}-${d}`] = 1;
+    }
+    return map;
+  }, [contactTable?.datetime]);
+
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -302,9 +316,18 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
                       {reservationStep === 'select_datetime' && (
                         <div className="space-y-3">
                           <p className="text-neutral-800 font-medium">Datum und Uhrzeit auswählen</p>
-                          <div className="flex flex-wrap gap-3">
-                            <input type="date" value={reservationDate} onChange={(e) => setReservationDate(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
-                            <input type="time" value={reservationTime} onChange={(e) => setReservationTime(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <ReservationCalendar
+                                selectedDate={reservationDate || null}
+                                availabilityByDate={availabilityByDate}
+                                onSelect={(ymd) => setReservationDate(ymd)}
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="block text-sm font-medium text-neutral-700 mb-1">Uhrzeit</label>
+                              <input type="time" value={reservationTime} onChange={(e) => setReservationTime(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => setShowReserve(false)} className="px-3 py-2 rounded border border-neutral-300">Abbrechen</button>

@@ -198,26 +198,99 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
 
   try {
     if (location) {
-      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`);
-      if (!geoRes.ok) throw new Error('Geocoding service failed.');
-      const geoResults = await geoRes.json();
-      if (geoResults.length === 0) {
-        return { props: { ...defaultProps, error: 'Ort nicht gefunden.' } };
+      // Geokodierung mit Nominatim inkl. erforderlicher Header
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'ContactTables/1.0 (+https://example.local)',
+            'Accept-Language': 'de',
+            'Referer': 'https://example.local/restaurants',
+          },
+        }
+      );
+
+      if (geoRes.ok) {
+        const geoResults = await geoRes.json();
+        if (Array.isArray(geoResults) && geoResults.length > 0) {
+          geoData = geoResults[0];
+        }
       }
-      geoData = geoResults[0];
 
       if (geoData) {
         const { data, error } = await supabase.rpc('nearby_restaurants', {
-          lat: geoData.lat,
-          long: geoData.lon,
-          radius_meters: radius * 1000, // km to meters
+          lat: Number((geoData as any).lat),
+          long: Number((geoData as any).lon),
+          radius_meters: radius * 1000, // km zu m
         });
 
-        if (error) throw error;
-        restaurantsData = data || [];
+        if (error) {
+          // Robuster Fallback: Textbasierte Suche, wenn RPC scheitert (z. B. RLS)
+          console.error('nearby_restaurants RPC Fehler, Fallback auf Textsuche:', error);
+          let query = supabase
+            .from('visible_restaurants')
+            .select('*')
+            .or(`city.ilike.%${location}%,postal_code.ilike.%${location}%`);
 
-        // Enforce visibility gating: only active + paid (Digistore active)
-        restaurantsData = (restaurantsData || []).filter((r: any) => r?.is_active === true && r?.contract_status === 'ACTIVE');
+          // Optionale Filter anwenden, falls vorhanden
+          if (context.query.cuisine) {
+            query = query.ilike('cuisine', `%${context.query.cuisine}%`);
+          }
+          if (context.query.priceRange) {
+            query = query.eq('price_range', context.query.priceRange);
+          }
+          if (context.query.offerTableToday === 'true') {
+            query = query.eq('offer_table_today', true);
+          }
+
+          const { data: dataFallback, error: errorFallback } = await query;
+
+          if (errorFallback && (errorFallback.message?.includes('visible_restaurants') || (errorFallback as any).code === '42P01')) {
+            const { data: data2, error: error2 } = await supabase
+              .from('restaurants')
+              .select('*')
+              .eq('is_active', true)
+              .eq('is_visible', true)
+              .eq('contract_status', 'ACTIVE')
+              .or(`city.ilike.%${location}%,postal_code.ilike.%${location}%`);
+
+            if (error2) throw error2;
+            restaurantsData = data2 || [];
+          } else if (errorFallback) {
+            throw errorFallback;
+          } else {
+            restaurantsData = dataFallback || [];
+          }
+
+        } else {
+          restaurantsData = data || [];
+          // Sichtbarkeit erzwingen: nur aktive & bezahlte Restaurants
+          restaurantsData = (restaurantsData || []).filter((r: any) => r?.is_active === true && r?.contract_status === 'ACTIVE');
+        }
+      } else {
+        // Fallback: Standort als Stadt/PLZ-Textsuche
+        let query = supabase
+          .from('visible_restaurants')
+          .select('*')
+          .or(`city.ilike.%${location}%,postal_code.ilike.%${location}%`);
+
+        const { data, error } = await query;
+
+        if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01')) {
+          const { data: data2, error: error2 } = await supabase
+            .from('restaurants')
+            .select('*')
+            .eq('is_active', true)
+            .eq('is_visible', true)
+            .eq('contract_status', 'ACTIVE')
+            .or(`city.ilike.%${location}%,postal_code.ilike.%${location}%`);
+          if (error2) throw error2;
+          restaurantsData = data2 || [];
+        } else if (error) {
+          throw error;
+        } else {
+          restaurantsData = data || [];
+        }
       }
 
     } else if (searchQuery) {
@@ -292,7 +365,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
       offer_table_today: r.offer_table_today ?? null,
       price_range: r.price_range ?? null,
       latitude: r.latitude != null ? Number(r.latitude) : (r.lat != null ? Number(r.lat) : null),
-      longitude: r.longitude != null ? Number(r.longitude) : (r.long != null ? Number(r.long) : null),
+      longitude: r.longitude != null ? Number(r.longitude) : (r.long != null ? Number(r.long) : (r.lng != null ? Number(r.lng) : null)),
       distance_in_meters: r.distance_in_meters != null ? Number(r.distance_in_meters) : (r.distance_meters != null ? Number(r.distance_meters) : null),
       popularity: r.popularity ?? null,
       postal_code: r.postal_code ?? null,
@@ -304,7 +377,16 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
     for (const r of toGeocode) {
       try {
         const queryAddress = [r.address, r.postal_code, r.city].filter(Boolean).join(', ');
-        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`,
+          {
+            headers: {
+              'User-Agent': 'ContactTables/1.0 (+https://example.local)',
+              'Accept-Language': 'de',
+              'Referer': 'https://example.local/restaurants',
+            },
+          }
+        );
         if (geoRes.ok) {
           const results = await geoRes.json();
           if (Array.isArray(results) && results.length > 0) {

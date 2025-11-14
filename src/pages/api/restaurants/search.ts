@@ -41,21 +41,59 @@ export default async function handler(
       });
 
       if (rpcError) {
-        console.error('Fehler bei RPC nearby_restaurants:', JSON.stringify(rpcError, null, 2));
-        throw rpcError;
-      }
-      // Enforce visibility gating: only active + paid (Digistore active)
-      restaurants = (rpcData || []).filter((r: any) => r?.is_active === true && r?.contract_status === 'ACTIVE');
+        // Fallback: Wenn die RPC fehlschlägt (z.B. wegen RLS/Permission),
+        // versuche eine Text-basierte Suche auf der Sicht "visible_restaurants".
+        console.error('Fehler bei RPC nearby_restaurants, weiche auf Textsuche aus:', JSON.stringify(rpcError, null, 2));
 
-      // Additional filtering in backend if needed (less performant but necessary if not in RPC)
-      if (cuisine) {
-        restaurants = restaurants.filter((r: RestaurantPageItem) => r.cuisine?.toLowerCase().includes((cuisine as string).toLowerCase()));
-      }
-      if (priceRange) {
-        restaurants = restaurants.filter((r: RestaurantPageItem) => r.price_range == priceRange);
-      }
-      if (offerTableToday === 'true') {
-        restaurants = restaurants.filter((r: RestaurantPageItem) => r.offer_table_today === true);
+        let query = supabase
+          .from('visible_restaurants')
+          .select('*, ratings(value), favorites(user_id)');
+
+        if (searchTerm) {
+          query = query.ilike('name', `%${searchTerm}%`);
+        }
+        if (cuisine) {
+          query = query.ilike('cuisine', `%${cuisine}%`);
+        }
+        if (priceRange) {
+          query = query.eq('price_range', priceRange);
+        }
+        if (offerTableToday === 'true') {
+          query = query.eq('offer_table_today', true);
+        }
+
+        const { data: textSearchData, error: textSearchError } = await query;
+        if (textSearchError) {
+          console.error('Fehler bei Fallback-Textsuche:', JSON.stringify(textSearchError, null, 2));
+          throw textSearchError;
+        }
+
+        restaurants = (textSearchData || []).map(restaurant => {
+          const ratings = (restaurant.ratings as unknown as { value: number }[]) || [];
+          const avgRating = ratings.length > 0 ? ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length : null;
+          const popularity = ((restaurant.favorites as unknown as any[]) || []).length;
+          const { ratings: _ratings, favorites: _favorites, ...rest } = restaurant;
+          return {
+            ...rest,
+            avg_rating: avgRating,
+            popularity,
+            distance_in_meters: null,
+          } as any;
+        });
+      } else {
+        // Enforce visibility gating: only active + paid (Digistore active)
+        restaurants = (rpcData || []).filter((r: any) => r?.is_active === true && r?.contract_status === 'ACTIVE');
+
+        // Additional filtering in backend if needed (less performant but necessary if not in RPC)
+        if (cuisine) {
+          restaurants = restaurants.filter((r: RestaurantPageItem) => r.cuisine?.toLowerCase().includes((cuisine as string).toLowerCase()));
+        }
+        if (priceRange) {
+          restaurants = restaurants.filter((r: RestaurantPageItem) => r.price_range == priceRange);
+        }
+        if (offerTableToday === 'true') {
+          restaurants = restaurants.filter((r: RestaurantPageItem) => r.offer_table_today === true);
+        }
       }
 
     } else if (searchTerm) {
