@@ -358,6 +358,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       if (!supRestaurant) {
         return { notFound: true };
       }
+      if (typeof slugParam === 'string' && slugParam === supRestaurant.id && supRestaurant.slug) {
+        return { redirect: { destination: `/restaurants/${supRestaurant.slug}`, permanent: true } };
+      }
       // Minimaldetails aus Supabase
       const { data: ct } = await supabase
         .from('contact_tables')
@@ -405,7 +408,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   // Calculate average rating and total ratings
   const total_ratings = restaurant.ratings.length;
   const avg_rating = total_ratings > 0
-    ? restaurant.ratings.reduce((acc, review) => acc + review.value, 0) / total_ratings
+    ? (restaurant.ratings as any[]).reduce((acc: number, review: any) => acc + Number(review.value ?? 0), 0) / total_ratings
     : 0;
 
   const restaurantWithDetails: any = {

@@ -119,6 +119,19 @@ const CreateRestaurantPage = ({ user }: CreateRestaurantPageProps) => {
       .replace(/^-|-$/g, '');
   };
 
+  const ensureUniqueSlug = async (base: string): Promise<string> => {
+    if (!supabase) return base;
+    const { data } = await supabase
+      .from('restaurants')
+      .select('slug')
+      .ilike('slug', `${base}%`);
+    const existing = (data || []).map((r: any) => r.slug).filter(Boolean);
+    if (!existing.includes(base)) return base;
+    let counter = 2;
+    while (existing.includes(`${base}-${counter}`)) counter++;
+    return `${base}-${counter}`;
+  };
+
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
     setFormData(prev => ({
@@ -139,10 +152,15 @@ const CreateRestaurantPage = ({ user }: CreateRestaurantPageProps) => {
       if (!formData.userId) throw new Error('Bitte wählen Sie einen Benutzer als Restaurant-Inhaber aus');
       if (!formData.name) throw new Error('Bitte geben Sie einen Namen für das Restaurant ein');
 
+      // Slug sicherstellen und eindeutigen Wert berechnen
+      const baseSlug = formData.slug || generateSlug(formData.name);
+      const uniqueSlug = await ensureUniqueSlug(baseSlug);
+
       // Daten für die Datenbank vorbereiten
       const restaurantData = {
         id: uuidv4(),
         ...formData,
+        slug: uniqueSlug,
         capacity: formData.capacity ? parseInt(formData.capacity) : null,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
