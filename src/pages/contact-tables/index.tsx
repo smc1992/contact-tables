@@ -181,8 +181,8 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
   // Corrected query, ordering by datetime
   const { data: tables, error } = await supabase
     .from('contact_tables')
-    // Nur öffentliche Tische laden; Restaurant wird eingebettet, Filter später in Code
-    .select('*, restaurant:restaurants!inner(*)')
+    // Restaurant über FK alias einbetten wie in API-Route
+    .select('*, restaurant:restaurant_id(*)')
     .eq('is_public', true)
     .order('datetime', { ascending: true });
 
@@ -191,17 +191,28 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
     return { props: { initialContactTables: [], user, userRole, error: 'Fehler beim Laden der Tische.' } };
   }
 
-  const tablesWithRestaurantsRaw: ContactTableWithRestaurant[] = tables?.map(table => ({
-    ...table,
-    restaurant: Array.isArray(table.restaurant) ? table.restaurant[0] : table.restaurant,
-  })) || [];
+  const tablesRaw = (tables || []) as any[];
+  const restaurantIds = Array.from(new Set(tablesRaw.map(t => t.restaurant_id).filter(Boolean)));
 
-  // Sichtbarkeitslogik konsistent wie API-Route: nur Restaurants, die öffentlich bereit sind
-  const tablesWithRestaurants: ContactTableWithRestaurant[] = tablesWithRestaurantsRaw.filter((t) => {
-    const r = t.restaurant as any;
-    const isRestaurantPublicReady = Boolean(r && r.is_visible === true && r.is_active === true && r.contract_status === 'ACTIVE');
-    return t.is_public === true && isRestaurantPublicReady;
-  });
+  // Restaurants separat laden (robuster gegenüber eingebetteten Join/RLS)
+  let restaurantsMap: Record<string, any> = {};
+  if (restaurantIds.length > 0) {
+    const { data: restaurantsData } = await supabase
+      .from('restaurants')
+      .select('id,name,address,city,image_url,is_visible,is_active,contract_status,phone,email,website')
+      .in('id', restaurantIds)
+      .eq('is_visible', true)
+      .eq('is_active', true)
+      .eq('contract_status', 'ACTIVE');
+    (restaurantsData || []).forEach((r: any) => { restaurantsMap[r.id] = r; });
+  }
+
+  const tablesWithRestaurants: ContactTableWithRestaurant[] = tablesRaw
+    .map((t: any) => ({
+      ...(t as ContactTable),
+      restaurant: restaurantsMap[t.restaurant_id] || null,
+    }))
+    .filter((t: any) => t.is_public === true && t.restaurant);
 
   return {
     props: {

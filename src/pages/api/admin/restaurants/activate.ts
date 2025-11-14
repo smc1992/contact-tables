@@ -79,6 +79,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (supErr) {
           console.error('Fehler beim Supabase-Update (restaurants):', supErr);
         }
+        try {
+          const { error: ctErr } = await supabaseAdmin
+            .from('contact_tables')
+            .update({ is_public: true })
+            .eq('restaurant_id', id);
+          if (ctErr) {
+            console.error('Fehler beim Supabase-Update (contact_tables):', ctErr);
+          }
+        } catch (e) {
+          console.error('Unerwarteter Fehler beim Supabase-Update (contact_tables):', e);
+        }
       } catch (e) {
         console.error('Unerwarteter Fehler beim Supabase-Update (restaurants):', e);
       }
