@@ -330,7 +330,71 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   });
 
   if (!restaurant) {
-    return { notFound: true };
+    try {
+      const supabase = createServerSupabase(context);
+      const slugParam = slug;
+      // Versuche Supabase per ID
+      let supRestaurant: any = null;
+      const { data: rById } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('id', slugParam)
+        .single();
+      supRestaurant = rById || null;
+      // Falls nicht gefunden: per slug
+      if (!supRestaurant) {
+        const { data: rBySlug } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('slug', slugParam)
+          .single();
+        supRestaurant = rBySlug || null;
+      }
+      if (!supRestaurant) {
+        return { notFound: true };
+      }
+      // Minimaldetails aus Supabase
+      const { data: ct } = await supabase
+        .from('contact_tables')
+        .select('id,title,description,datetime,max_participants')
+        .eq('restaurant_id', supRestaurant.id)
+        .eq('is_public', true);
+      const { data: imgs } = await supabase
+        .from('restaurant_images')
+        .select('url,is_primary')
+        .eq('restaurant_id', supRestaurant.id);
+
+      const restaurantWithDetails = {
+        id: supRestaurant.id,
+        name: supRestaurant.name,
+        address: supRestaurant.address,
+        city: supRestaurant.city,
+        postal_code: supRestaurant.postal_code,
+        description: supRestaurant.description || '',
+        latitude: supRestaurant.latitude || null,
+        longitude: supRestaurant.longitude || null,
+        avg_rating: 0,
+        total_ratings: 0,
+        profile: null,
+        ratings: [],
+        images: (imgs || []).map((x: any) => ({ url: x.url, isPrimary: x.is_primary })) as any,
+        events: (ct || []).map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          datetime: t.datetime || null,
+          maxParticipants: t.max_participants ?? 0,
+        })),
+      } as any;
+
+      return {
+        props: {
+          restaurant: JSON.parse(JSON.stringify(restaurantWithDetails)),
+        },
+      };
+    } catch (_) {
+      return { notFound: true };
+    }
   }
 
   // Calculate average rating and total ratings

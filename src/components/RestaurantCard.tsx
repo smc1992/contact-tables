@@ -165,7 +165,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           </>
         </Link>
       ) : (
-        <div className="block h-full">
+        <Link href={id ? `/restaurants/${id}` : '#'} className={id ? 'block h-full' : 'block h-full pointer-events-none'}>
           {/* Render non-clickable card content if no slug */}
           <div className="relative">
             <div className="h-48 w-full relative">
@@ -217,12 +217,12 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             <p className="text-secondary-600 text-sm line-clamp-2 mb-3">{restaurant.description}</p>
           </div>
           <div className="p-4 pt-0 mt-auto">
-            <div className="bg-gray-200 text-gray-500 font-bold py-2 px-4 rounded-lg flex items-center justify-center">
+            <div className={`${id ? 'bg-primary-50 hover:bg-primary-100 border-2 border-primary-500 text-primary-700' : 'bg-gray-200 text-gray-500'} font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-all`}>
               <FiClock className="mr-2" size={18} />
-              Details nicht verfügbar
+              {id ? 'Details anzeigen' : 'Details nicht verfügbar'}
             </div>
           </div>
-        </div>
+        </Link>
       )}
     </motion.div>
   );
