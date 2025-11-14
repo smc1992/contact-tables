@@ -76,7 +76,7 @@ const glassmorphismStyle = {
 };
 
 export default function AboutPage() {
-  
+  const gridCols = teamMembers.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3';
   return (
     <PageLayout>
       
@@ -192,9 +192,8 @@ export default function AboutPage() {
               </motion.p>
             </div>
             
-            {/* Zentrierte Team-Mitglieder */}
             <div className="flex justify-center">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl">
+              <div className={`grid grid-cols-1 ${gridCols} gap-12 max-w-5xl justify-items-center`}>
                 {teamMembers.map((member, index) => (
                   <motion.div
                     key={index}

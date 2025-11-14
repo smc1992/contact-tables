@@ -186,8 +186,9 @@ export const getServerSideProps = async (ctx: GetServerSidePropsContext) => {
     // Nur öffentliche Tische laden und Restaurants nur, wenn sie sichtbar/aktiv sind
     .select('*, restaurant:restaurants!inner(*)')
     .eq('is_public', true)
-    .eq('restaurant.is_visible', true)
-    .eq('restaurant.contract_status', 'ACTIVE')
+    .eq('restaurants.is_visible', true)
+    .eq('restaurants.is_active', true)
+    .eq('restaurants.contract_status', 'ACTIVE')
     .order('datetime', { ascending: true });
 
   if (error) {
