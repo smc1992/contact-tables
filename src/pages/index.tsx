@@ -560,7 +560,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
       </section>
       
 
-      {/* Medien-Sektion: Interview, Podcast und Pitch Call */}
+      {/* Medien-Sektion: Interview und Podcast */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
@@ -615,10 +615,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <h3 className="text-xl font-semibold text-secondary-800">🚀 Eingeladen zum Pitch Call bei „Die Höhle der Löwen“</h3>
-                  <p className="mt-2 text-gray-600">contact-tables wurde zur Vorauswahl der VOX‑Gründershow eingeladen – ein großer Moment für unsere noch junge Idee. Wir sind gespannt, wohin die Reise führt!</p>
-                </div>
+                
               </motion.div>
             </div>
           </div>
