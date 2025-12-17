@@ -119,11 +119,18 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   const lat = restaurant.latitude != null ? Number(restaurant.latitude) : null;
   const lon = restaurant.longitude != null ? Number(restaurant.longitude) : null;
   const [showCallModal, setShowCallModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const handleJoinClick = () => {
+  const handleJoinClick = async () => {
     if (!quickReserveEventId) { alert('Bitte Termin wählen.'); return; }
     if (!quickReserveDate || !quickReserveTime) { alert('Bitte Datum und Uhrzeit wählen.'); return; }
     
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
     // Prüfen, ob ein Datum gewählt wurde (kein unbestimmter Termin)
     // und das Event ein unbestimmtes "Contact Table" Event ist
     const event = (restaurant.events || []).find((e: any) => e.id === quickReserveEventId);
@@ -653,6 +660,37 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
           </div>
         </div>
       </div>
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 transform transition-all scale-100">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Anmeldung erforderlich</h3>
+            <p className="text-gray-600 mb-6">
+              Bitte melden Sie sich an oder registrieren Sie sich, um an diesem Contact Table teilzunehmen.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => router.push(`/auth/login?returnUrl=${encodeURIComponent(router.asPath)}`)}
+                className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Anmelden
+              </button>
+              <button 
+                onClick={() => router.push(`/auth/register?returnUrl=${encodeURIComponent(router.asPath)}`)}
+                className="w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Registrieren
+              </button>
+              <button 
+                onClick={() => setShowLoginModal(false)}
+                className="w-full text-gray-500 hover:text-gray-700 font-medium py-2 mt-2"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 };
