@@ -59,14 +59,14 @@ export default function CustomerDashboard() {
         // Kontakttische abrufen, an denen der Benutzer teilnimmt
         const { data: participations, error: participationsError } = await supabase
           .from('participations')
-          .select('contact_table_id')
+          .select('event_id')
           .eq('user_id', user.id);
         
         if (participationsError) {
           console.error('Fehler beim Laden der Teilnahmen:', participationsError);
         } else if (participations && participations.length > 0) {
           // IDs der Kontakttische extrahieren
-          const tableIds = participations.map(p => p.contact_table_id);
+          const tableIds = participations.map(p => p.event_id);
           
           // Gesamtanzahl der Kontakttische für Paginierung ermitteln
           const { count: upcomingCount, error: upcomingCountError } = await supabase
@@ -107,7 +107,7 @@ export default function CustomerDashboard() {
               const { data: participants, error: participantsError } = await supabase
                 .from('participations')
                 .select('user_id')
-                .eq('contact_table_id', table.id);
+                .eq('event_id', table.id);
                 
               if (participantsError) {
                 console.error(`Fehler beim Laden der Teilnehmer für Tisch ${table.id}:`, participantsError);

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { FiSave, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { FiSave, FiAlertCircle, FiCheckCircle, FiPlus, FiTrash2, FiClock } from 'react-icons/fi';
 import Header from '../../../components/Header';
 import Footer from '../../../components/Footer';
 import RestaurantSidebar from '../../../components/restaurant/RestaurantSidebar';
@@ -17,26 +17,59 @@ interface ProfilePageProps {
   error?: string;
 }
 
+type TimeSlot = { open: string; close: string };
+type OpeningHours = Record<string, TimeSlot[]>;
+
+const DAYS = [
+  { id: '1', label: 'Montag' },
+  { id: '2', label: 'Dienstag' },
+  { id: '3', label: 'Mittwoch' },
+  { id: '4', label: 'Donnerstag' },
+  { id: '5', label: 'Freitag' },
+  { id: '6', label: 'Samstag' },
+  { id: '0', label: 'Sonntag' },
+];
+
 export default function RestaurantProfile({ restaurant, error: serverError }: ProfilePageProps) {
   const router = useRouter();
+  
+  // Helper to safely parse opening hours
+  const parseOpeningHours = (json: string | null): OpeningHours => {
+    if (!json) return {};
+    try {
+      const parsed = JSON.parse(json);
+      // Basic validation: check if it looks like an object
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed;
+      }
+      return {};
+    } catch (e) {
+      console.warn('Failed to parse opening hours JSON, fallback to empty', e);
+      return {};
+    }
+  };
+
   const [formData, setFormData] = useState({
     name: restaurant?.name || '',
     description: restaurant?.description || '',
     address: restaurant?.address || '',
     city: restaurant?.city || '',
     postal_code: restaurant?.postal_code || '',
-    cuisine: restaurant?.cuisine || '', // Assuming 'cuisine' is the correct field name and it's a string
-    phone: restaurant?.phone || '',     // Assuming 'phone' is the correct field name
-    email: restaurant?.email || '',     // Assuming 'email' is the correct field name
+    cuisine: restaurant?.cuisine || '',
+    phone: restaurant?.phone || '',
+    email: restaurant?.email || '',
     website: restaurant?.website || '',
     instagram: (restaurant as any)?.instagram || '',
     facebook: (restaurant as any)?.facebook || '',
     tiktok: (restaurant as any)?.tiktok || '',
-    openingHours: (restaurant?.opening_hours as string) || '' // Use opening_hours, cast to string
   });
+
+  const [openingHours, setOpeningHours] = useState<OpeningHours>(
+    parseOpeningHours((restaurant?.opening_hours as string) || null)
+  );
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(serverError || ''); // Initialize with serverError
+  const [error, setError] = useState(serverError || '');
   const [success, setSuccess] = useState(false);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -45,6 +78,31 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleTimeChange = (dayId: string, index: number, field: 'open' | 'close', value: string) => {
+    setOpeningHours(prev => {
+      const daySlots = [...(prev[dayId] || [])];
+      if (!daySlots[index]) return prev;
+      daySlots[index] = { ...daySlots[index], [field]: value };
+      return { ...prev, [dayId]: daySlots };
+    });
+  };
+
+  const addTimeSlot = (dayId: string) => {
+    setOpeningHours(prev => {
+      const daySlots = [...(prev[dayId] || [])];
+      daySlots.push({ open: '17:00', close: '22:00' });
+      return { ...prev, [dayId]: daySlots };
+    });
+  };
+
+  const removeTimeSlot = (dayId: string, index: number) => {
+    setOpeningHours(prev => {
+      const daySlots = [...(prev[dayId] || [])];
+      daySlots.splice(index, 1);
+      return { ...prev, [dayId]: daySlots };
+    });
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,6 +120,7 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
     try {
       const payload = {
         ...formData,
+        openingHours: JSON.stringify(openingHours),
         id: restaurant.id,
       };
 
@@ -81,8 +140,6 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
       const updatedRestaurant = await response.json();
       setSuccess(true);
       console.log('Profil erfolgreich aktualisiert:', updatedRestaurant);
-      // Optionally, refresh data or update state
-      // router.replace(router.asPath); // Refreshes getServerSideProps
 
     } catch (err: any) {
       setError(err.message || 'Ein unbekannter Fehler ist aufgetreten.');
@@ -253,6 +310,9 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
                     className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                     required
                   />
+                  <p className="mt-1 text-xs text-secondary-400">
+                    Diese Nummer wird für Reservierungsanfragen verwendet und im Popup für Gäste angezeigt.
+                  </p>
                 </div>
                 
                 {/* E-Mail */}
@@ -336,20 +396,56 @@ export default function RestaurantProfile({ restaurant, error: serverError }: Pr
                 
                 {/* Öffnungszeiten */}
                 <div>
-                  <label htmlFor="openingHours" className="block text-sm font-medium text-secondary-600 mb-1">
-                    Öffnungszeiten *
+                  <label className="block text-sm font-medium text-secondary-600 mb-3 flex items-center">
+                    <FiClock className="mr-2" />
+                    Öffnungszeiten
                   </label>
-                  <textarea
-                    id="openingHours"
-                    name="openingHours"
-                    value={formData.openingHours}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-lg border border-primary-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-secondary-400">
-                    z.B. Mo-Fr: 11:00-22:00, Sa-So: 12:00-23:00
+                  <div className="space-y-4 border border-primary-200 rounded-lg p-4 bg-gray-50">
+                    {DAYS.map((day) => (
+                      <div key={day.id} className="flex flex-col sm:flex-row sm:items-start border-b border-gray-200 pb-3 last:border-0 last:pb-0">
+                        <div className="w-28 font-medium text-secondary-700 pt-2">{day.label}</div>
+                        <div className="flex-1 space-y-2">
+                          {(openingHours[day.id] || []).map((slot, index) => (
+                            <div key={index} className="flex items-center space-x-2">
+                              <input
+                                type="time"
+                                value={slot.open}
+                                onChange={(e) => handleTimeChange(day.id, index, 'open', e.target.value)}
+                                className="px-2 py-1 rounded border border-gray-300 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              />
+                              <span className="text-gray-500">-</span>
+                              <input
+                                type="time"
+                                value={slot.close}
+                                onChange={(e) => handleTimeChange(day.id, index, 'close', e.target.value)}
+                                className="px-2 py-1 rounded border border-gray-300 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeTimeSlot(day.id, index)}
+                                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                                title="Zeitraum entfernen"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          ))}
+                          {(openingHours[day.id] || []).length === 0 && (
+                            <div className="text-sm text-gray-400 italic pt-2">Geschlossen</div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => addTimeSlot(day.id)}
+                            className="text-primary-600 text-sm flex items-center mt-1 hover:text-primary-800 transition-colors"
+                          >
+                            <FiPlus className="mr-1" /> Öffnungszeit hinzufügen
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-secondary-400">
+                    Legen Sie für jeden Tag fest, wann Ihr Restaurant geöffnet ist. Tage ohne Zeiten gelten als geschlossen.
                   </p>
                 </div>
                 

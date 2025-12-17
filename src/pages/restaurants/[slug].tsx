@@ -1,8 +1,9 @@
 import { GetServerSideProps } from 'next';
+import { useRouter } from 'next/router';
 // Head wird durch PageLayout abgedeckt
 import Image from 'next/image';
 import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers, FiGlobe } from 'react-icons/fi';
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createClient as createServerSupabase } from '@/utils/supabase/server';
 import { createClient as createBrowserClient } from '@/utils/supabase/client';
 import ReservationCalendar from '@/components/ReservationCalendar';
@@ -10,6 +11,7 @@ import prisma from '@/lib/prisma';
 import { Prisma, Restaurant, Event, Rating as Review, Profile, RestaurantImage } from '@prisma/client';
 import dynamic from 'next/dynamic';
 import PageLayout from '@/components/PageLayout';
+import { v4 as uuidv4 } from 'uuid';
 
 // Dynamically import the map component to avoid SSR issues
 const RestaurantMap = dynamic(
@@ -19,6 +21,49 @@ const RestaurantMap = dynamic(
     loading: () => <div className="h-64 w-full bg-gray-200 flex items-center justify-center rounded-lg"><p>Kartenansicht wird geladen...</p></div>
   }
 );
+
+function parseOpeningHours(json: string | null | undefined) {
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function isRestaurantOpen(date: Date, openingHours: any): boolean {
+  if (!openingHours) return true; 
+  const day = date.getDay();
+  const hours = openingHours[String(day)];
+  return Array.isArray(hours) && hours.length > 0;
+}
+
+function getOpeningTimes(date: Date, openingHours: any): { start: string, end: string }[] {
+  if (!openingHours) return [];
+  const day = date.getDay();
+  const hours = openingHours[String(day)];
+  if (!Array.isArray(hours)) return [];
+  return hours.map((h: any) => ({ start: h.open, end: h.close }));
+}
+
+function generateTimeSlots(start: string, end: string): string[] {
+  const slots: string[] = [];
+  const [startH, startM] = start.split(':').map(Number);
+  const [endH, endM] = end.split(':').map(Number);
+  
+  let current = startH * 60 + startM;
+  const endLimit = endH * 60 + endM;
+
+  while (current <= endLimit) {
+    const h = Math.floor(current / 60);
+    const m = current % 60;
+    const hh = String(h).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    slots.push(`${hh}:${mm}`);
+    current += 30;
+  }
+  return slots;
+}
 
 type RestaurantWithDetails = Prisma.RestaurantGetPayload<{
   include: {
@@ -47,10 +92,14 @@ type RestaurantPageItem = RestaurantWithDetails & {
 };
 
 const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) => {
+  const router = useRouter();
   const [reserveOpenEventId, setReserveOpenEventId] = useState<string | null>(null);
   const [reservationDate, setReservationDate] = useState<string>('');
   const [reservationTime, setReservationTime] = useState<string>('');
   const [reservationFeedback, setReservationFeedback] = useState<string>('');
+  const [quickReserveDate, setQuickReserveDate] = useState<string>('');
+  const [quickReserveTime, setQuickReserveTime] = useState<string>('');
+  const [quickReserveEventId, setQuickReserveEventId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -64,15 +113,50 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   }
 
   const mainImage = restaurant.images.find(img => img.isPrimary) || restaurant.images[0];
+  const openingHours = useMemo(() => parseOpeningHours((restaurant as any).opening_hours || (restaurant as any).openingHours), [restaurant]);
 
   // Stelle sicher, dass Koordinaten numerisch sind, bevor sie an die Map übergeben werden
   const lat = restaurant.latitude != null ? Number(restaurant.latitude) : null;
   const lon = restaurant.longitude != null ? Number(restaurant.longitude) : null;
-  const confirmReservationAndJoin = async (eventId: string) => {
-    if (!reservationDate || !reservationTime) {
-      alert('Bitte Datum und Uhrzeit auswählen.');
-      return;
+  const [showCallModal, setShowCallModal] = useState(false);
+
+  const handleJoinClick = () => {
+    if (!quickReserveEventId) { alert('Bitte Termin wählen.'); return; }
+    if (!quickReserveDate || !quickReserveTime) { alert('Bitte Datum und Uhrzeit wählen.'); return; }
+    
+    // Prüfen, ob ein Datum gewählt wurde (kein unbestimmter Termin)
+    // und das Event ein unbestimmtes "Contact Table" Event ist
+    const event = (restaurant.events || []).find((e: any) => e.id === quickReserveEventId);
+    if (event && !event.datetime) {
+      setShowCallModal(true);
+    } else {
+      setReservationDate(quickReserveDate);
+      setReservationTime(quickReserveTime);
+      confirmReservationAndJoin(quickReserveEventId);
     }
+  };
+
+  const confirmCallAndJoin = () => {
+    setShowCallModal(false);
+    setReservationDate(quickReserveDate);
+    setReservationTime(quickReserveTime);
+    confirmReservationAndJoin(quickReserveEventId!);
+  };
+
+  const confirmReservationAndJoin = async (eventId: string) => {
+    if (!quickReserveDate || !quickReserveTime) {
+      // Fallback auf state values falls nicht direkt verfügbar, 
+      // aber eigentlich sollten quickReserve* genutzt werden
+      if (!reservationDate || !reservationTime) {
+         alert('Bitte Datum und Uhrzeit auswählen.');
+         return;
+      }
+    }
+    
+    // Use quickReserve values if available, otherwise fallback
+    const dateToUse = quickReserveDate || reservationDate;
+    const timeToUse = quickReserveTime || reservationTime;
+
     try {
       setIsConfirming(true);
       setError(null);
@@ -85,18 +169,37 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
         setIsConfirming(false);
         return;
       }
-      const notes = `Reservierung bestätigt für ${reservationDate} ${reservationTime}.` + (reservationFeedback ? ` Feedback: ${reservationFeedback}` : '');
+      const message = `Reservierung bestätigt für ${dateToUse} ${timeToUse}.` + (reservationFeedback ? ` Feedback: ${reservationFeedback}` : '');
       const { error: insertError } = await supabase
         .from('participations')
-        .insert({ contact_table_id: eventId, user_id: userId, status: 'CONFIRMED', notes } as any);
+        .insert({ 
+          id: uuidv4(), 
+          event_id: eventId, 
+          user_id: userId, 
+          message,
+          reservation_date: dateToUse,
+          updated_at: new Date().toISOString()
+        } as any);
       if (insertError) throw insertError;
       setSuccess('Reservierung bestätigt und Teilnahme erfasst.');
       setReserveOpenEventId(null);
       setReservationDate('');
       setReservationTime('');
       setReservationFeedback('');
+      
+      // Refresh data to show updated participant count immediately
+      router.replace(router.asPath);
     } catch (e: any) {
-      setError(e?.message || 'Es ist ein Fehler bei der Bestätigung aufgetreten.');
+      if (e?.code === '23505') {
+        setSuccess('Du nimmst bereits an diesem Termin teil.');
+        // Optional: clear form even if it was a duplicate, to reset UI
+        setReserveOpenEventId(null);
+        setReservationDate('');
+        setReservationTime('');
+        setReservationFeedback('');
+      } else {
+        setError(e?.message || 'Es ist ein Fehler bei der Bestätigung aufgetreten.');
+      }
     } finally {
       setIsConfirming(false);
     }
@@ -110,6 +213,185 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
     latitude: lat,
     longitude: lon,
   } as unknown as RestaurantPageItem;
+
+  const availabilityByDate = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const indefiniteEvents = (restaurant.events || []).filter((ev: any) => !ev.datetime);
+    
+    // 1. Specific date events
+    (restaurant.events || []).forEach((ev: any) => {
+      if (!ev?.datetime) return;
+      const d = new Date(ev.datetime);
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const da = String(d.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${da}`;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    // 2. Indefinite events (project onto next 90 days)
+    if (indefiniteEvents.length > 0) {
+      const today = new Date();
+      for (let i = 0; i < 90; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        const key = `${y}-${m}-${da}`;
+        counts[key] = (counts[key] || 0) + indefiniteEvents.length;
+      }
+    }
+
+    return counts;
+  }, [restaurant.events]);
+
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    const indefiniteEvents = (restaurant.events || []).filter((ev: any) => !ev.datetime);
+
+    // 1. Specific date events
+    (restaurant.events || []).forEach((ev: any) => {
+      if (!ev?.datetime) return;
+      const d = new Date(ev.datetime);
+      if (isNaN(d.getTime())) return;
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const da = String(d.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${da}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(ev);
+    });
+
+    // 2. Indefinite events (project onto next 90 days)
+    if (indefiniteEvents.length > 0) {
+      const today = new Date();
+      for (let i = 0; i < 90; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        const key = `${y}-${m}-${da}`;
+        if (!map[key]) map[key] = [];
+        // Avoid duplicates if reference is same, but spread is fine here
+        map[key].push(...indefiniteEvents);
+      }
+    }
+
+    return map;
+  }, [restaurant.events]);
+
+  const participantsByDate = useMemo(() => {
+    const data: Record<string, string[]> = {};
+    (restaurant.events || []).forEach((ev: any) => {
+      const eventDate = ev.datetime ? new Date(ev.datetime).toISOString().split('T')[0] : null;
+      if (eventDate && ev.datetime) {
+         const d = new Date(ev.datetime);
+         const hh = String(d.getHours()).padStart(2, '0');
+         const mm = String(d.getMinutes()).padStart(2, '0');
+         const time = `${hh}:${mm}`;
+         if (!data[eventDate]) data[eventDate] = [];
+         for(let i=0; i<(ev.participants?.length || 0); i++) {
+            data[eventDate].push(time);
+         }
+      } else {
+         (ev.participants || []).forEach((p: any) => {
+            const rDate = p.reservation_date || p.reservationDate;
+            if (rDate) {
+               let dStr = '';
+               if (typeof rDate === 'string') {
+                  dStr = rDate.substring(0, 10);
+               } else if (rDate instanceof Date) {
+                  dStr = rDate.toISOString().split('T')[0];
+               }
+               if (dStr) {
+                 if (!data[dStr]) data[dStr] = [];
+                 const msg = p.message || '';
+                 // Match HH:MM pattern
+                 const match = msg.match(/(\d{2}:\d{2})/);
+                 if (match) {
+                    data[dStr].push(match[1]);
+                 }
+               }
+            }
+         });
+      }
+    });
+    return data;
+  }, [restaurant.events]);
+
+  const quickTimeSuggestions = useMemo(() => {
+    if (!quickReserveDate) return ['17:00', '18:00', '19:00', '20:00'];
+    
+    if (openingHours) {
+      const d = new Date(quickReserveDate);
+      const times = getOpeningTimes(d, openingHours);
+      if (times.length > 0) {
+        const allSlots: string[] = [];
+        times.forEach(t => {
+          allSlots.push(...generateTimeSlots(t.start, t.end));
+        });
+        let slots = Array.from(new Set(allSlots)).sort();
+        
+        // Filter past times if selected date is today
+        const now = new Date();
+        const selectedDate = new Date(quickReserveDate);
+        // Reset hours to compare dates only
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const target = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+        
+        if (target.getTime() === today.getTime()) {
+           const currentHm = now.getHours() * 60 + now.getMinutes();
+           slots = slots.filter(s => {
+              const [h, m] = s.split(':').map(Number);
+              return (h * 60 + m) > currentHm;
+           });
+        }
+        return slots;
+      }
+    }
+    return ['17:00', '18:00', '19:00', '20:00'];
+  }, [quickReserveDate, openingHours]);
+
+  const allUpcomingEvents = useMemo(() => {
+    const list = (restaurant.events || []).filter((ev: any) => {
+      const d = new Date(ev?.datetime);
+      return ev?.datetime && !isNaN(d.getTime()) && d >= new Date();
+    });
+    return list.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+  }, [restaurant.events]);
+
+  // Auto-select event if "indefinite" table exists or matches time
+  useEffect(() => {
+    if (!quickReserveDate) return;
+    
+    // 1. Try to find exact match if time is set
+    if (quickReserveTime) {
+       const pool = eventsByDate[quickReserveDate] || [];
+       const exact = pool.find((ev: any) => {
+         if (!ev.datetime) return false;
+         const d = new Date(ev.datetime);
+         const hh = String(d.getHours()).padStart(2, '0');
+         const mm = String(d.getMinutes()).padStart(2, '0');
+         return `${hh}:${mm}` === quickReserveTime;
+       });
+       if (exact) {
+         setQuickReserveEventId(exact.id);
+         return;
+       }
+    }
+
+    // 2. Fallback to indefinite event (Contact Table)
+    // Only if no specific event is selected or if we want to default to indefinite
+    if (!quickReserveEventId) {
+      const indefinite = (restaurant.events || []).find((ev: any) => !ev.datetime);
+      if (indefinite) {
+        setQuickReserveEventId(indefinite.id);
+      }
+    }
+  }, [quickReserveDate, quickReserveTime, eventsByDate, restaurant.events, quickReserveEventId]);
 
   return (
     <PageLayout title={`${restaurant.name} - contact-tables`} description={restaurant.description || `Details über das Restaurant ${restaurant.name}`}>
@@ -182,96 +464,165 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
               )}
             </div>
 
-            {/* Events Section */}
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">Kommende contact-tables</h3>
-              {restaurant.events.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {restaurant.events.map(event => (
-                    <div key={event.id} className="border p-4 rounded-lg">
-                      <h4 className="font-bold text-lg">{event.title}</h4>
-                      <div className="flex items-center text-gray-600 my-2">
-                        <FiCalendar className="mr-2" />
-                        <span>{event.datetime ? new Date(event.datetime).toLocaleString('de-DE') : 'Aktiv (unbestimmte Zeit)'}</span>
+            <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+              <h3 className="text-xl font-semibold mb-4">Jetzt reservieren</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <ReservationCalendar 
+                    selectedDate={quickReserveDate || null} 
+                    availabilityByDate={availabilityByDate} 
+                    participantsByDate={participantsByDate}
+                    onSelect={(ymd) => { setQuickReserveDate(ymd); setQuickReserveEventId(null); }} 
+                    isDateDisabled={(d) => openingHours ? !isRestaurantOpen(d, openingHours) : false}
+                  />
+                  {quickReserveDate && participantsByDate[quickReserveDate] && participantsByDate[quickReserveDate].length > 0 && (
+                    <div className="mt-4 p-3 bg-neutral-50 rounded-lg border border-neutral-100">
+                      <h4 className="font-semibold text-sm mb-2 text-neutral-700">Bereits dabei am {new Date(quickReserveDate).toLocaleDateString('de-DE')}:</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(
+                          participantsByDate[quickReserveDate].reduce((acc, time) => {
+                            acc[time] = (acc[time] || 0) + 1;
+                            return acc;
+                          }, {} as Record<string, number>)
+                        ).sort().map(([time, count]) => (
+                          <span key={time} className="px-2 py-1 bg-white border border-neutral-200 rounded text-xs text-neutral-600 shadow-sm">
+                            {time} Uhr: <strong>{count}</strong> {count === 1 ? 'Person' : 'Personen'}
+                          </span>
+                        ))}
                       </div>
-                      <p className="text-sm text-gray-500 mb-3">{event.description}</p>
-                      <div className="flex items-center text-gray-600 mb-3">
-                        <FiUsers className="mr-2" />
-                        <span>{event.maxParticipants} Plätze verfügbar</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                        <a href={`/contact-tables/${event.id}`} className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition-colors text-center">Details anzeigen</a>
-                        <button
-                          onClick={() => {
-                            setReserveOpenEventId(prev => (prev === event.id ? null : event.id));
-                            if (event.datetime) {
-                              const d = new Date(event.datetime);
-                              const y = d.getFullYear();
-                              const m = String(d.getMonth() + 1).padStart(2, '0');
-                              const da = String(d.getDate()).padStart(2, '0');
-                              setReservationDate(`${y}-${m}-${da}`);
-                              const hh = String(d.getHours()).padStart(2, '0');
-                              const mm = String(d.getMinutes()).padStart(2, '0');
-                              setReservationTime(`${hh}:${mm}`);
-                            } else {
-                              setReservationDate('');
-                              setReservationTime('');
-                            }
-                          }}
-                          className="w-full border border-primary-300 text-primary-700 font-medium py-2 px-4 rounded-lg hover:bg-primary-50 transition-colors"
-                        >
-                          Reservieren
-                        </button>
-                      </div>
-                      {reserveOpenEventId === event.id && (
-                        <div className="mt-3 bg-white border border-neutral-200 rounded-lg p-3 text-sm text-neutral-700">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium text-neutral-700 mb-1">Datum</label>
-                              <ReservationCalendar selectedDate={reservationDate || null} availabilityByDate={{}} onSelect={(ymd) => setReservationDate(ymd)} />
-                            </div>
-                            <div className="flex flex-col">
-                              <label className="block text-sm font-medium text-neutral-700 mb-1">Uhrzeit</label>
-                              <input type="time" value={reservationTime} onChange={(e) => setReservationTime(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
-                            </div>
-                          </div>
-                          <div className="mt-3">
-                            <label className="block text-sm font-medium text-neutral-700 mb-1">Nachricht (optional)</label>
-                            <textarea value={reservationFeedback} onChange={(e) => setReservationFeedback(e.target.value)} className="w-full border border-neutral-300 rounded p-2" rows={3} />
-                          </div>
-                          <div className="mt-3 flex gap-2">
-                            {restaurant.phone && (
-                              <a href={`tel:${restaurant.phone}`} className="inline-flex items-center px-3 py-2 rounded bg-primary-50 text-primary-700 hover:bg-primary-100">
-                                <FiPhone className="mr-2" />
-                                Anrufen
-                              </a>
-                            )}
-                            {(restaurant.website || (restaurant as any).booking_url) && (
-                              <a href={restaurant.website || (restaurant as any).booking_url || undefined} target="_blank" rel="noopener noreferrer" className="inline-flex items-center px-3 py-2 rounded bg-neutral-100 text-neutral-800 hover:bg-neutral-200">
-                                <FiGlobe className="mr-2" />
-                                Zur Webseite
-                              </a>
-                            )}
-                            <button onClick={() => confirmReservationAndJoin(event.id)} disabled={isConfirming} className="px-3 py-2 rounded bg-primary-600 text-white">
-                              {isConfirming ? 'Bestätige…' : 'Bestätigen'}
-                            </button>
-                          </div>
-                          {error && <p className="mt-2 text-red-600">{error}</p>}
-                          {success && <p className="mt-2 text-green-600">{success}</p>}
-                        </div>
-                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <p className="text-gray-500">Derzeit keine contact-tables geplant.</p>
-              )}
+                <div className="flex flex-col">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Uhrzeit</label>
+                  <input type="time" value={quickReserveTime} onChange={(e) => setQuickReserveTime(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {quickTimeSuggestions.map((t) => (
+                      <button key={t} type="button" onClick={() => setQuickReserveTime(t)} className={`px-2 py-1 rounded border text-xs ${quickReserveTime===t ? 'bg-primary-600 text-white border-primary-600' : 'border-neutral-300 text-neutral-700 hover:bg-neutral-100'}`}>{t}</button>
+                    ))}
+                  </div>
+                  {(!quickReserveEventId || (restaurant.events.find(e => e.id === quickReserveEventId)?.datetime)) && (
+                    <>
+                      <label className="block text-sm font-medium text-neutral-700 mb-2 mt-4">Termin</label>
+                      <select
+                        value={quickReserveEventId || ''}
+                        onChange={(e) => {
+                          const id = e.target.value || null;
+                          setQuickReserveEventId(id);
+                          const pool = (eventsByDate[quickReserveDate] || allUpcomingEvents);
+                          const ev = pool.find((x: any) => x.id === id);
+                          if (ev && ev.datetime) {
+                            const d = new Date(ev.datetime);
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const da = String(d.getDate()).padStart(2, '0');
+                            setQuickReserveDate(`${y}-${m}-${da}`);
+                            const hh = String(d.getHours()).padStart(2, '0');
+                            const mm = String(d.getMinutes()).padStart(2, '0');
+                            setQuickReserveTime(`${hh}:${mm}`);
+                          }
+                        }}
+                        className="border border-neutral-300 rounded px-3 py-2"
+                      >
+                        <option value="">Bitte Termin wählen</option>
+                        {((eventsByDate[quickReserveDate] || []).length > 0 ? eventsByDate[quickReserveDate] : allUpcomingEvents).map((ev: any) => {
+                          let label = ev.title;
+                          if (ev.datetime) {
+                            const d = new Date(ev.datetime);
+                            const dd = d.toLocaleDateString('de-DE');
+                            const hh = String(d.getHours()).padStart(2, '0');
+                            const mm = String(d.getMinutes()).padStart(2, '0');
+                            label = `${dd} · ${hh}:${mm} · ${ev.title}`;
+                          }
+                          return <option key={ev.id} value={ev.id}>{label}</option>;
+                        })}
+                      </select>
+                    </>
+                  )}
+                  <button
+                    onClick={handleJoinClick}
+                    className="mt-3 px-4 py-2 rounded bg-primary-600 text-white"
+                  >Jetzt teilnehmen</button>
+                  {((eventsByDate[quickReserveDate] || []).length === 0 && allUpcomingEvents.length === 0) && (
+                    <p className="mt-2 text-sm text-neutral-600">Keine kommenden Termine verfügbar. Bitte später erneut prüfen.</p>
+                  )}
+                </div>
+              </div>
+              {error && <p className="mt-2 text-red-600">{error}</p>}
+              {success && <p className="mt-2 text-green-600">{success}</p>}
             </div>
+
+            {/* Modal for Call Confirmation */}
+            {showCallModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                  <h3 className="text-xl font-bold mb-4 text-gray-800">Bitte reservieren Sie telefonisch</h3>
+                  <p className="text-gray-600 mb-6">
+                    Für diesen Zeitraum ist eine telefonische Reservierung beim Restaurant erforderlich. 
+                    Bitte rufen Sie an, um Ihren Tisch zu bestätigen.
+                  </p>
+                  
+                  {restaurant.phone && (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg flex items-center justify-center">
+                      <FiPhone className="text-primary-600 mr-2 text-xl" />
+                      <a href={`tel:${restaurant.phone}`} className="text-xl font-bold text-primary-700 hover:text-primary-800">
+                        {restaurant.phone}
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={confirmCallAndJoin}
+                      className="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors"
+                    >
+                      Ich habe angerufen & reserviert
+                    </button>
+                    <button
+                      onClick={() => setShowCallModal(false)}
+                      className="w-full bg-white border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="space-y-6">
+              <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h3 className="text-xl font-semibold mb-4">contact-tables</h3>
+                {restaurant.events.length > 0 ? (
+                  <div className="space-y-4">
+                    {restaurant.events.map(event => (
+                      <div key={event.id} className="border p-4 rounded-lg">
+                        <h4 className="font-bold text-lg">{event.title}</h4>
+                        <div className="flex items-center text-gray-600 my-2">
+                          <FiCalendar className="mr-2" />
+                          <span>
+                            {(event as any).paused 
+                              ? <span className="text-red-600 font-medium">Betriebsferien</span> 
+                              : (event.datetime ? new Date(event.datetime).toLocaleString('de-DE') : 'Aktiv')
+                            }
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-3">{event.description}</p>
+                        <div className="flex items-center text-gray-600">
+                          <FiUsers className="mr-2" />
+                          <span>{event.maxParticipants} Plätze verfügbar</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500">Derzeit keine contact-tables geplant.</p>
+                )}
+              </div>
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <h3 className="text-xl font-semibold mb-4">Kontakt & Adresse</h3>
                 <div className="space-y-3 text-gray-700">
@@ -319,7 +670,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     restaurant = await prisma.restaurant.findFirst({
       where: { OR: [{ slug }, { id: slug }], isActive: true, contractStatus: 'ACTIVE' },
       include: {
-        events: true,
+        events: {
+          include: {
+            participants: true,
+          },
+        },
         images: true,
         profile: true,
         ratings: {
@@ -364,7 +719,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       // Minimaldetails aus Supabase
       const { data: ct } = await supabase
         .from('contact_tables')
-        .select('id,title,description,datetime,max_participants')
+        .select('id,title,description,datetime,max_participants, participations(id, reservation_date, message)')
         .eq('restaurant_id', supRestaurant.id)
         .eq('is_public', true);
       const { data: imgs } = await supabase
@@ -378,7 +733,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         address: supRestaurant.address,
         city: supRestaurant.city,
         postal_code: supRestaurant.postal_code,
+        phone: supRestaurant.phone,
+        email: supRestaurant.email,
+        website: supRestaurant.website,
         description: supRestaurant.description || '',
+        opening_hours: supRestaurant.opening_hours || null,
         latitude: supRestaurant.latitude || null,
         longitude: supRestaurant.longitude || null,
         avg_rating: 0,
@@ -392,6 +751,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
           description: t.description,
           datetime: t.datetime || null,
           maxParticipants: t.max_participants ?? 0,
+          participants: t.participations || [],
         })),
       } as any;
 
@@ -441,7 +801,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     const { data: ct } = supRestaurantId
       ? await supabase
           .from('contact_tables')
-          .select('id,title,description,datetime,max_participants')
+          .select('id,title,description,datetime,max_participants, participations(id, reservation_date, message)')
           .eq('restaurant_id', supRestaurantId)
           .eq('is_public', true)
       : { data: [] as any[] };
@@ -451,6 +811,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       description: t.description,
       datetime: t.datetime || null,
       maxParticipants: t.max_participants ?? 0,
+      participants: t.participations || [],
     }));
     const prismaEvents = (restaurantWithDetails.events || []).map((e: any) => ({
       id: e.id,
@@ -458,6 +819,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       description: e.description,
       datetime: e.datetime || null,
       maxParticipants: e.maxParticipants ?? e.max_participants ?? 0,
+      participants: e.participants || [],
     }));
     restaurantWithDetails.events = [...prismaEvents, ...mapped];
   } catch (_) {

@@ -4,6 +4,8 @@ interface ReservationCalendarProps {
   selectedDate?: string | null;
   onSelect: (dateISO: string) => void;
   availabilityByDate?: Record<string, number>; // key: YYYY-MM-DD, value: count
+  participantsByDate?: Record<string, string[]>; // key: YYYY-MM-DD, value: list of times
+  isDateDisabled?: (date: Date) => boolean;
 }
 
 function startOfMonth(date: Date) {
@@ -36,7 +38,7 @@ function isPast(date: Date) {
   return d < today;
 }
 
-export default function ReservationCalendar({ selectedDate, onSelect, availabilityByDate = {} }: ReservationCalendarProps) {
+export default function ReservationCalendar({ selectedDate, onSelect, availabilityByDate = {}, participantsByDate = {}, isDateDisabled }: ReservationCalendarProps) {
   const initialMonth = selectedDate ? new Date(selectedDate) : new Date();
   const [month, setMonth] = useState<Date>(new Date(initialMonth.getFullYear(), initialMonth.getMonth(), 1));
 
@@ -106,12 +108,13 @@ export default function ReservationCalendar({ selectedDate, onSelect, availabili
         {weeks.map((week, wi) => (
           <div key={wi} className="contents">
             {week.map((d, di) => {
-              const inMonth = d.getMonth() === month.getMonth();
               const ymd = toYMD(d);
-              const hasSlots = inMonth && (availabilityByDate[ymd] ?? 0) > 0;
-              const isDisabled = !inMonth || isPast(d);
+              const hasSlots = (availabilityByDate[ymd] || 0) > 0;
+              const inMonth = d.getMonth() === month.getMonth();
+              const isDisabled = !inMonth || isPast(d) || (isDateDisabled ? isDateDisabled(d) : false);
               const isSelected = selectedDate ? toYMD(new Date(selectedDate)) === ymd : false;
-              const base = 'rounded-md p-2 text-sm';
+
+              const base = 'rounded-md p-2 text-sm relative flex flex-col items-center justify-center min-h-[60px]';
               const color = isSelected
                 ? 'bg-primary-600 text-white'
                 : hasSlots
@@ -130,7 +133,20 @@ export default function ReservationCalendar({ selectedDate, onSelect, availabili
                 >
                   {d.getDate()}
                   {hasSlots && !isSelected && (
-                    <span className="block text-[10px] mt-1">{availabilityByDate[ymd]} verfügbar</span>
+                    <div className="flex flex-col items-center">
+                      <span className="block text-[10px] mt-1">{availabilityByDate[ymd]} verfügbar</span>
+                      {(participantsByDate[ymd] || []).length > 0 && (
+                        <div className="flex flex-col items-center">
+                          <span className="block text-[10px] font-bold text-green-700">{(participantsByDate[ymd] || []).length} dabei</span>
+                          <div className="flex flex-wrap justify-center gap-0.5 max-w-[40px]">
+                            {(participantsByDate[ymd] || []).slice(0, 3).map((t, ti) => (
+                               <span key={ti} className="text-[8px] text-green-800 leading-none">{t}</span>
+                            ))}
+                            {(participantsByDate[ymd] || []).length > 3 && <span className="text-[8px] text-green-800 leading-none">...</span>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </button>
               );

@@ -23,7 +23,6 @@ export default function Header() {
 
   const navItems = [
     { href: '/restaurants', label: 'Restaurants', icon: FiMapPin },
-    { href: '/contact-tables', label: 'contact-tables', icon: FiUsers },
     ...(isRestaurantOwner ? [{ href: '/restaurant/dashboard', label: 'Mein Restaurant', icon: FiCoffee }] : []),
     { href: '/about', label: 'Über uns', icon: FiInfo },
     { href: '/faq', label: 'Häufige Fragen', icon: FiHelpCircle },

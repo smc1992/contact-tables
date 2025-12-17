@@ -117,6 +117,7 @@ model EventParticipant {
   userId    String   @map("user_id") @db.Uuid
   isHost    Boolean  @default(false) @map("is_host")
   message   String?
+  reservationDate DateTime? @map("reservation_date") @db.Date
   joinedAt  DateTime @default(now()) @map("joined_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

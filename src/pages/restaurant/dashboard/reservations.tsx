@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import RestaurantSidebar from '@/components/restaurant/RestaurantSidebar';
 import { type Database } from '@/types/supabase';
-import { FiCheck, FiX, FiEdit, FiAlertCircle, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiCheck, FiX, FiEdit, FiAlertCircle, FiCheckCircle, FiInfo, FiUsers } from 'react-icons/fi';
 import { useNotification } from '@/contexts/NotificationContext';
 import { motion } from 'framer-motion';
 
@@ -61,6 +61,7 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
   const { addNotification, handleError } = useNotification();
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [addingParticipantToTable, setAddingParticipantToTable] = useState<string | null>(null);
   const [participantEmail, setParticipantEmail] = useState('');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -88,6 +89,15 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
     time: '',
     maxParticipants: 0,
     status: 'OPEN' as ReservationStatus
+  });
+  const [createForm, setCreateForm] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    maxParticipants: 2,
+    status: 'OPEN' as ReservationStatus,
+    indefinite: false
   });
   
   const supabase = createBrowserClient(
@@ -206,8 +216,8 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
         // 3. Alle Teilnehmer in einer einzigen Batch-Anfrage laden
         const idCol = participationIdColumn;
         const selectColumns = hasStatusColumn
-          ? `user_id, ${idCol}, status, profiles!inner(first_name, last_name)`
-          : `user_id, ${idCol}, profiles!inner(first_name, last_name)`;
+          ? `user_id, ${idCol}, status, reservation_date, message, profiles!inner(first_name, last_name, email)`
+          : `user_id, ${idCol}, reservation_date, message, profiles!inner(first_name, last_name, email)`;
         const { data: allParticipations, error: participationsError } = await supabase
           .from('participations')
           .select(selectColumns as any)
@@ -514,6 +524,72 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  const handleCreateInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type, checked } = e.target as any;
+    setCreateForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const validateCreateForm = () => {
+    const errors: Record<string, string> = {};
+    if (!createForm.title.trim()) errors.title = 'Titel ist erforderlich';
+    if (createForm.maxParticipants <= 0) errors.maxParticipants = 'Anzahl der Teilnehmer muss größer als 0 sein';
+    if (!createForm.indefinite) {
+      if (!createForm.date) errors.date = 'Datum ist erforderlich';
+      if (!createForm.time) errors.time = 'Uhrzeit ist erforderlich';
+      if (createForm.date && createForm.time) {
+        const dt = new Date(`${createForm.date}T${createForm.time}:00`);
+        if (dt < new Date()) errors.time = 'Datum/Uhrzeit dürfen nicht in der Vergangenheit liegen';
+      }
+    }
+    return errors;
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const validationErrors = validateCreateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      const errorMessages = Object.values(validationErrors).join('\n');
+      addNotification('error', errorMessages, 8000);
+      return;
+    }
+    setLoading(true);
+    try {
+      const datetime = createForm.indefinite ? null : new Date(`${createForm.date}T${createForm.time}:00`).toISOString();
+      const payload = {
+        title: createForm.title.trim(),
+        description: createForm.description.trim(),
+        datetime,
+        end_datetime: null,
+        max_participants: createForm.maxParticipants,
+        price: 0,
+        restaurant_id: restaurant.id,
+        status: createForm.status,
+        is_public: true,
+        paused: false,
+        is_indefinite: !!createForm.indefinite,
+        pause_start: null,
+        pause_end: null
+      };
+      const res = await fetch('/api/contact-tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || 'Fehler beim Erstellen des Kontakttisches');
+      }
+      await loadReservationsWithParticipants();
+      addNotification('success', 'Contact‑Table erfolgreich erstellt', 5000);
+      setShowCreateModal(false);
+      setCreateForm({ title: '', description: '', date: '', time: '', maxParticipants: 2, status: 'OPEN', indefinite: false });
+    } catch (err: any) {
+      handleError(err, 'Fehler beim Erstellen des Contact‑Tables');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Funktion zum Ändern des Status eines Teilnehmers
   const handleParticipantStatusChange = async (tableId: string, userId: string, newStatus: string) => {
@@ -706,13 +782,21 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
           <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold text-gray-900">Ihre Reservierungen</h1>
-              <button 
-                onClick={() => loadReservationsWithParticipants()}
-                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-                disabled={loading}
-              >
-                Aktualisieren
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => loadReservationsWithParticipants()}
+                  className="px-4 py-2 bg-neutral-200 text-neutral-800 rounded-md hover:bg-neutral-300 transition-colors"
+                  disabled={loading}
+                >
+                  Aktualisieren
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                >
+                  Neuen Contact‑Table erstellen
+                </button>
+              </div>
             </div>
             
             {/* Benachrichtigungen werden jetzt über den NotificationContext angezeigt */}
@@ -726,7 +810,119 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
               <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
                 <FiInfo className="mx-auto text-gray-400 mb-4" size={48} />
                 <p className="text-gray-500 text-lg font-medium">Sie haben noch keine Reservierungen.</p>
-        <p className="text-gray-400 mt-2">Erstellen Sie Contact-tables, damit Kunden Reservierungen vornehmen können.</p>
+                <p className="text-gray-400 mt-2">Erstellen Sie Contact-tables, damit Kunden Reservierungen vornehmen können.</p>
+              </div>
+            )}
+
+            {!loading && reservations.length > 0 && (
+              <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200 rounded-lg">
+                <ul className="divide-y divide-gray-200">
+                  {reservations.map((reservation) => (
+                    <li key={reservation.id} className="block hover:bg-gray-50 transition-colors">
+                      <div className="px-4 py-4 sm:px-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-primary-600 truncate">{reservation.title}</p>
+                          <div className="ml-2 flex-shrink-0 flex">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(reservation.status || 'OPEN')}`}>
+                              {getStatusText(reservation.status || 'OPEN')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="sm:flex sm:justify-between">
+                          <div className="sm:flex sm:space-x-6">
+                            <p className="flex items-center text-sm text-gray-500 mb-1 sm:mb-0">
+                              <FiCheckCircle className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
+                              {reservation.datetime ? new Date(reservation.datetime).toLocaleString('de-DE') : 'Zeit offen (Flexibel)'}
+                            </p>
+                            <p className="flex items-center text-sm text-gray-500">
+                              <FiUsers className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
+                              {(reservation.participations?.length || 0)} / {reservation.max_participants} Teilnehmer
+                            </p>
+                          </div>
+                          <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                            <button onClick={() => setEditingReservation(reservation)} className="text-primary-600 hover:text-primary-900 font-medium">
+                              Bearbeiten
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Participants List */}
+                        {reservation.participations && reservation.participations.length > 0 && (
+                          <div className="mt-4 border-t border-gray-100 pt-3">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Teilnehmer</h4>
+                            <ul className="space-y-2">
+                              {reservation.participations.map((p: any) => {
+                                 // Extract time from message if available
+                                 const timeMatch = p.message?.match(/(\d{2}:\d{2})/);
+                                 const timeStr = timeMatch ? timeMatch[1] : '';
+                                 const dateStr = p.reservation_date ? new Date(p.reservation_date).toLocaleDateString('de-DE') : '';
+                                 
+                                 return (
+                                  <li key={p.user_id} className="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-gray-50 p-2 rounded border border-gray-100">
+                                    <div className="flex items-center mb-2 sm:mb-0">
+                                      <span className="font-medium text-gray-900 mr-2">{p.profiles?.first_name} {p.profiles?.last_name}</span>
+                                      {p.profiles?.email && <span className="text-gray-500 text-xs hidden sm:inline">({p.profiles.email})</span>}
+                                      {(dateStr || timeStr) && (
+                                        <span className="ml-2 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs border border-blue-100">
+                                          {dateStr} {timeStr && `• ${timeStr}`}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center space-x-2 text-xs">
+                                      {hasStatusColumn && (
+                                        <select 
+                                          value={p.status || 'CONFIRMED'} 
+                                          onChange={(e) => handleParticipantStatusChange(reservation.id, p.user_id, e.target.value)}
+                                          className="border-gray-300 rounded text-xs py-1 px-2"
+                                        >
+                                          <option value="CONFIRMED">Bestätigt</option>
+                                          <option value="CANCELLED">Storniert</option>
+                                          <option value="NOSHOW">Nicht erschienen</option>
+                                        </select>
+                                      )}
+                                      <button onClick={() => handleRemoveParticipant(reservation.id, p.user_id)} className="text-red-600 hover:text-red-800">
+                                        Entfernen
+                                      </button>
+                                    </div>
+                                  </li>
+                                 );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                   <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 bg-gray-50">
+                      <div className="flex-1 flex justify-between sm:hidden">
+                        <button onClick={goToPreviousPage} disabled={currentPage === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">Zurück</button>
+                        <button onClick={goToNextPage} disabled={currentPage === totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">Weiter</button>
+                      </div>
+                      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            Seite <span className="font-medium">{currentPage}</span> von <span className="font-medium">{totalPages}</span>
+                          </p>
+                        </div>
+                        <div>
+                          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button onClick={goToPreviousPage} disabled={currentPage === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                              <span className="sr-only">Zurück</span>
+                              ←
+                            </button>
+                            <button onClick={goToNextPage} disabled={currentPage === totalPages} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                              <span className="sr-only">Weiter</span>
+                              →
+                            </button>
+                          </nav>
+                        </div>
+                      </div>
+                   </div>
+                )}
               </div>
             )}
           </div>
@@ -845,6 +1041,108 @@ const ReservationsPage = ({ restaurant, initialReservations, totalCount: initial
                   >
                     {loading ? 'Wird gespeichert...' : 'Speichern'}
                   </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Erstellungs-Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Neuen Contact‑Table erstellen</h2>
+              <form onSubmit={handleCreateSubmit}>
+                <div className="mb-4">
+                  <label htmlFor="create_title" className="block text-sm font-medium text-gray-700 mb-1">Titel</label>
+                  <input
+                    type="text"
+                    id="create_title"
+                    name="title"
+                    value={createForm.title}
+                    onChange={handleCreateInputChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  />
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="create_description" className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                  <textarea
+                    id="create_description"
+                    name="description"
+                    value={createForm.description}
+                    onChange={handleCreateInputChange}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  ></textarea>
+                </div>
+                <div className="flex items-center mb-3">
+                  <input id="create_indefinite" name="indefinite" type="checkbox" checked={createForm.indefinite} onChange={handleCreateInputChange} className="mr-2" />
+                  <label htmlFor="create_indefinite" className="text-sm text-gray-700">Zeit offen (kein festes Datum/Uhrzeit)</label>
+                </div>
+                {!createForm.indefinite && (
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label htmlFor="create_date" className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                      <input
+                        type="date"
+                        id="create_date"
+                        name="date"
+                        value={createForm.date}
+                        onChange={handleCreateInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="create_time" className="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                      <input
+                        type="time"
+                        id="create_time"
+                        name="time"
+                        value={createForm.time}
+                        onChange={handleCreateInputChange}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label htmlFor="create_maxParticipants" className="block text-sm font-medium text-gray-700 mb-1">Max. Teilnehmer</label>
+                    <input
+                      type="number"
+                      id="create_maxParticipants"
+                      name="maxParticipants"
+                      value={createForm.maxParticipants}
+                      onChange={handleCreateInputChange}
+                      min="2"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="create_status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      id="create_status"
+                      name="status"
+                      value={createForm.status}
+                      onChange={handleCreateInputChange}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value="OPEN">Offen</option>
+                      <option value="CONFIRMED">Bestätigt</option>
+                      <option value="CANCELLED">Abgesagt</option>
+                      <option value="COMPLETED">Abgeschlossen</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button type="button" onClick={() => setShowCreateModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">Abbrechen</button>
+                  <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors" disabled={loading}>{loading ? 'Wird erstellt...' : 'Erstellen'}</button>
                 </div>
               </form>
             </div>

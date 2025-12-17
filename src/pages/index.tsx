@@ -323,14 +323,7 @@ export default function Home({ memberCount, restaurantCount }: { memberCount: nu
                 >
                   <FiSearch className="mr-3 text-xl" /> Restaurant finden
                 </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => router.push('/contact-tables')}
-                  className="bg-gray-200 text-gray-800 font-medium py-4 px-10 rounded-full shadow-lg transition duration-300 flex items-center justify-center text-lg"
-                >
-                  <FiUsers className="mr-3 text-xl" /> contact-table finden
-                </motion.button>
+
               </div>
             </motion.div>
           </div>

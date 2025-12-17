@@ -66,6 +66,21 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
   const [isConfirming, setIsConfirming] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const timeSuggestions = useMemo(() => {
+    const base: string[] = [];
+    const dt = contactTable?.datetime ? new Date(contactTable.datetime) : null;
+    if (dt && !isNaN(dt.getTime())) {
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+      base.push(`${hh}:${mm}`);
+    }
+    // typische Abendzeiten ergänzen
+    ['17:30', '18:00', '18:30', '19:00', '19:30', '20:00'].forEach(t => {
+      if (!base.includes(t)) base.push(t);
+    });
+    return base;
+  }, [contactTable?.datetime]);
+
   const parseDate = (value?: string | null) => {
     if (!value) return null;
     const d = new Date(value);
@@ -316,8 +331,8 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
                       {reservationStep === 'select_datetime' && (
                         <div className="space-y-3">
                           <p className="text-neutral-800 font-medium">Datum und Uhrzeit auswählen</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="md:col-span-2">
                               <ReservationCalendar
                                 selectedDate={reservationDate || null}
                                 availabilityByDate={availabilityByDate}
@@ -327,9 +342,21 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
                             <div className="flex flex-col">
                               <label className="block text-sm font-medium text-neutral-700 mb-1">Uhrzeit</label>
                               <input type="time" value={reservationTime} onChange={(e) => setReservationTime(e.target.value)} className="border border-neutral-300 rounded px-3 py-2" />
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {timeSuggestions.map((t) => (
+                                  <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setReservationTime(t)}
+                                    className={`px-2 py-1 rounded border text-xs ${reservationTime===t ? 'bg-primary-600 text-white border-primary-600' : 'border-neutral-300 text-neutral-700 hover:bg-neutral-100'}`}
+                                  >
+                                    {t}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap items-center">
                             <button onClick={() => setShowReserve(false)} className="px-3 py-2 rounded border border-neutral-300">Abbrechen</button>
                             <button
                               onClick={() => {
@@ -339,9 +366,21 @@ export default function ContactTableDetail({ initialContactTable }: ContactTable
                                 }
                                 setReservationStep('contact');
                               }}
-                              className="px-3 py-2 rounded bg-primary-600 text-white"
+                              className="px-3 py-2 rounded bg-neutral-800 text-white"
                             >
-                              Weiter
+                              Telefonisch/Web bestätigen
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!reservationDate || !reservationTime) {
+                                  alert('Bitte Datum und Uhrzeit auswählen.');
+                                  return;
+                                }
+                                confirmReservationAndJoin();
+                              }}
+                              className="px-4 py-2 rounded bg-primary-600 text-white font-medium"
+                            >
+                              Jetzt teilnehmen
                             </button>
                           </div>
                         </div>

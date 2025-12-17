@@ -203,12 +203,12 @@ export default function AboutPage() {
                     transition={{ delay: index * 0.2, duration: 0.6 }}
                     className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
                   >
-                    <div className="relative w-full h-80">
+                    <div className="relative w-full aspect-[3/4] max-h-96 bg-neutral-100 flex items-center justify-center">
                       {member.image ? (
                         <img 
                           src={member.image} 
                           alt={member.name} 
-                          className="w-full h-full object-cover object-top"
+                          className="max-w-full max-h-full object-contain"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-neutral-200">
@@ -400,10 +400,7 @@ export default function AboutPage() {
                 <FiMapPin />
                 <span>Restaurants entdecken</span>
               </Link>
-              <Link href="/contact-tables" className="bg-white hover:bg-neutral-100 text-secondary-800 px-8 py-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
-                <FiUsers />
-                <span>Kontakttische finden</span>
-              </Link>
+
             </div>
           </div>
         </div>
