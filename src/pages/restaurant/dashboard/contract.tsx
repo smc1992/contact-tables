@@ -43,8 +43,17 @@ export default function ContractDashboard({ restaurant, contracts }: ContractPag
     setMessage(null);
 
     try {
-      // Nutze die neue Stored Function für typsicheres Update
-      const { error } = await supabase.rpc('update_contract_signature', {
+      // Typsichere Wrapper-Funktion für den RPC-Call
+      const updateContractSignature = async (params: {
+        contract_id: string;
+        restaurant_id: string;
+        restaurant_name: string;
+      }) => {
+        const result = await (supabase.rpc as any)('update_contract_signature', params);
+        return result;
+      };
+
+      const { error } = await updateContractSignature({
         contract_id: selectedContract.id,
         restaurant_id: restaurant.id,
         restaurant_name: restaurant.name
