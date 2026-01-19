@@ -783,51 +783,47 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         .select('*')
         .eq('id', slugParam)
         .single();
-      supRestaurant = rById || null;
-      // Falls nicht gefunden: per slug
-      if (!supRestaurant) {
+      restaurant = rById || null;
+
+      if (!restaurant) {
         const { data: rBySlug } = await supabase
           .from('restaurants')
           .select('*')
           .eq('slug', slugParam)
           .single();
-        supRestaurant = rBySlug || null;
+        restaurant = rBySlug || null;
       }
-      if (!supRestaurant) {
+
+      if (!restaurant) {
         return { notFound: true };
       }
-      if (typeof slugParam === 'string' && slugParam === supRestaurant.id && supRestaurant.slug) {
-        return { redirect: { destination: `/restaurants/${supRestaurant.slug}`, permanent: true } };
+
+      if (typeof slugParam === 'string' && slugParam === restaurant.id && restaurant.slug) {
+        return { redirect: { destination: `/restaurants/${restaurant.slug}`, permanent: true } };
       }
+
       // Minimaldetails aus Supabase
       const { data: ct } = await supabase
         .from('contact_tables')
-        .select('id,title,description,datetime,max_participants, participations(id, reservation_date, message)')
-        .eq('restaurant_id', supRestaurant.id)
+        .select('id,title,description,datetime,max_participants, participations(id, reservation_date, message, profile:profiles(first_name, name))')
+        .eq('restaurant_id', restaurant.id)
         .eq('is_public', true);
+
       const { data: imgs } = await supabase
         .from('restaurant_images')
-        .select('url,is_primary')
-        .eq('restaurant_id', supRestaurant.id);
+        .select('*')
+        .eq('restaurant_id', restaurant.id);
 
-      const restaurantWithDetails = {
-        id: supRestaurant.id,
-        name: supRestaurant.name,
-        address: supRestaurant.address,
-        city: supRestaurant.city,
-        postal_code: supRestaurant.postal_code,
-        phone: supRestaurant.phone,
-        email: supRestaurant.email,
-        website: supRestaurant.website,
-        description: supRestaurant.description || '',
-        opening_hours: supRestaurant.opening_hours || null,
-        latitude: supRestaurant.latitude || null,
-        longitude: supRestaurant.longitude || null,
-        avg_rating: 0,
-        total_ratings: 0,
-        profile: null,
-        ratings: [],
-        images: (imgs || []).map((x: any) => ({ url: x.url, isPrimary: x.is_primary })) as any,
+      const { data: ratings } = await supabase
+        .from('ratings')
+        .select('*, profile:profiles(*)')
+        .eq('restaurant_id', restaurant.id);
+
+      // Construct object compatible with Prisma shape
+      restaurant = {
+        ...restaurant,
+        images: imgs || [],
+        ratings: ratings || [],
         events: (ct || []).map((t: any) => ({
           id: t.id,
           title: t.title,
@@ -836,109 +832,74 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
           maxParticipants: t.max_participants ?? 0,
           participants: t.participations || [],
         })),
-      } as any;
-
-      return {
-        props: {
-          restaurant: JSON.parse(JSON.stringify(restaurantWithDetails)),
-        },
       };
-    } catch (_) {
-      return { notFound: true };
     }
-  }
-
-  // Calculate average rating and total ratings
-  const total_ratings = restaurant.ratings.length;
-  const avg_rating = total_ratings > 0
-    ? (restaurant.ratings as any[]).reduce((acc: number, review: any) => acc + Number(review.value ?? 0), 0) / total_ratings
-    : 0;
-
-  const restaurantWithDetails: any = {
-    ...restaurant,
-    avg_rating: parseFloat(avg_rating.toFixed(1)),
-    total_ratings,
-  };
-
-  // Ergänze Contact-tables aus Supabase (öffentlich + zum Restaurant gehörig)
-  try {
-    const supabase = createServerSupabase(context);
-    let supRestaurantId: string | null = null;
-    if (restaurant.slug) {
-      const { data: r1 } = await supabase
-        .from('restaurants')
-        .select('id')
-        .eq('slug', restaurant.slug)
-        .single();
-      supRestaurantId = (r1 as any)?.id ?? null;
-    }
-    if (!supRestaurantId && restaurant.name) {
-      const { data: r2 } = await supabase
-        .from('restaurants')
-        .select('id')
-        .eq('name', restaurant.name)
-        .single();
-      supRestaurantId = (r2 as any)?.id ?? null;
-    }
-
-    const { data: ct } = supRestaurantId
-      ? await supabase
-          .from('contact_tables')
-          .select('id,title,description,datetime,max_participants, participations(id, reservation_date, message)')
-          .eq('restaurant_id', supRestaurantId)
-          .eq('is_public', true)
-      : { data: [] as any[] };
-    const mapped = (ct || []).map((t: any) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      datetime: t.datetime || null,
-      maxParticipants: t.max_participants ?? 0,
-      participants: t.participations || [],
-    }));
-    const prismaEvents = (restaurantWithDetails.events || []).map((e: any) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      datetime: e.datetime || null,
-      maxParticipants: e.maxParticipants ?? e.max_participants ?? 0,
-      participants: e.participants || [],
-    }));
-    restaurantWithDetails.events = [...prismaEvents, ...mapped];
   } catch (_) {
-    // still fine; zeige Prisma-Events
+    return { notFound: true };
   }
 
   // Fallback: Geokodierung über OpenStreetMap/Nominatim, falls keine Koordinaten vorhanden
-  if ((!restaurantWithDetails.latitude || !restaurantWithDetails.longitude) && (restaurant.address || restaurant.city || (restaurant as any).postalCode)) {
+  if ((!restaurant.latitude || !restaurant.longitude) && (restaurant.address || restaurant.city || (restaurant as any).postal_code)) {
     try {
-      const queryAddress = [restaurant.address, (restaurant as any).postalCode, restaurant.city].filter(Boolean).join(', ');
+      const queryAddress = [restaurant.address, (restaurant as any).postal_code, restaurant.city].filter(Boolean).join(', ');
       const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
       if (geoRes.ok) {
         const geoResults = await geoRes.json();
         if (Array.isArray(geoResults) && geoResults.length > 0) {
           const { lat, lon } = geoResults[0];
-          restaurantWithDetails.latitude = Number(lat);
-          restaurantWithDetails.longitude = Number(lon);
+          restaurant.latitude = Number(lat);
+          restaurant.longitude = Number(lon);
         }
       }
     } catch (e) {
-      // Bei Fehlern einfach ohne Koordinaten weiter – die Karte bleibt dann ausgeblendet
       console.warn('Geocoding fehlgeschlagen:', e);
     }
   }
 
-  // Sicherstellen, dass vorhandene Koordinaten als Zahlen vorliegen (z. B. Prisma Decimal/String)
-  if (restaurantWithDetails.latitude != null) {
-    restaurantWithDetails.latitude = Number(restaurantWithDetails.latitude as any);
-  }
-  if (restaurantWithDetails.longitude != null) {
-    restaurantWithDetails.longitude = Number(restaurantWithDetails.longitude as any);
+  // Ensure numbers
+  if (restaurant.latitude != null) restaurant.latitude = Number(restaurant.latitude);
+  if (restaurant.longitude != null) restaurant.longitude = Number(restaurant.longitude);
+
+  // Calculate average rating and total ratings
+  const total_ratings = restaurant.ratings.length;
+  const avg_rating = total_ratings > 0
+    ? restaurant.ratings.reduce((acc: number, r: any) => acc + (r.value || 0), 0) / total_ratings
+    : 0;
+
+  // Add calculated fields to restaurant object
+  const restaurantWithStats = {
+    ...restaurant,
+    avg_rating,
+    total_ratings,
+  };
+
+  // Sanitize participants data for privacy
+  if (restaurantWithStats.events) {
+    restaurantWithStats.events = restaurantWithStats.events.map((ev: any) => ({
+      ...ev,
+      participants: (ev.participants || []).map((p: any) => {
+        // Nur Vornamen oder 'Gast' verwenden, keine sensiblen Daten leaken
+        // Check for firstName (Prisma) or first_name (Supabase profile relation) or just name
+        const safeName = p.profile?.firstName || p.profile?.first_name || p.profile?.name || 'Gast';
+        return {
+          ...p,
+          profile: {
+            firstName: safeName,
+            // Explicitly undefined other fields to ensure they are not serialized
+            name: undefined,
+            lastName: undefined,
+            email: undefined,
+            phone: undefined,
+            address: undefined
+          }
+        };
+      })
+    }));
   }
 
   return {
     props: {
-      restaurant: JSON.parse(JSON.stringify(restaurantWithDetails)),
+      restaurant: JSON.parse(JSON.stringify(restaurantWithStats)),
     },
   };
 };
