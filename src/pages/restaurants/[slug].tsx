@@ -120,6 +120,62 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   const lon = restaurant.longitude != null ? Number(restaurant.longitude) : null;
   const [showCallModal, setShowCallModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id || null);
+    });
+  }, [supabase.auth]);
+
+  const existingParticipation = useMemo(() => {
+    if (!currentUserId || !quickReserveDate || !quickReserveEventId) return null;
+    const event = (restaurant.events || []).find((e: any) => e.id === quickReserveEventId);
+    if (!event) return null;
+
+    return (event.participants || []).find((p: any) => {
+      const pUserId = p.userId || p.user_id;
+      if (pUserId !== currentUserId) return false;
+      
+      if (event.datetime) {
+        return true;
+      } else {
+        const rDate = p.reservation_date || p.reservationDate;
+        if (!rDate) return false;
+        // Compare dates (YYYY-MM-DD)
+        const d = new Date(rDate);
+        const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        return ymd === quickReserveDate;
+      }
+    });
+  }, [currentUserId, quickReserveDate, quickReserveEventId, restaurant.events]);
+
+  const handleCancelClick = async () => {
+    if (!existingParticipation) return;
+    if (!confirm('Möchtest du deine Reservierung wirklich stornieren?')) return;
+    
+    setIsConfirming(true);
+    setError(null);
+    setSuccess(null);
+    
+    try {
+      const { error } = await supabase
+        .from('participations')
+        .delete()
+        .eq('id', existingParticipation.id);
+        
+      if (error) throw error;
+      
+      setSuccess('Reservierung erfolgreich storniert.');
+      setReserveOpenEventId(null);
+      // Refresh to update UI
+      router.replace(router.asPath);
+    } catch (e: any) {
+      setError(e.message || 'Fehler beim Stornieren der Reservierung.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   const handleJoinClick = async () => {
     if (!quickReserveEventId) { alert('Bitte Termin wählen.'); return; }
@@ -587,10 +643,23 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                       </select>
                     </>
                   )}
-                  <button
-                    onClick={handleJoinClick}
-                    className="mt-3 px-4 py-2 rounded bg-primary-600 text-white w-full"
-                  >Jetzt teilnehmen</button>
+                  {existingParticipation ? (
+                    <button
+                      onClick={handleCancelClick}
+                      disabled={isConfirming}
+                      className="mt-3 px-4 py-2 rounded bg-red-600 text-white w-full hover:bg-red-700 transition-colors"
+                    >
+                      {isConfirming ? 'Wird storniert...' : 'Teilnahme absagen'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleJoinClick}
+                      disabled={isConfirming}
+                      className="mt-3 px-4 py-2 rounded bg-primary-600 text-white w-full hover:bg-primary-700 transition-colors"
+                    >
+                      {isConfirming ? 'Wird gebucht...' : 'Jetzt teilnehmen'}
+                    </button>
+                  )}
                   {((eventsByDate[quickReserveDate] || []).length === 0 && allUpcomingEvents.length === 0) && (
                     <p className="mt-2 text-sm text-neutral-600">Keine kommenden Termine verfügbar. Bitte später erneut prüfen.</p>
                   )}
