@@ -330,7 +330,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
 
           const { data: dataFallback, error: errorFallback } = await query;
 
-          if (errorFallback && (errorFallback.message?.includes('visible_restaurants') || (errorFallback as any).code === '42P01')) {
+          if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01' || (error as any).code === '42501')) {
             const { data: data2, error: error2 } = await supabase
               .from('restaurants')
               .select('*')
@@ -361,7 +361,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
 
         const { data, error } = await query;
 
-        if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01')) {
+        if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01' || (error as any).code === '42501')) {
           const { data: data2, error: error2 } = await supabase
             .from('restaurants')
             .select('*')
@@ -395,7 +395,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
       }
       
       const { data, error } = await query;
-      if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01')) {
+      if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01' || (error as any).code === '42501')) {
         const { data: data2, error: error2 } = await supabase
           .from('restaurants')
           .select('*')
@@ -417,7 +417,7 @@ export const getServerSideProps: GetServerSideProps<RestaurantsPageProps> = asyn
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01')) {
+      if (error && (error.message?.includes('visible_restaurants') || (error as any).code === '42P01' || (error as any).code === '42501')) {
         const { data: data2, error: error2 } = await supabase
           .from('restaurants')
           .select('*')
