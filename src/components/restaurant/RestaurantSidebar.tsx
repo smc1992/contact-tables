@@ -22,7 +22,7 @@ export default function RestaurantSidebar({ activeItem = 'dashboard' }: Restaura
     { icon: FiCalendar, label: 'Contact-tables', id: 'tables', path: '/restaurant/dashboard/tables' },
     { icon: FiUsers, label: 'Reservierungen', id: 'reservations', path: '/restaurant/dashboard/reservations' },
     { icon: FiCreditCard, label: 'Abonnement', id: 'subscription', path: '/restaurant/dashboard/subscription' },
-    { icon: FiFileText, label: 'Vertrag & Dokumente', id: 'documents', path: '/restaurant/dashboard/documents' },
+    { icon: FiFileText, label: 'Vertrag & Dokumente', id: 'contract', path: '/restaurant/dashboard/contract' },
     { icon: FiSettings, label: 'Einstellungen', id: 'settings', path: '/restaurant/dashboard/settings' },
   ];
 
