@@ -893,9 +893,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       if (restaurantWithDetails.longitude != null) restaurantWithDetails.longitude = Number(restaurantWithDetails.longitude);
 
       restaurant = restaurantWithDetails;
+    } catch (_) {
+      return { notFound: true };
     }
-  } catch (_) {
-    return { notFound: true };
   }
 
   // Calculate average rating and total ratings
