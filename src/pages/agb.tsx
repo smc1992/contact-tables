@@ -191,118 +191,220 @@ export default function AgbPage() {
             <div className="prose prose-neutral max-w-none">
               <h3>1. Präambel / Einleitung</h3>
               <p>
-                Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Verträge zwischen der Contact-tables LLC, registriert im US-Bundesstaat New Mexico unter der Registrierungsnummer
-                8048467, mit Sitz in 1209 Mountain Rd Pl NE, Albuquerque, NM 87110, USA (im Folgenden „Betreiber“), und gastronomischen Betrieben (im Folgenden
-                „Restaurant“), die ihre Betriebe auf der Plattform des Betreibers listen.
+                Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für sämtliche Verträge
+                zwischen der Contact-tables LLC, registriert im US-Bundesstaat New Mexico unter der
+                Registrierungsnummer 8048467, mit Sitz in 1209 Mountain Rd Pl NE, Albuquerque, NM
+                87110, USA, vertreten durch Anette Rapp (im Folgenden „Betreiber“), und
+                gastronomischen Betrieben (im Folgenden „Restaurant“), die ihre Betriebe auf der
+                Plattform des Betreibers listen.
               </p>
               <p>
-                Diese AGB gelten ausschließlich für Unternehmer im Sinne des § 14 BGB. Durch die Registrierung und Freischaltung als Partner-Restaurant erklärt sich das Restaurant mit der Geltung dieser
-                AGB einverstanden. Die jeweils gültige Version der AGB ist auf www.contact-tables.org einsehbar und wird bei der Registrierung aktiv bestätigt.
+                Diese AGB gelten ausschließlich für Unternehmer im Sinne des § 14 BGB. Durch die
+                Registrierung und Freischaltung als Partner-Restaurant erklärt sich das Restaurant mit
+                der Geltung dieser AGB einverstanden. Die jeweils gültige Version der AGB ist auf
+                www.contact-tables.org einsehbar und wird bei der Registrierung aktiv bestätigt.
               </p>
 
               <h3>2. Vertragsgegenstand</h3>
               <p>
-                Der Betreiber stellt mit contact-tables.org eine Internetplattform zur Verfügung, die Menschen, die allein unterwegs sind oder Gesellschaft beim Essen suchen, mit anderen an sogenannten
-                Contact-tables in Restaurants zusammenbringt. Die Nutzung der Plattform ist für Endnutzer kostenlos. Für Restaurants ist die Teilnahme kostenpflichtig gemäß Ziffer 6 dieser AGB.
+                Der Betreiber stellt mit contact-tables.org eine Internetplattform zur Verfügung, die
+                Menschen, die allein unterwegs sind oder Gesellschaft beim Essen suchen, mit anderen
+                an sogenannten Contact-tables in Restaurants zusammenbringt.
+              </p>
+              <p>
+                Die Nutzung der Plattform ist für Endnutzer kostenlos. Für Restaurants ist die Teilnahme
+                kostenpflichtig gemäß Ziffer 6 dieser AGB.
               </p>
 
               <h3>3. Vertragsschluss</h3>
               <p>
-                Der Vertrag zwischen dem Restaurant und dem Betreiber kommt zustande, sobald das Restaurant den Registrierungsprozess auf der Plattform abgeschlossen hat und durch den Betreiber
-                freigeschaltet wurde. Eine automatische Aufnahme findet nicht statt. Der Betreiber wählt Restaurants gezielt aus, um pro Stadt eine ausgewogene und sinnvolle Anzahl an Contact-tables
-                sicherzustellen. Nicht berücksichtigte Restaurants werden automatisch auf eine Nachrückliste gesetzt und bei frei werdenden Kapazitäten bevorzugt kontaktiert. Ein Anspruch auf
-                Vertragsschluss besteht nicht. Der Betreiber behält sich vor, Anmeldungen ohne Angabe von Gründen abzulehnen.
+                Der Vertrag zwischen dem Restaurant und dem Betreiber kommt zustande, sobald das
+                Restaurant den Registrierungsprozess auf der Plattform abgeschlossen hat und durch
+                den Betreiber freigeschaltet wurde.
+              </p>
+              <p>
+                Eine automatische Aufnahme findet nicht statt. Der Betreiber wählt Restaurants gezielt
+                aus, um pro Stadt eine ausgewogene und sinnvolle Anzahl an Contact-tables
+                sicherzustellen.
+              </p>
+              <p>
+                Nicht berücksichtigte Restaurants werden automatisch auf eine Nachrückliste gesetzt
+                und bei frei werdenden Kapazitäten bevorzugt kontaktiert.
+              </p>
+              <p>
+                Ein Anspruch auf Vertragsschluss besteht nicht. Der Betreiber behält sich vor,
+                Anmeldungen ohne Angabe von Gründen abzulehnen.
               </p>
 
               <h3>4. Leistungen des Betreibers</h3>
               <p>
-                Das Restaurant wird auf der Plattform sichtbar gemacht und als Gastgeber eines oder mehrerer Contact-tables dargestellt. Die Leistungen umfassen insbesondere:
+                Das Restaurant wird auf der Plattform sichtbar gemacht und als Gastgeber eines oder
+                mehrerer Contact-tables dargestellt.
+              </p>
+              <p>
+                Die Leistungen umfassen insbesondere:
               </p>
               <ul>
-                <li>die Darstellung des Restaurants auf der Plattform inklusive Beschreibung, Adresse, Öffnungszeiten und Bildern,</li>
-                <li>die Bereitstellung eines Tischaufstellers, um die Contact-tables im Restaurant sichtbar zu kennzeichnen,</li>
-                <li>die Einbindung in allgemeine Marketingmaßnahmen, beispielsweise Social Media oder Newsletter,</li>
+                <li>die Darstellung des Restaurants auf der Plattform inkl. Beschreibung, Adresse,
+                Öffnungszeiten und Bildern,</li>
+                <li>die Bereitstellung eines Tischaufstellers, um die Contact-tables im Restaurant
+                sichtbar zu kennzeichnen,</li>
+                <li>die Einbindung in allgemeine Marketingmaßnahmen, z. B. Social Media oder
+                Newsletter,</li>
                 <li>die perspektivische Anbindung an ein Reservierungssystem (derzeit in Entwicklung).</li>
               </ul>
               <p>
-                Darüber hinaus können in Zukunft gemeinsame Aktionen oder Veranstaltungen (z. B. Brunches, Themenabende) angeboten werden. Hierauf besteht jedoch kein Anspruch. Eine bestimmte Anzahl
-                an Kontakten, Gästen oder Buchungen wird nicht garantiert.
+                Darüber hinaus können in Zukunft gemeinsame Aktionen oder Veranstaltungen (z. B.
+                Brunches, Themenabende) angeboten werden. Hierauf besteht jedoch kein Anspruch.
+                Eine bestimmte Anzahl an Kontakten, Gästen oder Buchungen wird nicht garantiert.
               </p>
 
               <h3>5. Pflichten des Restaurants</h3>
-              <p>Das Restaurant verpflichtet sich:</p>
+              <p>Das Restaurant verpflichtet sich,</p>
               <ul>
-                <li>einen oder mehrere Tische für Contact-tables ausschließlich bei vorheriger Reservierung oder Anmeldung durch einen Gast bereitzustellen,</li>
-                <li>im Falle einer Reservierung den Tisch bereitzuhalten und mit dem vom Betreiber zur Verfügung gestellten Tischaufsteller sichtbar zu kennzeichnen,</li>
-                <li>die im Profil hinterlegten Angaben stets aktuell und korrekt zu halten (z. B. Öffnungszeiten, Adresse, Kontaktmöglichkeiten),</li>
-                <li>alle gesetzlichen Vorgaben im Rahmen des Betriebs einzuhalten (z. B. Hygiene- und Kennzeichnungspflichten),</li>
-                <li>Gäste, die über Contact-tables vermittelt werden, freundlich und respektvoll zu behandeln,</li>
-                <li>keine rechtswidrigen, beleidigenden, diskriminierenden oder irreführenden Inhalte bereitzustellen.</li>
+                <li>einen oder mehrere Tische für Contact-tables ausschließlich bei vorheriger
+                Reservierung oder Anmeldung durch einen Gast bereitzustellen,</li>
+                <li>im Falle einer Reservierung den Tisch bereitzuhalten und mit dem vom Betreiber zur
+                Verfügung gestellten Tischaufsteller sichtbar zu kennzeichnen,</li>
+                <li>die im Profil hinterlegten Angaben stets aktuell und korrekt zu halten
+                (z. B. Öffnungszeiten, Adresse, Kontakt),</li>
+                <li>alle gesetzlichen Vorgaben im Rahmen des Betriebs einzuhalten (z. B. Hygiene,
+                Kennzeichnungspflichten),</li>
+                <li>Gäste, die über Contact-tables vermittelt werden, freundlich und respektvoll zu
+                behandeln,</li>
+                <li>keine rechtswidrigen, beleidigenden, diskriminierenden oder irreführenden Inhalte
+                bereitzustellen.</li>
               </ul>
               <p>
-                Die dauerhafte Einrichtung eines festen Contact-tables kann – bei wachsender Nutzung – zu einem späteren Zeitpunkt gemeinsam neu bewertet werden.
+                Die dauerhafte Einrichtung eines festen Contact-tables kann – bei wachsender Nutzung
+                – zu einem späteren Zeitpunkt gemeinsam neu bewertet werden.
               </p>
 
               <h3>6. Kosten &amp; Zahlungsbedingungen</h3>
               <p>
-                Die Registrierung und Nutzung der Plattform ist im Rahmen der Einführungsphase bis einschließlich 31.12.2025 kostenlos.
+                Die Registrierung und Nutzung der Plattform ist im Rahmen der Einführungsphase bis
+                einschließlich 28.02.2026 kostenlos.
               </p>
               <ul>
-                <li>Ab dem 01.01.2026: 39 € netto pro Monat (zzgl. gesetzlicher Umsatzsteuer) bzw. 399 € netto pro Jahr (zzgl. gesetzlicher Umsatzsteuer).</li>
-                <li>Ab dem 01.07.2026 für neu abgeschlossene Verträge bzw. Verlängerungen: 49 € netto pro Monat (zzgl. gesetzlicher Umsatzsteuer) bzw. 499 € netto pro Jahr (zzgl. gesetzlicher Umsatzsteuer).</li>
+                <li>Ab dem 01.03.2026 gelten folgende Teilnahmegebühren:
+                39 € netto pro Monat, zzgl. gesetzlicher Umsatzsteuer,
+                399 € netto pro Jahr, zzgl. gesetzlicher Umsatzsteuer.</li>
+                <li>Ab dem 01.07.2026 gelten für neu abgeschlossene Verträge bzw. Verlängerungen
+                folgende Preise:
+                49 € netto pro Monat, zzgl. gesetzlicher Umsatzsteuer,
+                499 € netto pro Jahr, zzgl. gesetzlicher Umsatzsteuer.</li>
               </ul>
               <p>
-                Die Abrechnung und Zahlungsabwicklung erfolgen über den Dienstleister Digistore24. Restaurants müssen bei der Registrierung ihre Zahlungsdaten hinterlegen. Die Zahlung ist jeweils zu Beginn
-                der gewählten Laufzeit im Voraus fällig (monatlich zu Beginn des Monats, jährlich zu Beginn des Vertragsjahres). Bei Zahlungsverzug oder Rücklastschrift kann das Restaurantprofil gesperrt werden.
-                Es können Verzugszinsen nach den gesetzlichen Bestimmungen sowie pauschale Mahngebühren in Höhe von 5,00 € pro Mahnschreiben anfallen.
+                Die Abrechnung und Zahlungsabwicklung erfolgen über den Dienstleister Digistore24.
+                Restaurants müssen bei Registrierung ihre Zahlungsdaten hinterlegen.
+              </p>
+              <p>
+                Die Zahlung ist jeweils zu Beginn der gewählten Laufzeit im Voraus fällig:
+              </p>
+              <ul>
+                <li>bei monatlicher Zahlweise: zu Beginn eines jeden Monats,</li>
+                <li>bei jährlicher Zahlweise: zu Beginn des Vertragsjahres.</li>
+              </ul>
+              <p>
+                Bei Zahlungsverzug oder Rücklastschrift kann das Restaurantprofil gesperrt werden.
+                In diesem Fall können Verzugszinsen nach den gesetzlichen Bestimmungen sowie
+                pauschale Mahngebühren (5,00 € pro Mahnschreiben) berechnet werden.
               </p>
 
               <h3>7. Laufzeit &amp; Kündigung</h3>
               <p>
-                Die Vertragslaufzeit beträgt ein Jahr ab Freischaltung des Profils. Der Vertrag verlängert sich automatisch um jeweils ein weiteres Jahr, wenn er nicht spätestens einen Monat vor Ablauf der Laufzeit
-                in Textform gekündigt wird. Das Recht zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt. Ein wichtiger Grund liegt insbesondere vor, wenn das Restaurant wiederholt gegen diese
-                AGB verstößt, gesetzliche Vorschriften verletzt oder fällige Zahlungen trotz Mahnung nicht leistet.
+                Die Vertragslaufzeit beträgt ein Jahr ab Freischaltung des Profils. Der Vertrag verlängert
+                sich automatisch um jeweils ein weiteres Jahr, wenn er nicht spätestens einen Monat
+                vor Ablauf der Laufzeit in Textform gekündigt wird.
               </p>
+              <p>
+                Das Recht zur außerordentlichen Kündigung aus wichtigem Grund bleibt unberührt. Ein
+                wichtiger Grund liegt insbesondere vor, wenn:
+              </p>
+              <ul>
+                <li>das Restaurant wiederholt gegen diese AGB verstößt,</li>
+                <li>gesetzliche Vorschriften verletzt werden,</li>
+                <li>fällige Zahlungen trotz Mahnung nicht geleistet werden.</li>
+              </ul>
 
               <h3>8. Nutzungsrechte / Inhalte</h3>
               <p>
-                Das Restaurant stellt dem Betreiber für die Darstellung auf der Plattform und für Marketing geeignete Inhalte (Texte, Bilder, Logos) zur Verfügung und sichert zu, dass es über alle hierfür erforderlichen
-                Rechte verfügt. Das Restaurant räumt dem Betreiber ein einfaches, nicht ausschließliches, räumlich und zeitlich unbegrenztes Nutzungsrecht an diesen Inhalten ein, ausschließlich zur Darstellung auf der
-                Plattform und für begleitende Marketingmaßnahmen. Das Bereitstellen rechtswidriger, diskriminierender, beleidigender oder irreführender Inhalte ist untersagt. Der Betreiber ist berechtigt, unzulässige
-                Inhalte zu entfernen oder anzupassen.
+                Das Restaurant stellt dem Betreiber für die Darstellung auf der Plattform und für
+                Marketing geeignete Inhalte (Texte, Bilder, Logos) zur Verfügung. Das Restaurant sichert
+                zu, dass es über alle erforderlichen Rechte verfügt und keine Rechte Dritter verletzt.
+              </p>
+              <p>
+                Das Restaurant räumt dem Betreiber ein einfaches, nicht ausschließliches, räumlich
+                und zeitlich unbegrenztes Nutzungsrecht an diesen Inhalten ein, ausschließlich für die
+                Darstellung auf der Plattform und begleitende Marketingmaßnahmen.
+              </p>
+              <p>
+                Das Hochladen oder Bereitstellen von rechtswidrigen, diskriminierenden,
+                beleidigenden oder irreführenden Inhalten ist untersagt. Der Betreiber ist berechtigt,
+                unzulässige Inhalte zu entfernen oder anzupassen.
               </p>
 
               <h3>9. Haftung &amp; Gewährleistung</h3>
               <p>
-                Der Betreiber ist ausschließlich Vermittler und nicht Vertragspartei zwischen Restaurant und Gast. Eine Haftung für die Erfüllung oder Qualität der gastronomischen Leistungen, für das Verhalten oder
-                Nichterscheinen von Gästen sowie für Unfälle auf dem Weg zum Restaurant oder während des Aufenthalts ist ausgeschlossen. Der Betreiber übernimmt keine Garantie für eine bestimmte Anzahl von
-                Kontakten, Reservierungen oder Umsätzen. Ebenso besteht keine Haftung für kurzfristige Ausfälle der Plattform durch Wartung oder technische Störungen.
+                Der Betreiber ist ausschließlich Vermittler und nicht Vertragspartei zwischen Restaurant
+                und Gast. Eine Haftung für die Erfüllung oder Qualität der gastronomischen Leistungen,
+                für das Verhalten oder Nichterscheinen von Gästen sowie für Unfälle auf dem Weg zum
+                Restaurant oder während des Aufenthalts ist ausgeschlossen.
               </p>
               <p>
-                Der Betreiber haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit, für Schäden aus der Verletzung von Leben, Körper oder Gesundheit sowie nach dem Produkthaftungsgesetz. Bei leicht fahrlässiger
-                Verletzung wesentlicher Vertragspflichten haftet der Betreiber nur in Höhe des bei Vertragsschluss vorhersehbaren, vertragstypischen Schadens. Eine weitergehende Haftung für leicht fahrlässig
-                verursachte Schäden ist ausgeschlossen. Das Restaurant haftet für die Richtigkeit seiner Angaben und stellt den Betreiber von sämtlichen Ansprüchen Dritter frei, die durch rechtswidrige oder fehlerhafte
-                Inhalte entstehen.
+                Der Betreiber übernimmt keine Garantie für eine bestimmte Anzahl von Kontakten,
+                Reservierungen oder Umsätzen. Ebenso besteht keine Haftung für kurzfristige Ausfälle
+                der Plattform durch Wartung oder technische Störungen.
+              </p>
+              <p>
+                Der Betreiber haftet unbeschränkt für Vorsatz und grobe Fahrlässigkeit, für Schäden aus
+                der Verletzung von Leben, Körper oder Gesundheit sowie nach dem
+                Produkthaftungsgesetz. Bei leicht fahrlässiger Verletzung wesentlicher
+                Vertragspflichten haftet der Betreiber nur in Höhe des bei Vertragsschluss
+                vorhersehbaren, vertragstypischen Schadens. Eine weitergehende Haftung für leicht
+                fahrlässig verursachte Schäden ist ausgeschlossen.
+              </p>
+              <p>
+                Das Restaurant haftet für die Richtigkeit seiner Angaben und stellt den Betreiber von
+                sämtlichen Ansprüchen Dritter frei, die durch rechtswidrige oder fehlerhafte Inhalte
+                entstehen.
               </p>
 
               <h3>10. Technische Verfügbarkeit / Änderungen</h3>
               <p>
-                Der Betreiber bemüht sich, die Plattform mit hoher Verfügbarkeit bereitzustellen. Eine ununterbrochene Nutzung kann jedoch nicht garantiert werden. Der Betreiber ist berechtigt, die Plattform oder einzelne
-                Funktionen jederzeit zu ändern, weiterzuentwickeln oder einzustellen, soweit dadurch die wesentlichen Verpflichtungen nicht beeinträchtigt werden. Über wesentliche Änderungen wird das Restaurant
-                rechtzeitig informiert. Ansprüche auf Schadensersatz wegen Einschränkungen oder Änderungen der Plattform bestehen nicht.
+                Der Betreiber bemüht sich, die Plattform mit hoher Verfügbarkeit bereitzustellen. Eine
+                ununterbrochene Nutzung kann jedoch nicht garantiert werden.
+              </p>
+              <p>
+                Der Betreiber ist berechtigt, die Plattform oder einzelne Funktionen jederzeit zu ändern,
+                weiterzuentwickeln oder einzustellen, soweit dadurch die wesentlichen Verpflichtungen
+                nicht beeinträchtigt werden. Über wesentliche Änderungen wird das Restaurant
+                rechtzeitig informiert. Ansprüche auf Schadensersatz wegen Einschränkungen oder
+                Änderungen der Plattform bestehen nicht.
               </p>
 
               <h3>11. Datenschutz / Vertraulichkeit</h3>
               <p>
-                Der Betreiber verarbeitet personenbezogene Daten des Restaurants ausschließlich zur Vertragserfüllung und gemäß den geltenden Datenschutzgesetzen. Einzelheiten ergeben sich aus der jeweils gültigen
-                Datenschutzerklärung auf www.contact-tables.org. Das Restaurant verpflichtet sich, über die Plattform erhaltene Daten von Nutzern ausschließlich zweckgebunden zu verwenden und diese vertraulich sowie
-                datenschutzkonform zu behandeln. Beide Parteien verpflichten sich, vertrauliche Informationen geheim zu halten und nicht ohne Zustimmung weiterzugeben, soweit keine gesetzliche Pflicht zur Offenlegung
+                Der Betreiber verarbeitet personenbezogene Daten des Restaurants ausschließlich zur
+                Vertragserfüllung und gemäß den geltenden Datenschutzgesetzen. Einzelheiten
+                ergeben sich aus der jeweils gültigen Datenschutzerklärung auf www.contact-tables.org.
+              </p>
+              <p>
+                Das Restaurant verpflichtet sich, über die Plattform erhaltene Daten von Nutzern
+                ausschließlich zweckgebunden zu verwenden und diese vertraulich sowie
+                datenschutzkonform zu behandeln.
+              </p>
+              <p>
+                Beide Parteien verpflichten sich, vertrauliche Informationen geheim zu halten und nicht
+                ohne Zustimmung weiterzugeben, soweit keine gesetzliche Pflicht zur Offenlegung
                 besteht.
               </p>
 
               <h3>12. Schlussbestimmungen</h3>
               <p>
-                Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts. Ausschließlicher Gerichtsstand für alle Streitigkeiten aus diesem Vertrag ist, soweit gesetzlich zulässig, Wiesbaden.
+                Es gilt das Recht der Bundesrepublik Deutschland unter Ausschluss des UN-Kaufrechts.
+                Ausschließlicher Gerichtsstand für alle Streitigkeiten aus diesem Vertrag ist, soweit
+                gesetzlich zulässig, Wiesbaden.
               </p>
             </div>
           </div>
