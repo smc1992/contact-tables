@@ -97,29 +97,29 @@ export default async function handler(
     };
 
     if (addressHasChanged) {
-      // Adresse hat sich geändert, führe Geocoding durch
+      // Adresse hat sich geändert, führe Geocoding durch mit OpenCage (wie in register.ts)
       const fullAddress = `${address}, ${postalCode} ${city}, ${country}`;
       try {
-        const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-          params: {
-            q: fullAddress,
-            format: 'json',
-            limit: 1,
-          },
-          headers: {
-            'User-Agent': 'Contact-Tables-App/1.0'
-          }
-        });
+        if (!process.env.OPENCAGE_API_KEY) {
+           console.warn('OPENCAGE_API_KEY is missing. Skipping geocoding.');
+        } else {
+           const geocodingUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(fullAddress)}&key=${process.env.OPENCAGE_API_KEY}`;
+           const response = await axios.get(geocodingUrl);
+           const geoData = response.data;
 
-        if (response.data && response.data.length > 0) {
-          newCoords.latitude = parseFloat(response.data[0].lat);
-          newCoords.longitude = parseFloat(response.data[0].lon);
+           if (geoData.results && geoData.results.length > 0) {
+             newCoords.latitude = geoData.results[0].geometry.lat;
+             newCoords.longitude = geoData.results[0].geometry.lng;
+           }
         }
       } catch (geoError) {
-        console.error('Fehler beim Geocoding:', geoError);
-        // Fahre fort, ohne die Koordinaten zu aktualisieren, oder setze sie auf null
-        newCoords.latitude = null;
-        newCoords.longitude = null;
+        console.error('Fehler beim Geocoding (OpenCage):', geoError);
+        // Fahre fort, Koordinaten bleiben unverändert oder null, je nach Logik. 
+        // Hier behalten wir die alten bei Fehler, oder setzen null wenn man will.
+        // Aktuell: behalte die alten (Zeile 94-97 initialisiert mit currentRestaurant Werten)
+        // Falls wir explizit resetten wollen bei Fehler:
+        // newCoords.latitude = null;
+        // newCoords.longitude = null;
       }
     }
 

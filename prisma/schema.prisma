@@ -94,7 +94,7 @@ model Event {
   id              String             @id @default(cuid())
   title           String
   description     String?
-  datetime        DateTime
+  datetime        DateTime?
   endDatetime     DateTime?          @map("end_datetime")
   maxParticipants Int                @map("max_participants")
   price           Float              @default(0)
@@ -124,7 +124,7 @@ model EventParticipant {
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([eventId, userId])
+  @@unique([eventId, userId, reservationDate])
   @@map("participations")
   @@schema("public")
 }
