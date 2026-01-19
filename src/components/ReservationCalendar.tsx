@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
 
-interface ReservationCalendarProps {
+export interface ParticipantInfo {
+  time: string;
+  name: string;
+}
+
+export interface ReservationCalendarProps {
   selectedDate?: string | null;
   onSelect: (dateISO: string) => void;
   availabilityByDate?: Record<string, number>; // key: YYYY-MM-DD, value: count
-  participantsByDate?: Record<string, string[]>; // key: YYYY-MM-DD, value: list of times
+  participantsByDate?: Record<string, ParticipantInfo[]>; // key: YYYY-MM-DD, value: list of participants
   isDateDisabled?: (date: Date) => boolean;
 }
 
@@ -139,8 +144,8 @@ export default function ReservationCalendar({ selectedDate, onSelect, availabili
                         <div className="flex flex-col items-center">
                           <span className="block text-[10px] font-bold text-green-700">{(participantsByDate[ymd] || []).length} dabei</span>
                           <div className="flex flex-wrap justify-center gap-0.5 max-w-[40px]">
-                            {(participantsByDate[ymd] || []).slice(0, 3).map((t, ti) => (
-                               <span key={ti} className="text-[8px] text-green-800 leading-none">{t}</span>
+                            {(participantsByDate[ymd] || []).slice(0, 3).map((p, ti) => (
+                               <span key={ti} className="text-[8px] text-green-800 leading-none" title={p.name}>{p.time}</span>
                             ))}
                             {(participantsByDate[ymd] || []).length > 3 && <span className="text-[8px] text-green-800 leading-none">...</span>}
                           </div>

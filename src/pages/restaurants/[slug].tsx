@@ -6,7 +6,7 @@ import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers, FiGlobe } from 
 import { useState, useMemo, useEffect } from 'react';
 import { createClient as createServerSupabase } from '@/utils/supabase/server';
 import { createClient as createBrowserClient } from '@/utils/supabase/client';
-import ReservationCalendar from '@/components/ReservationCalendar';
+import ReservationCalendar, { ParticipantInfo } from '@/components/ReservationCalendar';
 import prisma from '@/lib/prisma';
 import { Prisma, Restaurant, Event, Rating as Review, Profile, RestaurantImage } from '@prisma/client';
 import dynamic from 'next/dynamic';
@@ -234,7 +234,15 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const da = String(d.getDate()).padStart(2, '0');
       const key = `${y}-${m}-${da}`;
-      counts[key] = (counts[key] || 0) + 1;
+      
+      const max = ev.maxParticipants || 0;
+      const current = (ev.participants || []).length;
+      const remaining = Math.max(0, max - current);
+      
+      // If multiple events on same day, sum up availability? Or just show max available?
+      // Usually one event per time slot, but calendar shows per day. 
+      // Let's sum up available spots for the day.
+      counts[key] = (counts[key] || 0) + remaining;
     });
 
     // 2. Indefinite events (project onto next 90 days)
@@ -247,7 +255,32 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const da = String(d.getDate()).padStart(2, '0');
         const key = `${y}-${m}-${da}`;
-        counts[key] = (counts[key] || 0) + indefiniteEvents.length;
+        
+        // For indefinite events, we need to check if there are participants for this specific calculated date
+        // Since indefinite events don't have a specific date in DB, participants likely have reservation_date
+        // But the 'ev' object here is the generic template.
+        // We need to look up participants for this date across all indefinite events.
+        
+        let dailyIndefiniteAvailability = 0;
+        indefiniteEvents.forEach((ev: any) => {
+           const max = ev.maxParticipants || 0;
+           // Find participants for this specific date linked to this event
+           const participantsForDay = (ev.participants || []).filter((p: any) => {
+              if (!p.reservation_date) return false;
+              const pDate = new Date(p.reservation_date);
+              const pY = pDate.getFullYear();
+              const pM = String(pDate.getMonth() + 1).padStart(2, '0');
+              const pD = String(pDate.getDate()).padStart(2, '0');
+              return `${pY}-${pM}-${pD}` === key;
+           });
+           
+           const remaining = Math.max(0, max - participantsForDay.length);
+           dailyIndefiniteAvailability += remaining;
+        });
+
+        // If specific events already added availability, this adds on top.
+        // Assuming indefinite events run in parallel to specific events if any.
+        counts[key] = (counts[key] || 0) + dailyIndefiniteAvailability;
       }
     }
 
@@ -291,19 +324,27 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   }, [restaurant.events]);
 
   const participantsByDate = useMemo(() => {
-    const data: Record<string, string[]> = {};
+    const data: Record<string, Array<{ time: string; name: string }>> = {};
     (restaurant.events || []).forEach((ev: any) => {
       const eventDate = ev.datetime ? new Date(ev.datetime).toISOString().split('T')[0] : null;
+      
+      // Helper to extract name safely
+      const getName = (p: any) => {
+        return p.profile?.firstName || p.profile?.name || 'Gast';
+      };
+
       if (eventDate && ev.datetime) {
          const d = new Date(ev.datetime);
          const hh = String(d.getHours()).padStart(2, '0');
          const mm = String(d.getMinutes()).padStart(2, '0');
          const time = `${hh}:${mm}`;
          if (!data[eventDate]) data[eventDate] = [];
-         for(let i=0; i<(ev.participants?.length || 0); i++) {
-            data[eventDate].push(time);
-         }
+         
+         (ev.participants || []).forEach((p: any) => {
+            data[eventDate].push({ time, name: getName(p) });
+         });
       } else {
+         // Indefinite events logic
          (ev.participants || []).forEach((p: any) => {
             const rDate = p.reservation_date || p.reservationDate;
             if (rDate) {
@@ -318,9 +359,8 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                  const msg = p.message || '';
                  // Match HH:MM pattern
                  const match = msg.match(/(\d{2}:\d{2})/);
-                 if (match) {
-                    data[dStr].push(match[1]);
-                 }
+                 const time = match ? match[1] : '??:??';
+                 data[dStr].push({ time, name: getName(p) });
                }
             }
          });
@@ -487,7 +527,8 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                       <h4 className="font-semibold text-sm mb-2 text-neutral-700">Bereits dabei am {new Date(quickReserveDate).toLocaleDateString('de-DE')}:</h4>
                       <div className="flex flex-wrap gap-2">
                         {Object.entries(
-                          participantsByDate[quickReserveDate].reduce((acc, time) => {
+                          participantsByDate[quickReserveDate].reduce((acc, p) => {
+                            const time = p.time;
                             acc[time] = (acc[time] || 0) + 1;
                             return acc;
                           }, {} as Record<string, number>)
@@ -710,7 +751,11 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       include: {
         events: {
           include: {
-            participants: true,
+            participants: {
+              include: {
+                profile: true,
+              },
+            },
           },
         },
         images: true,
