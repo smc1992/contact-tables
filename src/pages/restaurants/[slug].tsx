@@ -819,8 +819,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         .select('*, profile:profiles(*)')
         .eq('restaurant_id', restaurant.id);
 
-      // Construct object compatible with Prisma shape
-      restaurant = {
+      const restaurantWithDetails = {
         ...restaurant,
         images: imgs || [],
         ratings: ratings || [],
@@ -832,33 +831,72 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
           maxParticipants: t.max_participants ?? 0,
           participants: t.participations || [],
         })),
-      };
+        avg_rating: 0,
+        total_ratings: 0,
+      } as any;
+
+      if (ratings && ratings.length > 0) {
+        restaurantWithDetails.total_ratings = ratings.length;
+        const sum = ratings.reduce((acc: number, r: any) => acc + (r.value || 0), 0);
+        restaurantWithDetails.avg_rating = sum / ratings.length;
+      }
+
+      // Sanitize participants data for privacy (Supabase path)
+      if (restaurantWithDetails.events) {
+        restaurantWithDetails.events = restaurantWithDetails.events.map((ev: any) => ({
+          ...ev,
+          participants: (ev.participants || []).map((p: any) => {
+            // Strict privacy: Priority to first name only
+            let safeName = 'Gast';
+            if (p.profile?.first_name) {
+              safeName = p.profile.first_name;
+            } else if (p.profile?.name) {
+              safeName = p.profile.name.split(' ')[0];
+            }
+
+            return {
+              ...p,
+              profile: {
+                firstName: safeName,
+                // Explicitly undefined other fields to ensure they are not serialized
+                name: undefined,
+                lastName: undefined,
+                email: undefined,
+                phone: undefined,
+                address: undefined,
+              },
+            };
+          }),
+        }));
+      }
+
+      // Fallback: Geokodierung über OpenStreetMap/Nominatim, falls keine Koordinaten vorhanden
+      if ((!restaurantWithDetails.latitude || !restaurantWithDetails.longitude) && (restaurantWithDetails.address || restaurantWithDetails.city || restaurantWithDetails.postal_code)) {
+        try {
+          const queryAddress = [restaurantWithDetails.address, restaurantWithDetails.postal_code, restaurantWithDetails.city].filter(Boolean).join(', ');
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
+          if (geoRes.ok) {
+            const geoResults = await geoRes.json();
+            if (Array.isArray(geoResults) && geoResults.length > 0) {
+              const { lat, lon } = geoResults[0];
+              restaurantWithDetails.latitude = Number(lat);
+              restaurantWithDetails.longitude = Number(lon);
+            }
+          }
+        } catch (e) {
+          console.warn('Geocoding fehlgeschlagen:', e);
+        }
+      }
+
+      // Ensure numbers
+      if (restaurantWithDetails.latitude != null) restaurantWithDetails.latitude = Number(restaurantWithDetails.latitude);
+      if (restaurantWithDetails.longitude != null) restaurantWithDetails.longitude = Number(restaurantWithDetails.longitude);
+
+      restaurant = restaurantWithDetails;
     }
   } catch (_) {
     return { notFound: true };
   }
-
-  // Fallback: Geokodierung über OpenStreetMap/Nominatim, falls keine Koordinaten vorhanden
-  if ((!restaurant.latitude || !restaurant.longitude) && (restaurant.address || restaurant.city || (restaurant as any).postal_code)) {
-    try {
-      const queryAddress = [restaurant.address, (restaurant as any).postal_code, restaurant.city].filter(Boolean).join(', ');
-      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryAddress)}&format=json&limit=1`);
-      if (geoRes.ok) {
-        const geoResults = await geoRes.json();
-        if (Array.isArray(geoResults) && geoResults.length > 0) {
-          const { lat, lon } = geoResults[0];
-          restaurant.latitude = Number(lat);
-          restaurant.longitude = Number(lon);
-        }
-      }
-    } catch (e) {
-      console.warn('Geocoding fehlgeschlagen:', e);
-    }
-  }
-
-  // Ensure numbers
-  if (restaurant.latitude != null) restaurant.latitude = Number(restaurant.latitude);
-  if (restaurant.longitude != null) restaurant.longitude = Number(restaurant.longitude);
 
   // Calculate average rating and total ratings
   const total_ratings = restaurant.ratings.length;
@@ -873,14 +911,22 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     total_ratings,
   };
 
-  // Sanitize participants data for privacy
+  // Sanitize participants data for privacy (Prisma path)
   if (restaurantWithStats.events) {
     restaurantWithStats.events = restaurantWithStats.events.map((ev: any) => ({
       ...ev,
       participants: (ev.participants || []).map((p: any) => {
-        // Nur Vornamen oder 'Gast' verwenden, keine sensiblen Daten leaken
-        // Check for firstName (Prisma) or first_name (Supabase profile relation) or just name
-        const safeName = p.profile?.firstName || p.profile?.first_name || p.profile?.name || 'Gast';
+        // Strict privacy: Priority to first name only
+        let safeName = 'Gast';
+        if (p.profile?.firstName) {
+          safeName = p.profile.firstName;
+        } else if (p.profile?.first_name) {
+          safeName = p.profile.first_name;
+        } else if (p.profile?.name) {
+          // If only full name available, split and take first part
+          safeName = p.profile.name.split(' ')[0];
+        }
+
         return {
           ...p,
           profile: {
@@ -890,10 +936,10 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
             lastName: undefined,
             email: undefined,
             phone: undefined,
-            address: undefined
-          }
+            address: undefined,
+          },
         };
-      })
+      }),
     }));
   }
 
