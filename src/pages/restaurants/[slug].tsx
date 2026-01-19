@@ -438,7 +438,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
         setQuickReserveEventId(indefinite.id);
       }
     }
-  }, [quickReserveDate, quickReserveTime, eventsByDate, restaurant.events, quickReserveEventId]);
+  }, [quickReserveDate, quickReserveTime, eventsByDate, restaurant.events]);
 
   return (
     <PageLayout title={`${restaurant.name} - contact-tables`} description={restaurant.description || `Details über das Restaurant ${restaurant.name}`}>
@@ -549,7 +549,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                       <button key={t} type="button" onClick={() => setQuickReserveTime(t)} className={`px-2 py-1 rounded border text-xs ${quickReserveTime===t ? 'bg-primary-600 text-white border-primary-600' : 'border-neutral-300 text-neutral-700 hover:bg-neutral-100'}`}>{t}</button>
                     ))}
                   </div>
-                  {(!quickReserveEventId || (restaurant.events.find(e => e.id === quickReserveEventId)?.datetime)) && (
+                  {quickReserveDate && (
                     <>
                       <label className="block text-sm font-medium text-neutral-700 mb-2 mt-4">Termin</label>
                       <select
@@ -570,7 +570,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                             setQuickReserveTime(`${hh}:${mm}`);
                           }
                         }}
-                        className="border border-neutral-300 rounded px-3 py-2"
+                        className="border border-neutral-300 rounded px-3 py-2 w-full"
                       >
                         <option value="">Bitte Termin wählen</option>
                         {((eventsByDate[quickReserveDate] || []).length > 0 ? eventsByDate[quickReserveDate] : allUpcomingEvents).map((ev: any) => {
@@ -589,7 +589,7 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                   )}
                   <button
                     onClick={handleJoinClick}
-                    className="mt-3 px-4 py-2 rounded bg-primary-600 text-white"
+                    className="mt-3 px-4 py-2 rounded bg-primary-600 text-white w-full"
                   >Jetzt teilnehmen</button>
                   {((eventsByDate[quickReserveDate] || []).length === 0 && allUpcomingEvents.length === 0) && (
                     <p className="mt-2 text-sm text-neutral-600">Keine kommenden Termine verfügbar. Bitte später erneut prüfen.</p>
