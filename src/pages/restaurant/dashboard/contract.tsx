@@ -46,7 +46,7 @@ export default function ContractDashboard({ restaurant, contracts }: ContractPag
       const { error } = await supabase
         .from('contracts')
         .update({
-          status: 'SIGNED',
+          status: 'SIGNED' as const,
           signed_at: new Date().toISOString(),
           signature_data: {
             restaurant_id: restaurant.id,
