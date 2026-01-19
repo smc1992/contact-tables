@@ -68,7 +68,15 @@ function generateTimeSlots(start: string, end: string): string[] {
 type RestaurantWithDetails = Prisma.RestaurantGetPayload<{
   include: {
     profile: true;
-    events: true;
+    events: {
+      include: {
+        participants: {
+          include: {
+            profile: true;
+          };
+        };
+      };
+    };
     images: true;
     ratings: { include: { profile: true } };
   };
@@ -124,17 +132,24 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
+      console.log('Current User:', data.user?.id);
       setCurrentUserId(data.user?.id || null);
     });
   }, [supabase.auth]);
 
   const existingParticipation = useMemo(() => {
+    console.log('Checking existing participation:', { currentUserId, quickReserveDate, quickReserveEventId });
     if (!currentUserId || !quickReserveDate || !quickReserveEventId) return null;
     const event = (restaurant.events || []).find((e: any) => e.id === quickReserveEventId);
-    if (!event) return null;
+    if (!event) {
+      console.log('Event not found for ID:', quickReserveEventId);
+      return null;
+    }
 
-    return (event.participants || []).find((p: any) => {
+    const found = (event.participants || []).find((p: any) => {
       const pUserId = p.userId || p.user_id;
+      // Debugging participant user IDs
+      // console.log('Checking participant:', { pUserId, currentUserId, match: pUserId === currentUserId });
       if (pUserId !== currentUserId) return false;
       
       if (event.datetime) {
@@ -142,12 +157,23 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
       } else {
         const rDate = p.reservation_date || p.reservationDate;
         if (!rDate) return false;
+        
+        // Handle YYYY-MM-DD string directly (common from Supabase DATE columns)
+        if (typeof rDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rDate)) {
+           console.log('Comparing string dates:', { rDate, quickReserveDate });
+           return rDate === quickReserveDate;
+        }
+
         // Compare dates (YYYY-MM-DD)
         const d = new Date(rDate);
         const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        console.log('Comparing dates:', { ymd, quickReserveDate });
         return ymd === quickReserveDate;
       }
     });
+    
+    console.log('Existing Participation Found:', found);
+    return found;
   }, [currentUserId, quickReserveDate, quickReserveEventId, restaurant.events]);
 
   const handleCancelClick = async () => {
@@ -874,7 +900,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       // Minimaldetails aus Supabase
       const { data: ct } = await supabase
         .from('contact_tables')
-        .select('id,title,description,datetime,max_participants, participations(id, reservation_date, message, profile:profiles(first_name, name))')
+        .select('id,title,description,datetime,max_participants, participations(id, user_id, reservation_date, message, profile:profiles(first_name, name))')
         .eq('restaurant_id', restaurant.id)
         .eq('is_public', true);
 
@@ -912,6 +938,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
       // Sanitize participants data for privacy (Supabase path)
       if (restaurantWithDetails.events) {
+        console.log('DEBUG: Raw Supabase events:', JSON.stringify(restaurantWithDetails.events, null, 2));
         restaurantWithDetails.events = restaurantWithDetails.events.map((ev: any) => ({
           ...ev,
           participants: (ev.participants || []).map((p: any) => {
@@ -922,8 +949,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
             } else if (p.profile?.name) {
               safeName = p.profile.name.split(' ')[0];
             }
-
-            return {
+            
+            const sanitized = {
               ...p,
               profile: {
                 firstName: safeName,
@@ -935,6 +962,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
                 address: undefined,
               },
             };
+            console.log('DEBUG: Sanitized Supabase participant:', sanitized);
+            return sanitized;
           }),
         }));
       }
