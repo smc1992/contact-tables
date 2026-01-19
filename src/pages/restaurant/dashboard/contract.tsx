@@ -17,16 +17,6 @@ interface Contract {
   signed_at?: string;
 }
 
-interface ContractUpdateData {
-  status: 'SIGNED';
-  signed_at: string;
-  signature_data: {
-    restaurant_id: string;
-    restaurant_name: string;
-    ip_address: null;
-  };
-}
-
 interface RestaurantData {
   id: string;
   name: string;
@@ -53,20 +43,12 @@ export default function ContractDashboard({ restaurant, contracts }: ContractPag
     setMessage(null);
 
     try {
-      const updateData: ContractUpdateData = {
-        status: 'SIGNED',
-        signed_at: new Date().toISOString(),
-        signature_data: {
-          restaurant_id: restaurant.id,
-          restaurant_name: restaurant.name,
-          ip_address: null
-        }
-      };
-      
-      const { error } = await supabase
-        .from('contracts')
-        .update(updateData as any)
-        .eq('id', selectedContract.id);
+      // Nutze die neue Stored Function für typsicheres Update
+      const { error } = await supabase.rpc('update_contract_signature', {
+        contract_id: selectedContract.id,
+        restaurant_id: restaurant.id,
+        restaurant_name: restaurant.name
+      });
 
       if (error) throw error;
 
