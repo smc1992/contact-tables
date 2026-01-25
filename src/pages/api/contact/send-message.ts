@@ -13,12 +13,22 @@ export default async function handler(
   }
 
   try {
-    const { name, email, subject, message } = req.body;
+    const { name, email, subject, message, type = 'general' } = req.body;
 
     // Validierung
     if (!name || !email || !subject || !message) {
       return res.status(400).json({ message: 'Alle Felder sind erforderlich' });
     }
+
+    // Typ-Label Mapping
+    const typeLabels: Record<string, string> = {
+      'general': 'Allgemeine Anfrage',
+      'restaurant': 'Restaurant-Partnerschaft',
+      'support': 'Technischer Support',
+      'feedback': 'Feedback'
+    };
+
+    const typeLabel = typeLabels[type] || 'Allgemeine Anfrage';
 
     // E-Mail-Format validieren
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,14 +63,15 @@ export default async function handler(
         await transporter.sendMail({
           from: `"Contact Tables" <${process.env.EMAIL_FROM}>`,
           to: process.env.CONTACT_EMAIL || 'info@contact-tables.org',
-          subject: `Neue Kontaktanfrage: ${subject}`,
-          text: `Name: ${name}\nE-Mail: ${email}\nNachricht: ${message}`,
+          subject: `[${typeLabel}] ${subject}`,
+          text: `Typ: ${typeLabel}\nName: ${name}\nE-Mail: ${email}\nNachricht: ${message}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #4f46e5;">Neue Kontaktanfrage über Contact Tables</h2>
+              <h2 style="color: #4f46e5;">Neue Kontaktanfrage: ${typeLabel}</h2>
               <p><strong>Name:</strong> ${name}</p>
               <p><strong>E-Mail:</strong> ${email}</p>
               <p><strong>Betreff:</strong> ${subject}</p>
+              <p><strong>Anfrage-Typ:</strong> ${typeLabel}</p>
               <p><strong>Nachricht:</strong></p>
               <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px;">
                 ${message.replace(/\n/g, '<br>')}

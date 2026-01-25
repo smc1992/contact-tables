@@ -5,6 +5,7 @@
 [build.environment]
   NODE_VERSION = "20.19.0"
   NPM_VERSION = "10.8.2"
+  CONTACT_EMAIL = "info@contact-tables.org"
 
 # Sicherheitsheader für alle Seiten
 [[headers]]
