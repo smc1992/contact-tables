@@ -27,10 +27,23 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitStatus(null);
     
-    // Hier würde normalerweise ein API-Call erfolgen
-    // Für Demo-Zwecke simulieren wir eine erfolgreiche Übermittlung
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/contact/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Senden der Nachricht');
+      }
+
+      const data = await response.json();
+      
       setIsSubmitting(false);
       setSubmitStatus('success');
       
@@ -47,7 +60,16 @@ export default function ContactPage() {
       setTimeout(() => {
         setSubmitStatus(null);
       }, 5000);
-    }, 1500);
+    } catch (error) {
+      console.error('Fehler beim Senden:', error);
+      setIsSubmitting(false);
+      setSubmitStatus('error');
+      
+      // Status nach 5 Sekunden zurücksetzen
+      setTimeout(() => {
+        setSubmitStatus(null);
+      }, 5000);
+    }
   };
 
   const contactTypes = [

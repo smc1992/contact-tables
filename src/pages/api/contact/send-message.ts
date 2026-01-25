@@ -52,7 +52,7 @@ export default async function handler(
 
         await transporter.sendMail({
           from: `"Contact Tables" <${process.env.EMAIL_FROM}>`,
-          to: process.env.CONTACT_EMAIL || 'kontakt@contact-tables.de',
+          to: process.env.CONTACT_EMAIL || 'info@contact-tables.org',
           subject: `Neue Kontaktanfrage: ${subject}`,
           text: `Name: ${name}\nE-Mail: ${email}\nNachricht: ${message}`,
           html: `
