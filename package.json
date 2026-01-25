@@ -125,7 +125,7 @@
     "next-compose-plugins": "^2.2.1",
     "node-mocks-http": "^1.17.2",
     "postcss": "^8.5.3",
-    "prisma": "^7.3.0",
+    "prisma": "^5.10.0",
     "style-loader": "^4.0.0",
     "tailwindcss": "^4.1.4",
     "ts-jest": "^29.4.1",
