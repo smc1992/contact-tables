@@ -60,6 +60,29 @@ export default async function handler(
           }
         });
 
+        // Debug: Konfiguration prüfen
+        console.log('SMTP Config Check:', {
+          host: process.env.EMAIL_SERVER_HOST,
+          port: process.env.EMAIL_SERVER_PORT,
+          secure: Number(process.env.EMAIL_SERVER_PORT) === 465,
+          user: process.env.EMAIL_SERVER_USER,
+          from: process.env.EMAIL_FROM,
+          to: process.env.CONTACT_EMAIL
+        });
+
+        // Verbindung verifizieren
+        await new Promise((resolve, reject) => {
+          transporter.verify(function (error, success) {
+            if (error) {
+              console.error('SMTP Connection Verification Error:', error);
+              reject(error);
+            } else {
+              console.log('SMTP Connection Verified');
+              resolve(success);
+            }
+          });
+        });
+
         await transporter.sendMail({
           from: process.env.EMAIL_FROM || '"Contact Tables" <noreply@contact-tables.org>',
           to: process.env.CONTACT_EMAIL || 'info@contact-tables.org',

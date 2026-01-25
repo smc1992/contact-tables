@@ -48,9 +48,9 @@ export default function ContactPage() {
       
       if (data.debugError) {
         console.warn('E-Mail Versand fehlgeschlagen:', data.debugError);
-        // Fallback: Zeige Erfolg an, da die Nachricht in der DB gespeichert ist,
-        // aber logge den Fehler für Entwickler.
-        setSubmitStatus('success'); 
+        setSubmitStatus('error');
+        // Zeige den spezifischen Fehler im UI an (temporär für Debugging)
+        alert(`Nachricht gespeichert, aber E-Mail konnte nicht gesendet werden:\n${data.debugError}`);
       } else {
         setSubmitStatus('success');
       }
