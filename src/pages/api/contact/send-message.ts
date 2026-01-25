@@ -84,7 +84,8 @@ export default async function handler(
         });
 
         await transporter.sendMail({
-          from: process.env.EMAIL_FROM || '"Contact Tables" <noreply@contact-tables.org>',
+          from: process.env.EMAIL_SERVER_USER, // Sender must match authenticated user to avoid 550 error
+          replyTo: email, // Replies should go to the user who filled out the form
           to: process.env.CONTACT_EMAIL || 'info@contact-tables.org',
           subject: `[${typeLabel}] ${subject}`,
           text: `Typ: ${typeLabel}\nName: ${name}\nE-Mail: ${email}\nNachricht: ${message}`,
