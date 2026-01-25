@@ -13,12 +13,12 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   trailingSlash: true,
-  experimental: {
-    outputFileTracingExcludes: {
-      '*': ['**/node_modules/@prisma/**'],
-    },
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
-  },
+  // experimental: {
+  //   outputFileTracingExcludes: {
+  //     '*': ['**/node_modules/@prisma/**'],
+  //   },
+  //   serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
+  // },
   exportPathMap: async function (defaultPathMap, { dev, dir, outDir, distDir, buildId }) {
     const filteredPathMap = {};
     
