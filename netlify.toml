@@ -1,9 +1,9 @@
 [build]
-  command = "npm install --legacy-peer-deps && npm run build"
+  command = "npm install --include=dev --legacy-peer-deps && npm run build"
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "20.18.0"
+  NODE_VERSION = "20.19.0"
   NPM_VERSION = "10.8.2"
 
 # Sicherheitsheader für alle Seiten
