@@ -61,7 +61,7 @@ export default async function handler(
         });
 
         await transporter.sendMail({
-          from: `"Contact Tables" <${process.env.EMAIL_FROM}>`,
+          from: process.env.EMAIL_FROM || '"Contact Tables" <noreply@contact-tables.org>',
           to: process.env.CONTACT_EMAIL || 'info@contact-tables.org',
           subject: `[${typeLabel}] ${subject}`,
           text: `Typ: ${typeLabel}\nName: ${name}\nE-Mail: ${email}\nNachricht: ${message}`,
