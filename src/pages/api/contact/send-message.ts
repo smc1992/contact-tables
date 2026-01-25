@@ -82,9 +82,13 @@ export default async function handler(
             </div>
           `
         });
-      } catch (emailError) {
+      } catch (emailError: any) {
         console.error('Fehler beim Senden der E-Mail:', emailError);
-        // Wir geben keinen Fehler zurück, da die Nachricht bereits in der Datenbank gespeichert wurde
+        // Debugging: Fehler an Client zurückgeben
+        return res.status(200).json({ 
+          message: 'Nachricht gespeichert, aber E-Mail-Versand fehlgeschlagen.', 
+          debugError: emailError.message || JSON.stringify(emailError)
+        });
       }
     }
 

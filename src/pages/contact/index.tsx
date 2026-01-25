@@ -45,7 +45,15 @@ export default function ContactPage() {
       const data = await response.json();
       
       setIsSubmitting(false);
-      setSubmitStatus('success');
+      
+      if (data.debugError) {
+        console.warn('E-Mail Versand fehlgeschlagen:', data.debugError);
+        setSubmitStatus('error');
+        // Zeige den spezifischen Fehler im UI an (temporär für Debugging)
+        alert(`Nachricht gespeichert, aber E-Mail konnte nicht gesendet werden:\n${data.debugError}`);
+      } else {
+        setSubmitStatus('success');
+      }
       
       // Formular zurücksetzen
       setFormData({
