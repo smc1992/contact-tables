@@ -15,7 +15,7 @@ const nextConfig = {
   trailingSlash: true,
   experimental: {
     outputFileTracingExcludes: {
-      "**/node_modules/@prisma/**": true,
+      '*': ['**/node_modules/@prisma/**'],
     },
     serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
   },
