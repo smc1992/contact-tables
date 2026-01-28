@@ -73,7 +73,7 @@ export default function CustomerEvents() {
         .from('contact_tables')
         .select(`
           *,
-          restaurant:restaurant_id(*)
+          restaurant:restaurant_id(id, name, slug, address, city, postal_code)
         `)
         .in('id', contactTableIds)
         .order('datetime', { ascending: true });
@@ -367,7 +367,7 @@ export default function CustomerEvents() {
                           </div>
 
                           <div className="mt-auto border-t pt-4 flex justify-between items-center">
-                            <Link href={`/contact-tables/${table.id}`}>
+                            <Link href={table.restaurant?.slug ? `/restaurants/${table.restaurant.slug}` : `/contact-tables/${table.id}`}>
                               <button
                                 className="text-primary-600 hover:text-primary-800 transition-colors duration-150 text-sm font-medium flex items-center"
                                 title="Details ansehen"

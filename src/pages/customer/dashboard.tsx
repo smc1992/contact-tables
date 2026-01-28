@@ -93,7 +93,7 @@ export default function CustomerDashboard() {
             .from('contact_tables')
             .select(`
               *,
-              restaurant:restaurant_id(*)
+              restaurant:restaurant_id(id, name, slug, address, city, postal_code)
             `)
             .in('id', tableIds)
             .order('datetime', { ascending: true })
@@ -442,7 +442,7 @@ export default function CustomerDashboard() {
                               
                               return (
                                 <li key={table.id}>
-                                  <Link href={`/contact-tables/${table.id}`} className="block hover:bg-gray-50">
+                                  <Link href={table.restaurant?.slug ? `/restaurants/${table.restaurant.slug}` : `/contact-tables/${table.id}`} className="block hover:bg-gray-50">
                                     <div className="px-4 py-4 sm:px-6">
                                       <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium text-indigo-600 truncate">
@@ -566,9 +566,11 @@ export default function CustomerDashboard() {
                           <ul className="divide-y divide-gray-200">
                             {favoriteTables.map((table) => {
                               const { date, start_time } = formatDateTime(table.datetime || new Date().toISOString());
+                              const displayTime = start_time; // Favoriten haben keine Reservierung, daher verwenden wir die Event-Zeit
+                              
                               return (
                                 <li key={table.id}>
-                                  <Link href={`/contact-tables/${table.id}`} className="block hover:bg-gray-50">
+                                  <Link href={table.restaurant?.slug ? `/restaurants/${table.restaurant.slug}` : `/contact-tables/${table.id}`} className="block hover:bg-gray-50">
                                     <div className="px-4 py-4 sm:px-6">
                                       <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium text-indigo-600 truncate">
