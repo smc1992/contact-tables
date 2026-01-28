@@ -60,6 +60,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Erstelle die Teilnahme direkt mit Prisma (umgeht Supabase RLS)
+    console.log('Creating participation with data:', {
+      eventId: event_id,
+      userId: user.id,
+      message: message || null,
+      reservationDate: reservation_date,
+    });
+    
     const participation = await prisma.eventParticipant.create({
       data: {
         id: uuidv4(),
@@ -74,6 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
+    console.log('Participation created successfully:', participation);
     return res.status(200).json({ success: true, participation });
   } catch (error: any) {
     console.error('Error creating participation:', error);

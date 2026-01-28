@@ -41,10 +41,14 @@ export default function CustomerEvents() {
       setError(null);
       
       // Lade Kontakttische, an denen der Benutzer teilnimmt
+      console.log('Loading participations for user:', user.id);
       const { data: participations, error: participationsError } = await supabase
         .from('participations')
         .select('event_id')
         .eq('user_id', user.id);
+        
+      console.log('Participations loaded:', participations);
+      console.log('Participations error:', participationsError);
         
       if (participationsError) {
         console.error('Fehler beim Laden der Teilnahmen:', participationsError);
@@ -55,6 +59,7 @@ export default function CustomerEvents() {
       
       if (!participations || participations.length === 0) {
         // Keine Teilnahmen gefunden
+        console.log('No participations found for user');
         setContactTables([]);
         setLoading(false);
         return;
