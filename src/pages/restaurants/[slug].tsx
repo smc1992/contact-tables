@@ -2,7 +2,7 @@ import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 // Head wird durch PageLayout abgedeckt
 import Image from 'next/image';
-import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers, FiGlobe } from 'react-icons/fi';
+import { FiStar, FiMapPin, FiPhone, FiMail, FiCalendar, FiUsers, FiGlobe, FiHeart } from 'react-icons/fi';
 import { useState, useMemo, useEffect } from 'react';
 import { createClient as createServerSupabase } from '@/utils/supabase/server';
 import { createClient as createBrowserClient } from '@/utils/supabase/client';
@@ -132,6 +132,8 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   const [selectedDateForModal, setSelectedDateForModal] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
 
   useEffect(() => {
     // Lade Session beim Initialisieren
@@ -165,6 +167,38 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
       subscription.unsubscribe();
     };
   }, [supabase.auth]);
+
+  // Lade Favoriten-Status
+  useEffect(() => {
+    const loadFavoriteStatus = async () => {
+      if (!currentUserId) {
+        setFavoritesLoading(false);
+        setIsFavorite(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('favorites')
+          .select('id')
+          .eq('user_id', currentUserId)
+          .eq('restaurant_id', restaurant.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+          console.error('Fehler beim Laden des Favoriten-Status:', error);
+        }
+
+        setIsFavorite(!!data);
+      } catch (err) {
+        console.error('Fehler beim Laden des Favoriten-Status:', err);
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+
+    loadFavoriteStatus();
+  }, [currentUserId, restaurant.id]);
 
   const existingParticipation = useMemo(() => {
     console.log('Checking existing participation:', { currentUserId, quickReserveDate, quickReserveEventId });
@@ -204,6 +238,41 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
     console.log('Existing Participation Found:', found);
     return found;
   }, [currentUserId, quickReserveDate, quickReserveEventId, restaurant.events]);
+
+  const toggleFavorite = async () => {
+    if (!currentUserId) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        // Entferne aus Favoriten
+        const { error } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', currentUserId)
+          .eq('restaurant_id', restaurant.id);
+
+        if (error) throw error;
+        setIsFavorite(false);
+      } else {
+        // Füge zu Favoriten hinzu
+        const { error } = await supabase
+          .from('favorites')
+          .insert({
+            user_id: currentUserId,
+            restaurant_id: restaurant.id
+          });
+
+        if (error) throw error;
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error('Fehler beim Aktualisieren der Favoriten:', err);
+      alert('Fehler beim Aktualisieren der Favoriten. Bitte versuche es später erneut.');
+    }
+  };
 
   const handleCancelClick = async () => {
     if (!existingParticipation) return;
@@ -588,9 +657,27 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
           <div className="lg:col-span-2">
             <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-800">{restaurant.name}</h1>
-                  {restaurant.profile && <p className="text-sm text-gray-500 mt-1">Inhaber: {restaurant.profile.name}</p>}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-800">{restaurant.name}</h1>
+                    {restaurant.profile && <p className="text-sm text-gray-500 mt-1">Inhaber: {restaurant.profile.name}</p>}
+                  </div>
+                  {currentUserId && (
+                    <button
+                      onClick={toggleFavorite}
+                      disabled={favoritesLoading}
+                      className={`p-3 rounded-full flex items-center justify-center transition-colors ${
+                        isFavorite
+                          ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      }`}
+                      title={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                    >
+                      <FiHeart 
+                        className={`h-6 w-6 ${isFavorite ? 'fill-current' : ''}`} 
+                      />
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center mt-2 md:mt-0">
                   <FiStar className="text-yellow-500 mr-1" />
