@@ -110,7 +110,7 @@ export default function CustomerDashboard() {
               
               const { data: participants, error: participantsError } = await supabase
                 .from('participations')
-                .select('user_id, reservation_date')
+                .select('user_id, reservation_date, message')
                 .eq('event_id', table.id);
                 
               if (participantsError) {
@@ -122,13 +122,24 @@ export default function CustomerDashboard() {
               const userParticipation = participants?.find(p => p.user_id === user?.id);
               const userReservationDate = userParticipation?.reservation_date || null;
               
+              // Extrahiere Uhrzeit aus message (Format: "Reservierung bestätigt für 2026-01-28 17:00.")
+              let userReservationTime = null;
+              if (userParticipation?.message) {
+                const timeMatch = userParticipation.message.match(/(\d{2}:\d{2})/);
+                if (timeMatch) {
+                  userReservationTime = timeMatch[1];
+                }
+              }
+              
               console.log(`Dashboard: Participants for table ${table.id}:`, participants);
               console.log(`Dashboard: User reservation date:`, userReservationDate);
+              console.log(`Dashboard: User reservation time:`, userReservationTime);
               
               return { 
                 ...table, 
                 participants: participants || [],
-                userReservationDate
+                userReservationDate,
+                userReservationTime
               };
             }));
             
@@ -426,6 +437,9 @@ export default function CustomerDashboard() {
                                 ? formatDateTime(dateToUse) 
                                 : { date: 'Flexibel', start_time: 'nach Vereinbarung' };
                               
+                              // Verwende userReservationTime wenn vorhanden (aus message extrahiert)
+                              const displayTime = table.userReservationTime || start_time;
+                              
                               return (
                                 <li key={table.id}>
                                   <Link href={`/contact-tables/${table.id}`} className="block hover:bg-gray-50">
@@ -450,7 +464,7 @@ export default function CustomerDashboard() {
                                         <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                                           <FiClock className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
                                           <p>
-                                            {date} um {start_time}
+                                            {date} um {displayTime}
                                           </p>
                                         </div>
                                       </div>
@@ -576,7 +590,7 @@ export default function CustomerDashboard() {
                                         <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                                           <FiClock className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
                                           <p>
-                                            {date} um {start_time}
+                                            {date} um {displayTime}
                                           </p>
                                         </div>
                                       </div>

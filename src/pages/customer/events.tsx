@@ -44,7 +44,7 @@ export default function CustomerEvents() {
       console.log('Loading participations for user:', user.id);
       const { data: participations, error: participationsError } = await supabase
         .from('participations')
-        .select('event_id, reservation_date')
+        .select('event_id, reservation_date, message')
         .eq('user_id', user.id);
         
       console.log('Participations loaded:', participations);
@@ -91,14 +91,32 @@ export default function CustomerEvents() {
         return;
       }
       
-      // Füge reservation_date zu jedem Table hinzu
-      const tablesWithReservationDate = tables.map(table => {
+      // Füge reservation_date und time zu jedem Table hinzu
+      const tablesWithReservationDate = await Promise.all(tables.map(async table => {
         const participation = participations.find(p => p.event_id === table.id);
+        
+        // Extrahiere Uhrzeit aus message (Format: "Reservierung bestätigt für 2026-01-28 17:00.")
+        let reservationTime = null;
+        if (participation?.message) {
+          const timeMatch = participation.message.match(/(\d{2}:\d{2})/);
+          if (timeMatch) {
+            reservationTime = timeMatch[1];
+          }
+        }
+        
+        // Lade Teilnehmerzahl
+        const { data: allParticipants } = await supabase
+          .from('participations')
+          .select('user_id')
+          .eq('event_id', table.id);
+        
         return {
           ...table,
-          userReservationDate: participation?.reservation_date || null
+          userReservationDate: participation?.reservation_date || null,
+          userReservationTime: reservationTime,
+          participants_count: allParticipants?.length || 0
         };
-      });
+      }));
       
       setContactTables(tablesWithReservationDate);
       setLoading(false);
@@ -282,6 +300,9 @@ export default function CustomerEvents() {
                       ? formatDateTime(dateToUse) 
                       : { date: 'Flexibel', time: 'nach Vereinbarung' };
                     
+                    // Verwende userReservationTime wenn vorhanden (aus message extrahiert)
+                    const displayTime = table.userReservationTime || time;
+                    
                     return (
                       <motion.div
                         key={table.id}
@@ -316,7 +337,7 @@ export default function CustomerEvents() {
                           </div>
                           <div className="flex items-center text-sm text-gray-600 mb-3">
                             <FiClock className="mr-2 text-secondary-500 flex-shrink-0" />
-                            <span>{time} Uhr</span>
+                            <span>{displayTime} Uhr</span>
                           </div>
 
                           <div className="flex items-center text-sm text-gray-600 mb-4">
