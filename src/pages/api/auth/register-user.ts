@@ -94,6 +94,8 @@ export default async function handler(
     }
   }
 
+  console.log('Register-User API aufgerufen:', { method: req.method, bodyKeys: Object.keys(req.body || {}) });
+  
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });
@@ -101,9 +103,12 @@ export default async function handler(
 
   // Alle erwarteten Felder aus dem Request-Body destrukturieren
   // Unterstützt sowohl "name" als auch das ältere Feld "restaurantName"
+  // Unterstützt auch firstName/lastName für Kundenregistrierung
   const {
     name: rawName,
     restaurantName,
+    firstName,
+    lastName,
     email,
     password,
     role,
@@ -117,11 +122,12 @@ export default async function handler(
     openingHours
   } = req.body;
 
-  // Fallback-Mapping: wenn "name" fehlt, verwende "restaurantName"
-  const name = rawName || restaurantName;
+  // Fallback-Mapping: wenn "name" fehlt, verwende "restaurantName" oder kombiniere firstName/lastName
+  const name = rawName || restaurantName || (firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName);
 
   // Grundlegende Validierung für Kernfelder
   if (!name || !email || !password || !role) {
+    console.log('Validierung fehlgeschlagen:', { name: !!name, email: !!email, password: !!password, role: !!role, body: req.body });
     return res.status(400).json({ message: 'Name, E-Mail, Passwort und Rolle sind erforderlich.' });
   }
   
@@ -129,6 +135,7 @@ export default async function handler(
   // Weitere Angaben können später im Dashboard ergänzt werden.
 
   if (typeof password !== 'string' || password.length < 8) {
+    console.log('Passwort-Validierung fehlgeschlagen:', { type: typeof password, length: password?.length });
     return res.status(400).json({ message: 'Das Passwort muss mindestens 8 Zeichen lang sein.' });
   }
 
@@ -140,13 +147,16 @@ export default async function handler(
     }
     
     // Schritt 1: Benutzer in Supabase Auth erstellen
+    // WICHTIG: email_confirm: false damit Supabase automatisch die Bestätigungs-E-Mail sendet
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // E-Mail direkt bestätigen, da wir die Bestätigungs-E-Mail manuell senden
+      email_confirm: false, // Nicht bestätigt - Supabase sendet automatisch Bestätigungs-E-Mail
       user_metadata: {
         name: name,
         role: role,
+        first_name: firstName || null,
+        last_name: lastName || null,
       },
     });
 
@@ -154,7 +164,7 @@ export default async function handler(
       console.error('Supabase Auth-Fehler bei der Benutzererstellung:', authError);
       console.error('Fehler-Details:', JSON.stringify(authError, null, 2));
       
-      if (authError.message.includes('User already registered')) {
+      if (authError.message.includes('already been registered') || authError.message.includes('User already registered')) {
         return res.status(409).json({ message: 'Ein Benutzer mit dieser E-Mail-Adresse existiert bereits.' });
       }
       
@@ -182,39 +192,30 @@ export default async function handler(
       console.error('WARNUNG: NEXT_PUBLIC_SITE_URL ist nicht gesetzt!');
     }
     
-    try {
-      const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink', // Verwende magiclink statt signup, da der Benutzer bereits bestätigt ist
-        email,
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/confirm?next=/restaurant/dashboard`,
-        },
-      });
-
-      if (emailError) {
-        console.error('Fehler beim Senden der Bestätigungs-E-Mail:', emailError);
-        console.error('Fehler-Details:', JSON.stringify(emailError, null, 2));
-        // Wir brechen hier nicht ab, da der Benutzer bereits erstellt wurde
-      } else {
-        console.log('Bestätigungs-E-Mail erfolgreich gesendet');
-        if (linkData) {
-          console.log('E-Mail-Link generiert:', !!linkData);
-        }
-      }
-    } catch (emailSendError) {
-      console.error('Unerwarteter Fehler beim E-Mail-Versand:', emailSendError);
-      // Wir brechen hier nicht ab, da der Benutzer bereits erstellt wurde
-    }
+    // E-Mail wird automatisch von Supabase gesendet, da email_confirm: false
+    // Keine manuelle E-Mail-Versendung nötig
+    console.log('Bestätigungs-E-Mail wird automatisch von Supabase gesendet an:', email);
 
     // Transaktion, um sicherzustellen, dass Restaurant und Profil zusammen erstellt werden
+    // Hinweis: Der Supabase-Trigger "handle_new_user" erstellt bereits ein Basisprofil,
+    // daher verwenden wir upsert, um das Profil zu aktualisieren oder zu erstellen
     try {
       await prisma.$transaction(async (tx) => {
-        // Schritt 2: Ein Profil für jeden Benutzer erstellen
-        await tx.profile.create({
-          data: {
-            id: user.id, // Muss mit der Auth-Benutzer-ID übereinstimmen
+        // Schritt 2: Profil aktualisieren oder erstellen (Trigger erstellt Basisprofil)
+        await tx.profile.upsert({
+          where: { id: user.id },
+          update: {
             name: name,
-            role: role, // Die Rolle aus dem Request explizit setzen
+            firstName: firstName || null,
+            lastName: lastName || null,
+            role: role,
+          },
+          create: {
+            id: user.id,
+            name: name,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            role: role,
           }
         });
 

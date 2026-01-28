@@ -41,8 +41,14 @@ export default function RestaurantRegisterForm() {
       return;
     }
 
+    if (formData.password.length < 8) {
+      setStatus({ type: 'error', message: 'Das Passwort muss mindestens 8 Zeichen lang sein.' });
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/auth/register-user', {
+      const response = await fetch('/api/auth/register-user/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -59,9 +65,9 @@ export default function RestaurantRegisterForm() {
 
       if (!response.ok) {
         if (response.status === 409) {
-          throw new Error(result.details || 'Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.');
+          throw new Error(result.message || 'Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.');
         }
-        throw new Error(result.details || result.error || 'Ein Fehler bei der Registrierung ist aufgetreten.');
+        throw new Error(result.message || result.error || 'Ein Fehler bei der Registrierung ist aufgetreten.');
       }
 
       setStatus({

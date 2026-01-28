@@ -41,9 +41,15 @@ export default function RegisterPage() {
       return;
     }
 
+    if (password.length < 8) {
+      setError('Das Passwort muss mindestens 8 Zeichen lang sein.');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Schritt 1: Einheitliche API für die Benutzer-Registrierung aufrufen
-      const response = await fetch('/api/auth/register-user', {
+      const response = await fetch('/api/auth/register-user/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,10 +67,10 @@ export default function RegisterPage() {
         
         // Spezifische Fehlermeldung für bereits existierende Benutzer
         if (response.status === 409) {
-          throw new Error(errorData.details || 'Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.');
+          throw new Error(errorData.message || 'Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.');
         }
         
-        throw new Error(errorData.details || errorData.error || 'Fehler bei der Registrierung.');
+        throw new Error(errorData.message || errorData.error || 'Fehler bei der Registrierung.');
       }
       
       // Nach erfolgreicher Registrierung eine Erfolgsmeldung anzeigen
@@ -208,7 +214,8 @@ export default function RegisterPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="appearance-none relative block w-full border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
-                      placeholder="Passwort (mindestens 6 Zeichen)"
+                      placeholder="Passwort (mindestens 8 Zeichen)"
+                      minLength={8}
                     />
                   </div>
                 </div>
