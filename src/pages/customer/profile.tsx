@@ -193,25 +193,24 @@ export default function CustomerProfile() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col"> {/* Removed pt-20 for consistent header position */}
+    <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="profile" />
-        <main className="flex-grow bg-gray-50 p-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="bg-white shadow-lg rounded-lg p-6 md:p-8">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                  <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                    <h1 className="text-2xl font-bold text-gray-900">Mein Profil</h1>
-                    <p className="mt-1 text-sm text-gray-500">Bearbeiten Sie Ihre persönlichen Informationen</p>
-                  </div>
-                  
-                  <form onSubmit={handleSubmit} className="px-4 py-5 sm:p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
+          <div className="max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white shadow-lg rounded-lg"
+            >
+              <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900">Mein Profil</h1>
+                <p className="mt-1 text-sm text-gray-500">Bearbeiten Sie Ihre persönlichen Informationen</p>
+              </div>
+              
+              <form onSubmit={handleSubmit} className="p-4 sm:p-6">
                     {success && (
                       <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
                         <p className="text-green-700">Profil erfolgreich aktualisiert!</p>
@@ -328,31 +327,29 @@ export default function CustomerProfile() {
                       </div>
                     </div>
                     
-                    <div className="mt-8 pt-5 border-t border-gray-200">
-                      <div className="flex justify-end">
-                        <button
-                          type="submit"
-                          disabled={saving}
-                          className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                        >
-                          {saving ? (
-                            <>
-                              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Speichern...
-                            </>
-                          ) : (
-                            'Änderungen speichern'
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </form>
+                <div className="mt-8 pt-5 border-t border-gray-200">
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="w-full sm:w-auto inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Speichern...
+                        </>
+                      ) : (
+                        'Änderungen speichern'
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </motion.div>
-            </div>
+              </form>
+            </motion.div>
           </div>
         </main>
       </div>

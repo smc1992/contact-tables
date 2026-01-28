@@ -119,7 +119,7 @@ export default function ReservationCalendar({ selectedDate, onSelect, availabili
               const isDisabled = !inMonth || isPast(d) || (isDateDisabled ? isDateDisabled(d) : false);
               const isSelected = selectedDate ? toYMD(new Date(selectedDate)) === ymd : false;
 
-              const base = 'rounded-md p-2 text-sm relative flex flex-col items-center justify-center min-h-[60px]';
+              const base = 'rounded-md p-2 text-sm relative flex items-center justify-center min-h-[60px] md:min-h-[70px]';
               const color = isSelected
                 ? 'bg-primary-600 text-white'
                 : hasSlots
@@ -136,23 +136,21 @@ export default function ReservationCalendar({ selectedDate, onSelect, availabili
                   onClick={() => onSelect(ymd)}
                   className={`${base} ${color} ${disabled}`}
                 >
-                  {d.getDate()}
+                  <span className="text-base">{d.getDate()}</span>
+                  {/* Desktop: Zeige Zahlen */}
                   {hasSlots && !isSelected && (
-                    <div className="flex flex-col items-center">
-                      <span className="block text-[10px] mt-1">{availabilityByDate[ymd]} verfügbar</span>
+                    <>
+                      <span className="hidden md:block absolute top-1 right-1 text-[10px] font-semibold bg-white/80 px-1 rounded">
+                        {availabilityByDate[ymd]}
+                      </span>
                       {(participantsByDate[ymd] || []).length > 0 && (
-                        <div className="flex flex-col items-center">
-                          <span className="block text-[10px] font-bold text-green-700">{(participantsByDate[ymd] || []).length} dabei</span>
-                          <div className="flex flex-wrap justify-center gap-0.5 max-w-[40px]">
-                            {(participantsByDate[ymd] || []).slice(0, 3).map((p, ti) => (
-                               <span key={ti} className="text-[8px] text-green-800 leading-none" title={p.name}>{p.time}</span>
-                            ))}
-                            {(participantsByDate[ymd] || []).length > 3 && <span className="text-[8px] text-green-800 leading-none">...</span>}
-                          </div>
-                        </div>
+                        <span className="hidden md:block absolute bottom-1 left-1 text-[9px] font-bold text-green-700 bg-white/80 px-1 rounded">
+                          {(participantsByDate[ymd] || []).length}
+                        </span>
                       )}
-                    </div>
+                    </>
                   )}
+                  {/* Mobile: Nur farbliche Markierung, keine Zahlen */}
                 </button>
               );
             })}

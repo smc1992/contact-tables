@@ -83,7 +83,15 @@ export function clearClientAuthCache() {
   }
 }
 
+// Singleton-Instanz des Supabase-Clients
+let clientInstance: SupabaseClient<Database> | null = null;
+
 export function createClient(): SupabaseClient<Database> {
+  // Wenn bereits eine Instanz existiert, gib diese zurück
+  if (clientInstance) {
+    return clientInstance;
+  }
+  
   console.log('Client createClient: Erstelle Browser-Client');
   
   // Debugging: Prüfe, ob die Umgebungsvariablen verfügbar sind
@@ -242,10 +250,13 @@ export function createClient(): SupabaseClient<Database> {
     }
   );
   
-  // Registriere den Auth-State-Change-Handler separat
-  client.auth.onAuthStateChange(debounce((event, session) => {
-    console.log(`[Debounced] Auth state changed: ${event}`, { hasSession: !!session });
-  }, 1000));
+  // Registriere den Auth-State-Change-Handler nur einmal (Singleton)
+  // Verhindert mehrfache Listener-Registrierungen
+  if (!clientInstance) {
+    client.auth.onAuthStateChange(debounce((event, session) => {
+      console.log(`[Debounced] Auth state changed: ${event}`, { hasSession: !!session });
+    }, 1000));
+  }
   
   // Überschreibe die getSession-Methode mit verbessertem Caching und Anfrage-Koaleszenz
   const originalGetSession = client.auth.getSession.bind(client.auth);
@@ -339,6 +350,9 @@ export function createClient(): SupabaseClient<Database> {
   }).catch(error => {
     console.error('Client createClient: Fehler beim Abrufen der Session:', error);
   });
+  
+  // Speichere die Instanz als Singleton
+  clientInstance = client;
   
   return client;
 }

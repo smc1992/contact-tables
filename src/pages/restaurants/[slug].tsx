@@ -128,13 +128,42 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
   const lon = restaurant.longitude != null ? Number(restaurant.longitude) : null;
   const [showCallModal, setShowCallModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showDateDetailsModal, setShowDateDetailsModal] = useState(false);
+  const [selectedDateForModal, setSelectedDateForModal] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      console.log('Current User:', data.user?.id);
-      setCurrentUserId(data.user?.id || null);
+    // Lade Session beim Initialisieren
+    const initSession = async () => {
+      try {
+        const { data: sessionData, error } = await supabase.auth.getSession();
+        console.log('Session beim Laden:', { hasSession: !!sessionData.session, error });
+        
+        if (sessionData.session) {
+          setCurrentUserId(sessionData.session.user.id);
+        } else {
+          setCurrentUserId(null);
+        }
+        setIsSessionLoaded(true);
+      } catch (error) {
+        console.error('Fehler beim Laden der Session:', error);
+        setIsSessionLoaded(true);
+      }
+    };
+    
+    initSession();
+    
+    // Lausche auf Auth-State-Änderungen
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth State Changed:', _event, { hasSession: !!session });
+      setCurrentUserId(session?.user?.id || null);
+      setIsSessionLoaded(true);
     });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [supabase.auth]);
 
   const existingParticipation = useMemo(() => {
@@ -250,26 +279,55 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
       setIsConfirming(true);
       setError(null);
       setSuccess(null);
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      const userId = authData?.user?.id;
-      if (!userId) {
+      
+      // Verwende die bereits geladene currentUserId
+      if (!currentUserId) {
+        console.log('Keine User-ID vorhanden, öffne Login-Modal');
         setError('Bitte melde dich an, um zu bestätigen.');
+        setShowLoginModal(true);
         setIsConfirming(false);
         return;
       }
+      
+      console.log('Erstelle Teilnahme für User:', currentUserId);
+      
+      // Hole den Access-Token aus der Session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setError('Keine gültige Session. Bitte melde dich erneut an.');
+        setShowLoginModal(true);
+        setIsConfirming(false);
+        return;
+      }
+      
       const message = `Reservierung bestätigt für ${dateToUse} ${timeToUse}.` + (reservationFeedback ? ` Feedback: ${reservationFeedback}` : '');
-      const { error: insertError } = await supabase
-        .from('participations')
-        .insert({ 
-          id: uuidv4(), 
-          event_id: eventId, 
-          user_id: userId, 
+      
+      // Sende Access-Token direkt im Authorization-Header
+      const response = await fetch('/api/participations/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          event_id: eventId,
           message,
           reservation_date: dateToUse,
-          updated_at: new Date().toISOString()
-        } as any);
-      if (insertError) throw insertError;
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.error('401 Unauthorized - Debug Info:', data.debug);
+          setError(`Auth-Fehler: ${data.debug?.authError || 'Keine Session'}. Cookies: ${data.debug?.cookieCount || 0}`);
+          setShowLoginModal(true);
+          setIsConfirming(false);
+          return;
+        }
+        throw new Error(data.error || 'Fehler beim Erstellen der Teilnahme');
+      }
       setSuccess('Reservierung bestätigt und Teilnahme erfasst.');
       setReserveOpenEventId(null);
       setReservationDate('');
@@ -601,7 +659,15 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
                     selectedDate={quickReserveDate || null} 
                     availabilityByDate={availabilityByDate} 
                     participantsByDate={participantsByDate}
-                    onSelect={(ymd) => { setQuickReserveDate(ymd); setQuickReserveEventId(null); }} 
+                    onSelect={(ymd) => { 
+                      setQuickReserveDate(ymd); 
+                      setQuickReserveEventId(null);
+                      // Mobile: Zeige Modal mit Details
+                      if (window.innerWidth < 768) {
+                        setSelectedDateForModal(ymd);
+                        setShowDateDetailsModal(true);
+                      }
+                    }} 
                     isDateDisabled={(d) => openingHours ? !isRestaurantOpen(d, openingHours) : false}
                   />
                   {quickReserveDate && participantsByDate[quickReserveDate] && participantsByDate[quickReserveDate].length > 0 && (
@@ -694,6 +760,77 @@ const RestaurantDetailPage: React.FC<RestaurantDetailProps> = ({ restaurant }) =
               {error && <p className="mt-2 text-red-600">{error}</p>}
               {success && <p className="mt-2 text-green-600">{success}</p>}
             </div>
+
+            {/* Modal for Date Details (Mobile) */}
+            {showDateDetailsModal && selectedDateForModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {new Date(selectedDateForModal).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </h3>
+                    <button onClick={() => setShowDateDetailsModal(false)} className="text-gray-500 hover:text-gray-700">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* Verfügbare Plätze */}
+                    <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Verfügbare Plätze:</span>
+                        <span className="text-2xl font-bold text-primary-700">{availabilityByDate[selectedDateForModal] || 0}</span>
+                      </div>
+                    </div>
+
+                    {/* Teilnehmer */}
+                    {participantsByDate[selectedDateForModal] && participantsByDate[selectedDateForModal].length > 0 && (
+                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h4 className="font-semibold text-sm mb-3 text-gray-700">Bereits dabei:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(
+                            participantsByDate[selectedDateForModal].reduce((acc, p) => {
+                              const time = p.time;
+                              acc[time] = (acc[time] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>)
+                          ).sort().map(([time, count]) => (
+                            <span key={time} className="px-3 py-2 bg-white border border-green-300 rounded-lg text-sm text-gray-700 shadow-sm">
+                              <span className="font-bold text-green-700">{time} Uhr</span>
+                              <span className="mx-1">·</span>
+                              <span>{count} {count === 1 ? 'Person' : 'Personen'}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Öffnungszeiten */}
+                    {openingHours && (
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h4 className="font-semibold text-sm mb-2 text-gray-700">Öffnungszeiten:</h4>
+                        <div className="space-y-1">
+                          {getOpeningTimes(new Date(selectedDateForModal), openingHours).map((slot, i) => (
+                            <div key={i} className="text-sm text-gray-600">
+                              {slot.start} - {slot.end} Uhr
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setShowDateDetailsModal(false)}
+                    className="mt-6 w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors"
+                  >
+                    Datum auswählen
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Modal for Call Confirmation */}
             {showCallModal && (
