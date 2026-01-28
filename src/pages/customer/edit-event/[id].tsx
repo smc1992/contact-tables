@@ -89,9 +89,16 @@ export default function EditEvent() {
         setIsOwner(event.created_by === user.id);
         
         // Datum und Uhrzeit trennen
-        const eventDate = new Date(event.date);
-        const dateString = eventDate.toISOString().split('T')[0];
-        const timeString = eventDate.toTimeString().substring(0, 5);
+        let dateString = '';
+        let timeString = '';
+        
+        if (event.datetime) {
+          const eventDate = new Date(event.datetime);
+          if (!isNaN(eventDate.getTime())) {
+            dateString = eventDate.toISOString().split('T')[0];
+            timeString = eventDate.toTimeString().substring(0, 5);
+          }
+        }
         
         // Formular mit Event-Daten füllen
         setFormData({
@@ -160,7 +167,7 @@ export default function EditEvent() {
         .update({
           title: formData.title,
           description: formData.description,
-          date: eventDateTime.toISOString(),
+          datetime: eventDateTime.toISOString(),
           restaurant_id: formData.restaurant_id,
           max_participants: formData.max_participants,
           is_private: formData.is_private,
