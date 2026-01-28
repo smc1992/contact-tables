@@ -110,16 +110,26 @@ export default function CustomerDashboard() {
               
               const { data: participants, error: participantsError } = await supabase
                 .from('participations')
-                .select('user_id')
+                .select('user_id, reservation_date')
                 .eq('event_id', table.id);
                 
               if (participantsError) {
                 console.error(`Fehler beim Laden der Teilnehmer für Tisch ${table.id}:`, participantsError);
-                return { ...table, participants: [] };
+                return { ...table, participants: [], userReservationDate: null };
               }
               
+              // Finde die Reservierung des aktuellen Benutzers
+              const userParticipation = participants?.find(p => p.user_id === user?.id);
+              const userReservationDate = userParticipation?.reservation_date || null;
+              
               console.log(`Dashboard: Participants for table ${table.id}:`, participants);
-              return { ...table, participants: participants || [] };
+              console.log(`Dashboard: User reservation date:`, userReservationDate);
+              
+              return { 
+                ...table, 
+                participants: participants || [],
+                userReservationDate
+              };
             }));
             
             console.log('Dashboard: Final tables with participants:', tablesWithParticipants);
@@ -410,7 +420,12 @@ export default function CustomerDashboard() {
                         <div className="bg-white shadow overflow-hidden sm:rounded-md">
                           <ul className="divide-y divide-gray-200">
                             {upcomingTables.map((table) => {
-                              const { date, start_time } = formatDateTime(table.datetime || new Date().toISOString());
+                              // Verwende userReservationDate für flexible Events, sonst datetime
+                              const dateToUse = table.userReservationDate || table.datetime;
+                              const { date, start_time } = dateToUse 
+                                ? formatDateTime(dateToUse) 
+                                : { date: 'Flexibel', start_time: 'nach Vereinbarung' };
+                              
                               return (
                                 <li key={table.id}>
                                   <Link href={`/contact-tables/${table.id}`} className="block hover:bg-gray-50">

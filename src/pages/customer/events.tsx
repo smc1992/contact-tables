@@ -44,7 +44,7 @@ export default function CustomerEvents() {
       console.log('Loading participations for user:', user.id);
       const { data: participations, error: participationsError } = await supabase
         .from('participations')
-        .select('event_id')
+        .select('event_id, reservation_date')
         .eq('user_id', user.id);
         
       console.log('Participations loaded:', participations);
@@ -91,8 +91,16 @@ export default function CustomerEvents() {
         return;
       }
       
-      // Setze die Kontakttische ohne auf Teilnehmerzahlen zu warten
-      setContactTables(tables);
+      // Füge reservation_date zu jedem Table hinzu
+      const tablesWithReservationDate = tables.map(table => {
+        const participation = participations.find(p => p.event_id === table.id);
+        return {
+          ...table,
+          userReservationDate: participation?.reservation_date || null
+        };
+      });
+      
+      setContactTables(tablesWithReservationDate);
       setLoading(false);
     } catch (error) {
       console.error('Fehler beim Laden der Kontakttische:', error);
@@ -268,7 +276,12 @@ export default function CustomerEvents() {
               {contactTables.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {contactTables.map((table) => {
-                    const { date, time } = formatDateTime(table.datetime || '');
+                    // Verwende userReservationDate für flexible Events, sonst datetime
+                    const dateToUse = table.userReservationDate || table.datetime;
+                    const { date, time } = dateToUse 
+                      ? formatDateTime(dateToUse) 
+                      : { date: 'Flexibel', time: 'nach Vereinbarung' };
+                    
                     return (
                       <motion.div
                         key={table.id}
