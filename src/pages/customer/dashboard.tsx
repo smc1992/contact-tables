@@ -290,9 +290,9 @@ export default function CustomerDashboard() {
     return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="dashboard" />
-        <main className="flex-grow bg-gray-50 p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
@@ -317,9 +317,9 @@ export default function CustomerDashboard() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="dashboard" />
-        <main className="flex-grow bg-gray-50 p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -332,23 +332,24 @@ export default function CustomerDashboard() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Mein Dashboard</h1>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Mein Dashboard</h1>
                     <Link href="/contact-tables">
                       <button
                         type="button"
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         <FiStar className="mr-2" />
-                        Neue Kontakttische entdecken
+                        <span className="hidden sm:inline">Neue Kontakttische entdecken</span>
+                        <span className="sm:hidden">Entdecken</span>
                       </button>
                     </Link>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 gap-4 md:gap-6">
                     {/* Statistik-Karten */}
                     <div className="bg-white overflow-hidden shadow rounded-lg">
-                      <div className="px-4 py-5 sm:p-6">
+                      <div className="px-4 py-4 sm:p-6">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 bg-indigo-500 rounded-md p-3">
                             <FiCalendar className="h-6 w-6 text-white" />
@@ -367,8 +368,8 @@ export default function CustomerDashboard() {
                   </div>
 
                   {/* Anstehende Kontakttische */}
-                  <div className="mt-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Anstehende Kontakttische</h2>
+                  <div className="mt-6 md:mt-8">
+                    <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Anstehende Kontakttische</h2>
                     
                     {contactTablesLoading ? (
                       <div className="bg-white shadow overflow-hidden sm:rounded-md p-6">
@@ -493,8 +494,8 @@ export default function CustomerDashboard() {
                   </div>
                   
                   {/* Favorisierte Kontakttische */}
-                  <div className="mt-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Favorisierte Kontakttische</h2>
+                  <div className="mt-6 md:mt-8">
+                    <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Favorisierte Kontakttische</h2>
                     
                     {contactTablesLoading ? (
                       <div className="bg-white shadow overflow-hidden sm:rounded-md p-6">
@@ -619,11 +620,11 @@ export default function CustomerDashboard() {
                   </div>
 
                   {/* Button zum Anzeigen aller Kontakttische */}
-                  <div className="mt-8 flex justify-center">
-                    <Link href="/contact-tables">
+                  <div className="mt-6 md:mt-8 flex justify-center">
+                    <Link href="/contact-tables" className="w-full sm:w-auto">
                       <button
                         type="button"
-                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         Alle Kontakttische anzeigen
                       </button>
