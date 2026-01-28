@@ -101,9 +101,12 @@ export default function CustomerEvents() {
     }
   };
 
-  // Kontakttisch aus Teilnahmen entfernen
+  // Reservierung stornieren
   const leaveContactTable = async (id: string) => {
-    if (confirm('Möchten Sie wirklich nicht mehr an diesem Kontakttisch teilnehmen?')) {
+    const table = contactTables.find(t => t.id === id);
+    const tableName = table?.title || 'diesem Event';
+    
+    if (confirm(`Möchten Sie Ihre Reservierung für "${tableName}" wirklich stornieren?\n\nHinweis: Bei Änderungen der Uhrzeit kontaktieren Sie bitte direkt das Restaurant.`)) {
       try {
         if (!user || !user.id) {
           throw new Error('Benutzer nicht gefunden');
@@ -119,8 +122,9 @@ export default function CustomerEvents() {
         
         // Aktualisiere die Liste
         setContactTables(contactTables.filter(table => table.id !== id));
+        alert('Ihre Reservierung wurde erfolgreich storniert.');
       } catch (error) {
-        console.error('Fehler beim Verlassen des Kontakttisches:', error);
+        console.error('Fehler beim Stornieren der Reservierung:', error);
         alert('Es ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.');
       }
     }
@@ -322,20 +326,27 @@ export default function CustomerEvents() {
                             </div>
                           )}
 
-                          <div className="mt-auto border-t pt-4 flex justify-end space-x-3">
-                            <button
-                              onClick={() => router.push(`/customer/edit-event/${table.id}`)}
-                              className="text-primary-600 hover:text-primary-800 transition-colors duration-150 text-sm font-medium flex items-center"
-                              title="Event bearbeiten"
-                            >
-                              <FiEdit2 className="mr-1.5 h-4 w-4" /> Bearbeiten
-                            </button>
+                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                            <p className="text-xs text-blue-700">
+                              💡 Für Änderungen der Uhrzeit kontaktieren Sie bitte direkt das Restaurant.
+                            </p>
+                          </div>
+
+                          <div className="mt-auto border-t pt-4 flex justify-between items-center">
+                            <Link href={`/contact-tables/${table.id}`}>
+                              <button
+                                className="text-primary-600 hover:text-primary-800 transition-colors duration-150 text-sm font-medium flex items-center"
+                                title="Details ansehen"
+                              >
+                                <FiInfo className="mr-1.5 h-4 w-4" /> Details
+                              </button>
+                            </Link>
                             <button
                               onClick={() => leaveContactTable(table.id)}
                               className="text-red-500 hover:text-red-700 transition-colors duration-150 text-sm font-medium flex items-center"
-                              title="Event verlassen"
+                              title="Reservierung stornieren"
                             >
-                              <FiTrash2 className="mr-1.5 h-4 w-4" /> Verlassen
+                              <FiTrash2 className="mr-1.5 h-4 w-4" /> Stornieren
                             </button>
                           </div>
                         </div>
