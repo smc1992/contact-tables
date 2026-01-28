@@ -190,9 +190,9 @@ export default function CustomerSettings() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="settings" />
-        <main className="flex-grow bg-gray-50 p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -201,11 +201,11 @@ export default function CustomerSettings() {
             >
               <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                 <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                  <h1 className="text-2xl font-bold text-gray-900">Einstellungen</h1>
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-900">Einstellungen</h1>
                   <p className="mt-1 text-sm text-gray-500">Passen Sie Ihre Benachrichtigungs- und Datenschutzeinstellungen an</p>
                 </div>
                 
-                <form onSubmit={handleSubmit} className="px-4 py-5 sm:p-6">
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6">
                   {success && (
                     <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
                       <p className="text-green-700">Einstellungen erfolgreich gespeichert!</p>
@@ -385,7 +385,7 @@ export default function CustomerSettings() {
                             }
                           }
                         }}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                         disabled={isDeleting}
                       >
                         <FiTrash2 className="mr-2 h-5 w-5" />
@@ -400,7 +400,7 @@ export default function CustomerSettings() {
                       <button
                         type="submit"
                         disabled={saving}
-                        className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                        className="w-full sm:w-auto ml-0 sm:ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                       >
                         {saving ? (
                           <>

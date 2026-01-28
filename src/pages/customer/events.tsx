@@ -216,19 +216,19 @@ export default function CustomerEvents() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="events" />
-        <main className="flex-grow bg-gray-50 p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="mb-6 flex justify-between items-center">
-                <h1 className="text-3xl font-semibold text-gray-800">Meine Events</h1>
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h1 className="text-2xl md:text-3xl font-semibold text-gray-800">Meine Events</h1>
                 <Link href="/customer/create-event" legacyBehavior>
-                  <a className="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg flex items-center transition duration-150">
+                  <a className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center transition duration-150">
                     <FiPlus className="mr-2" /> Event erstellen
                   </a>
                 </Link>

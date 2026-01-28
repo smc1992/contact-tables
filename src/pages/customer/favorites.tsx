@@ -195,17 +195,17 @@ export default function CustomerFavorites() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="favorites" />
-        <main className="flex-grow bg-gray-50 p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-gray-900 mb-6">Meine Favoriten</h1>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Meine Favoriten</h1>
               </div>
               
               {error && (

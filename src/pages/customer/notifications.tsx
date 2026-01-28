@@ -217,20 +217,20 @@ export default function CustomerNotifications() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex-grow flex">
+      <div className="flex-grow flex flex-col md:flex-row">
         <CustomerSidebar activePage="notifications" />
-        <main className="flex-grow bg-gray-50 p-6">
+        <main className="flex-grow bg-gray-50 p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
             {/* Container for the actual page content - white background, shadow */}
             <div className="bg-white shadow-lg rounded-lg p-6 md:p-8">
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                <div className="flex items-center justify-between mb-6">
-                  <h1 className="text-3xl font-bold text-gray-900">Benachrichtigungen</h1>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Benachrichtigungen</h1>
                   
                   {notifications.length > 0 && (
                     <button
                       type="button"
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       onClick={markAllAsRead}
                     >
                       <FiCheck className="mr-2" />

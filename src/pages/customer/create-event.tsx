@@ -296,9 +296,9 @@ function CreateEvent() {
         <title>Event erstellen | Contact Tables</title>
       </Head>
       
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8 flex items-center">
+          <div className="mb-4 sm:mb-8 flex items-center">
             <Link href="/customer/events" className="flex items-center text-indigo-600 hover:text-indigo-900">
               <FaArrowLeft className="mr-2" />
               Zurück zur Übersicht
@@ -307,7 +307,7 @@ function CreateEvent() {
           
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Neues Event erstellen
               </h1>
               <p className="mt-1 text-sm text-gray-500">
