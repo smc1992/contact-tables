@@ -102,8 +102,12 @@ export default function CustomerDashboard() {
           if (tablesError) {
             console.error('Fehler beim Laden der Kontakttische:', tablesError);
           } else {
+            console.log('Dashboard: Loaded tables:', tables);
+            
             // Für jeden Kontakttisch die Teilnehmer laden
             const tablesWithParticipants = await Promise.all((tables || []).map(async (table) => {
+              console.log(`Dashboard: Loading participants for table ${table.id}, datetime:`, table.datetime);
+              
               const { data: participants, error: participantsError } = await supabase
                 .from('participations')
                 .select('user_id')
@@ -114,9 +118,11 @@ export default function CustomerDashboard() {
                 return { ...table, participants: [] };
               }
               
+              console.log(`Dashboard: Participants for table ${table.id}:`, participants);
               return { ...table, participants: participants || [] };
             }));
             
+            console.log('Dashboard: Final tables with participants:', tablesWithParticipants);
             setUpcomingTables(tablesWithParticipants);
           }
         } else {
@@ -307,7 +313,22 @@ export default function CustomerDashboard() {
 
   // Formatierungsfunktion für Datum und Uhrzeit
   const formatDateTime = (dateString: string) => {
+    if (!dateString) {
+      return {
+        date: 'Invalid Date',
+        start_time: 'Invalid Date'
+      };
+    }
+    
     const date = new Date(dateString);
+    
+    if (isNaN(date.getTime())) {
+      return {
+        date: 'Invalid Date',
+        start_time: 'Invalid Date'
+      };
+    }
+    
     return {
       date: date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       start_time: date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
