@@ -147,16 +147,18 @@ export default async function handler(
     }
     
     // Schritt 1: Benutzer in Supabase Auth erstellen
-    // WICHTIG: email_confirm: false damit Supabase automatisch die Bestätigungs-E-Mail sendet
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Verwende signUp statt admin.createUser, damit automatisch E-Mails gesendet werden
+    const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
       email,
       password,
-      email_confirm: false, // Nicht bestätigt - Supabase sendet automatisch Bestätigungs-E-Mail
-      user_metadata: {
-        name: name,
-        role: role,
-        first_name: firstName || null,
-        last_name: lastName || null,
+      options: {
+        data: {
+          name: name,
+          role: role,
+          first_name: firstName || null,
+          last_name: lastName || null,
+        },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
       },
     });
 
