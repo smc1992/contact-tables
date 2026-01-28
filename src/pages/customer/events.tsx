@@ -260,13 +260,9 @@ export default function CustomerEvents() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h1 className="text-2xl md:text-3xl font-semibold text-gray-800">Meine Events</h1>
-                <Link href="/customer/create-event" legacyBehavior>
-                  <a className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center transition duration-150">
-                    <FiPlus className="mr-2" /> Event erstellen
-                  </a>
-                </Link>
+              <div className="mb-6">
+                <h1 className="text-2xl md:text-3xl font-semibold text-gray-800">Meine Reservierungen</h1>
+                <p className="mt-2 text-sm text-gray-600">Hier siehst du alle deine reservierten Kontakttische.</p>
               </div>
 
               {error && (
